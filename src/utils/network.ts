@@ -68,17 +68,16 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
 export const findFirstSuccessfulUrl = async (urls: string[]): Promise<string> => {
     const abortController = new AbortController();
     const { signal } = abortController;
-    const result = await Promise.any(
-        urls.map((url) =>
-            fetch(url, { signal }) // Attach signal to fetch
-                .then((response) => {
-                    if (response.ok) {
-                        abortController.abort(); // Cancel remaining fetches
-                        return url;
-                    }
-                    throw new Error(`Failed: ${url}`);
-                }),
-        ),
-    );
-    return result;
+    const promises = urls.map((url) => {
+        return fetch(url, { signal }) // Attach signal to fetch
+            .then((response) => {
+                if (response.ok) {
+                    abortController.abort(); // Cancel remaining fetches
+                    return url;
+                }
+                throw new Error(`Failed: ${url}`);
+            });
+    });
+
+    return Promise.any(promises);
 };

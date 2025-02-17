@@ -11,7 +11,8 @@
     "scripts": {
         "start": "bun run src/index.ts",
         "build": "NODE_ENV=production bun build src/index.ts --outdir dist --target node --packages=external",
-        "compile": "NODE_ENV=production bun build src/index.ts --target node --compile --outfile dist/ilmtest-cli"
+        "compile": "NODE_ENV=production bun build src/index.ts --target node --compile --outfile dist/ilmtest-cli",
+        "test": "bun test"
     },
     "files": [
         "dist/index.js"
@@ -25,6 +26,7 @@
     "dependencies": {
         "@distube/ytdl-core": "^4.16.4",
         "@inquirer/prompts": "^7.3.2",
+        "baheth-sdk": "^1.2.1",
         "cli-progress": "^3.12.0",
         "cli-welcome": "^3.0.1",
         "conf": "^13.1.0",
@@ -46,6 +48,6 @@
         "eslint-plugin-prettier": "^5.2.3",
         "prettier": "^3.5.1",
         "semantic-release": "^24.2.3",
-        "typescript-eslint": "^8.24.0"
+        "typescript-eslint": "^8.24.1"
     }
 }
