@@ -1,4 +1,3 @@
-import { fetch } from 'bun';
 import { Presets, SingleBar } from 'cli-progress';
 import fs from 'node:fs';
 
