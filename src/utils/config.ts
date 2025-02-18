@@ -7,20 +7,19 @@ import logger from './logger.js';
 
 const configData: Config = {} as Config;
 
+const mapKeyToPrompt = (key: string) => {
+    return {
+        key,
+        message: `Enter ${key}:`,
+        required: true,
+        transformer: (input: string) => input.trim(),
+        validate: (input: string) => (input ? true : `${key} is required.`),
+    };
+};
+
 export const loadConfiguration = async (projectName: string, keys: string[]): Promise<void> => {
     const config = new Conf({ projectName });
-
-    const prompts = keys
-        .filter((key) => !config.has(key))
-        .map((key) => {
-            return {
-                key,
-                message: `Enter ${key}:`,
-                required: true,
-                transformer: (input: string) => input.trim(),
-                validate: (input: string) => (input ? true : `${key} is required.`),
-            };
-        });
+    const prompts = keys.filter((key) => !config.has(key)).map(mapKeyToPrompt);
 
     for (const { key, ...prompt } of prompts) {
         const answer = await input(prompt);
@@ -33,7 +32,7 @@ export const loadConfiguration = async (projectName: string, keys: string[]): Pr
 
     initTafrigh({ apiKeys: configData.tafrighApiKeys.split(' ') });
 
-    logger.info(configData);
+    logger.info({ config, ...configData });
 };
 
 export default configData;

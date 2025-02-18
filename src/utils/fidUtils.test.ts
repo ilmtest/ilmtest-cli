@@ -1,34 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import path from 'node:path';
 
-import { getMediasNotDownloaded, getRemainingMedia, getUnprocessedVolumes, mapFidToOutputFile } from './fidUtils';
+import { getMediasAlreadyDownloaded, getMissingMedias, getUnprocessedVolumes, mapFidToOutputFile } from './fidUtils';
 
 describe('fidUtils', () => {
-    describe('getRemainingMedia', () => {
-        it('should filter out the ones that already were transcribed and saved', () => {
-            const actual = getRemainingMedia(
-                [
-                    { id: '1', volume: 1 },
-                    { id: '2', volume: 2 },
-                ],
-                [{ id: '1', volume: 1 }],
-                [],
-            );
-
-            expect(actual).toEqual([{ id: '2', volume: 2 }]);
-        });
-
-        it('should work if nothing was transcribed', () => {
-            const actual = getRemainingMedia([{ id: '1', volume: 1 }], [], []);
-            expect(actual).toEqual([{ id: '1', volume: 1 }]);
-        });
-
-        it('should return empty array if everything was already transcribed', () => {
-            const actual = getRemainingMedia([{ id: '1', volume: 1 }], [{ id: '1', volume: 1 }], []);
-            expect(actual).toBeEmpty();
-        });
-    });
-
     describe('getUnprocessedVolumes', () => {
         it('should return all fids that were not already saved', () => {
             const actual = getUnprocessedVolumes(
@@ -65,20 +40,37 @@ describe('fidUtils', () => {
         });
     });
 
-    describe('getMediasNotDownloaded', () => {
+    describe('getMissingMedias', () => {
         it('should filter out the media that was already downloaded', () => {
-            const actual = getMediasNotDownloaded([{ id: '1', volume: 1 }], ['1.mp4']);
+            const actual = getMissingMedias([{ id: '1', volume: 1 }], ['1.mp4']);
             expect(actual).toBeEmpty();
         });
 
         it('should filter out the wav files that was already pre-processed', () => {
-            const actual = getMediasNotDownloaded([{ id: '1', volume: 1 }], ['1.wav']);
+            const actual = getMissingMedias([{ id: '1', volume: 1 }], ['1.wav']);
             expect(actual).toBeEmpty();
         });
 
         it('should return the values if nothing was pre-processed or downloaded', () => {
-            const actual = getMediasNotDownloaded([{ id: '1', volume: 1 }], ['2.json']);
+            const actual = getMissingMedias([{ id: '1', volume: 1 }], ['2.json']);
             expect(actual).toEqual([{ id: '1', volume: 1 }]);
+        });
+    });
+
+    describe('getMediasAlreadyDownloaded', () => {
+        it('should map the file name to the id', () => {
+            const actual = getMediasAlreadyDownloaded([{ id: '1', volume: 1 }], ['1.mp4']);
+            expect(actual).toEqual([{ id: '1.mp4', volume: 1 }]);
+        });
+
+        it('should map the wav files that was already pre-processed', () => {
+            const actual = getMediasAlreadyDownloaded([{ id: '1', volume: 1 }], ['1.wav']);
+            expect(actual).toEqual([{ id: '1.wav', volume: 1 }]);
+        });
+
+        it('should return empty array if nothing was downloaded', () => {
+            const actual = getMediasAlreadyDownloaded([{ id: '1', volume: 1 }], ['2.wav']);
+            expect(actual).toBeEmpty();
         });
     });
 });

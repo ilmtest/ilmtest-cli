@@ -1,7 +1,9 @@
 import { type Segment as BahethSegment, Transcript as BahethTranscript } from 'baheth-sdk';
-import { type Transcript as TafrighTranscript } from 'tafrigh';
+import { type Token } from 'tafrigh';
 
 import { Segment } from '../types.js';
+
+type TafrighTranscript = { end: number; start: number; text: string; tokens: Token[] };
 
 const isSentenceEnding = (text: string) => /[.؟?]$/.test(text);
 const filterFillerWords = (token: string) => token && !['آآ', 'اه', 'ايه', 'ايه.', 'وآآ'].includes(token);
@@ -58,7 +60,7 @@ const groupWordsIntoSegments = (words: BahethSegment[], maxSecondsPerTranscript:
     return transcripts;
 };
 
-export const mapBahethSegments = (segments: BahethSegment[], maxSecondsPerTranscript = 240): Segment[] => {
+const mapBahethSegments = (segments: BahethSegment[], maxSecondsPerTranscript = 240): Segment[] => {
     // First pass: create a word-by-word transcript from segments.
     const words = segments.flatMap(mapSegmentToEstimatedWords);
     const transcriptSegments = groupWordsIntoSegments(words, maxSecondsPerTranscript);
@@ -66,11 +68,11 @@ export const mapBahethSegments = (segments: BahethSegment[], maxSecondsPerTransc
     return transcriptSegments;
 };
 
-export const mapTafrighSegment = (t: TafrighTranscript): Segment => {
+const mapTafrighSegment = (t: TafrighTranscript): Segment => {
     return {
         body: t.text,
-        end: t.range.end,
-        start: t.range.start,
+        end: t.end,
+        start: t.start,
         words: (t.tokens || []).map((token) => ({ end: token.end, start: token.start, text: token.token })),
     };
 };
