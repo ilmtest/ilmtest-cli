@@ -1,4 +1,3 @@
-import { fetch } from 'bun';
 import { URL, URLSearchParams } from 'node:url';
 
 import logger from '../utils/logger.js';

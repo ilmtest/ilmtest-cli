@@ -15,6 +15,7 @@ export default [
             globals: {
                 AbortController: 'readonly',
                 Atomics: 'readonly',
+                fetch: 'readonly',
                 SharedArrayBuffer: 'readonly',
                 WritableStream: 'readonly',
             },
