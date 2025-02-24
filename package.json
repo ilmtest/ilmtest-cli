@@ -1,6 +1,6 @@
 {
     "name": "ilmtest-cli",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "CLI for IlmTest API.",
     "source": "src/index.ts",
     "main": "dist/main.js",
@@ -24,6 +24,7 @@
     "author": "Ragaeeb Haq",
     "license": "MIT",
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.750.0",
         "@distube/ytdl-core": "^4.16.4",
         "@inquirer/prompts": "^7.3.2",
         "baheth-sdk": "^1.2.1",
@@ -35,19 +36,19 @@
         "tafrigh": "^3.0.0"
     },
     "devDependencies": {
-        "@eslint/js": "^9.20.0",
+        "@eslint/js": "^9.21.0",
         "@semantic-release/changelog": "^6.0.3",
-        "@types/bun": "^1.2.2",
+        "@types/bun": "^1.2.3",
         "@types/cli-progress": "^3.11.6",
-        "@types/eslint__js": "^8.42.3",
-        "@types/node": "^22.13.4",
-        "eslint": "^9.20.1",
+        "@types/eslint__js": "^9.14.0",
+        "@types/node": "^22.13.5",
+        "eslint": "^9.21.0",
         "eslint-config-prettier": "^10.0.1",
         "eslint-plugin-import": "^2.31.0",
         "eslint-plugin-perfectionist": "^4.9.0",
         "eslint-plugin-prettier": "^5.2.3",
-        "prettier": "^3.5.1",
+        "prettier": "^3.5.2",
         "semantic-release": "^24.2.3",
-        "typescript-eslint": "^8.24.1"
+        "typescript-eslint": "^8.25.0"
     }
 }

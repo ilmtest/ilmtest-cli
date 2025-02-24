@@ -1,6 +1,13 @@
 export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
 
-export type Config = { collectionsEndpoint: string; tafrighApiKeys: string };
+export type Config = {
+    awsAccessKey: string;
+    awsBucket: string;
+    awsRegion: string;
+    awsSecretKey: string;
+    collectionsEndpoint: string;
+    tafrighApiKeys: string;
+};
 
 export type ForeignId = { id: string; volume: number };
 
