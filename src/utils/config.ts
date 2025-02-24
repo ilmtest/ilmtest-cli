@@ -30,7 +30,9 @@ export const loadConfiguration = async (projectName: string, keys: string[]): Pr
 
     Object.assign(configData, result);
 
-    initTafrigh({ apiKeys: configData.tafrighApiKeys.split(' ') });
+    if (configData.tafrighApiKeys) {
+        initTafrigh({ apiKeys: configData.tafrighApiKeys.split(' ') });
+    }
 
     logger.info({ config, ...configData });
 };
