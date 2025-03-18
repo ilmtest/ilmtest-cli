@@ -1,4 +1,10 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+    DeleteObjectCommand,
+    HeadObjectCommand,
+    ListObjectsV2Command,
+    PutObjectCommand,
+    S3Client,
+} from '@aws-sdk/client-s3';
 import { confirm, input } from '@inquirer/prompts';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -52,6 +58,25 @@ export const uploadAsl = async () => {
         },
         region: config.awsRegion,
     });
+
+    try {
+        const legacyFile = `${collectionId}.json`;
+        await s3Client.send(new HeadObjectCommand({ Bucket: config.awsBucket, Key: legacyFile }));
+
+        const shouldDeleteLegacy = await confirm({
+            message: `${legacyFile} was already found. Do you want to delete it?`,
+        });
+
+        if (shouldDeleteLegacy) {
+            logger.info(`Deleting ${legacyFile}`);
+            await s3Client.send(new DeleteObjectCommand({ Bucket: config.awsBucket, Key: legacyFile }));
+            logger.info(`Deleted ${legacyFile}`);
+        }
+    } catch (err: any) {
+        if (err.name !== 'NotFound') {
+            logger.error(err);
+        }
+    }
 
     const fileName = `${collectionId}.json.gz`;
 
