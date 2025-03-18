@@ -5,8 +5,10 @@ import { Segment } from '../types.js';
 
 type TafrighTranscript = { end: number; start: number; text: string; tokens: Token[] };
 
+const FILLER_WORDS = ['آآ', 'اه', 'ايه', 'ايه.', 'وآآ'];
+const FILLER_REGEX = new RegExp(FILLER_WORDS.join('|'), 'g');
 const isSentenceEnding = (text: string) => /[.؟?]$/.test(text);
-const filterFillerWords = (token: string) => token && !['آآ', 'اه', 'ايه', 'ايه.', 'وآآ'].includes(token);
+const filterFillerWords = (token: string) => token && !FILLER_WORDS.includes(token);
 
 const mapSegmentToEstimatedWords = ({ end, start, text }: BahethSegment): BahethSegment[] => {
     const tokens = text.split(/\s+/).filter(filterFillerWords);
@@ -70,10 +72,12 @@ const mapBahethSegments = (segments: BahethSegment[], maxSecondsPerTranscript = 
 
 const mapTafrighSegment = (t: TafrighTranscript): Segment => {
     return {
-        body: t.text,
+        body: t.text.replace(FILLER_REGEX, '').replace(/ +/g, ' '),
         end: t.end,
         start: t.start,
-        words: (t.tokens || []).map((token) => ({ end: token.end, start: token.start, text: token.token })),
+        words: (t.tokens || [])
+            .filter((token) => filterFillerWords(token.token))
+            .map((token) => ({ end: token.end, start: token.start, text: token.token })),
     };
 };
 

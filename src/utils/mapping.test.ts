@@ -93,11 +93,12 @@ describe('mapping', () => {
             {
                 end: 20,
                 start: 10,
-                text: 'This is a test',
+                text: 'This is a اه test',
                 tokens: [
                     { confidence: 0.95, end: 12, start: 10, token: 'This' },
                     { confidence: 0.95, end: 14, start: 12, token: 'is' },
                     { confidence: 0.95, end: 16, start: 14, token: 'a' },
+                    { confidence: 0.95, end: 18, start: 17, token: 'اه' },
                     { confidence: 0.95, end: 20, start: 16, token: 'test' },
                 ],
             },
