@@ -1,9 +1,11 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { input } from '@inquirer/prompts';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 
 import config from '../utils/config.js';
+import { decompressFromStream } from '../utils/io.js';
 import logger from '../utils/logger.js';
 
 export const downloadAsl = async () => {
@@ -21,16 +23,38 @@ export const downloadAsl = async () => {
         region: config.awsRegion,
     });
 
-    const file = path.format({ ext: '.json', name: collectionId });
+    let file = path.format({ ext: '.json.gz', name: collectionId });
+    let isCompressed = true;
+
+    try {
+        await s3Client.send(new HeadObjectCommand({ Bucket: config.awsBucket, Key: file }));
+    } catch (err: any) {
+        logger.warn(err, `Compressed file not found, trying uncompressed version.`);
+        file = path.format({ ext: '.json', name: collectionId });
+        isCompressed = false;
+    }
 
     logger.info(`Downloading ${config.awsBucket}/${file}`);
 
     const response = await s3Client.send(new GetObjectCommand({ Bucket: config.awsBucket, Key: file }));
-    const data = (await response.Body?.transformToString()) as string;
+    const outputFile = path.format({ ext: '.json', name: collectionId });
 
-    s3Client.destroy();
+    try {
+        if (isCompressed) {
+            logger.info(`Decompressing and saving to ${outputFile}`);
+            await decompressFromStream(response.Body as Readable, outputFile);
+        } else {
+            // For uncompressed files, save directly
+            const data = await response.Body!.transformToString();
+            logger.info(`Saving file ${outputFile}`);
+            await fs.writeFile(outputFile, data);
+        }
 
-    logger.info(`Saving file ${file}`);
-
-    return fs.writeFile(file, data);
+        logger.info(`File saved successfully: ${outputFile}`);
+    } catch (error) {
+        logger.error(error, `Error saving file ${outputFile}`);
+        throw error;
+    } finally {
+        s3Client.destroy();
+    }
 };
