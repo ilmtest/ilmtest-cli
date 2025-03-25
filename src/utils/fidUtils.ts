@@ -15,10 +15,8 @@ export const getUnprocessedVolumes = (fids: ForeignId[], files: string[]): Forei
 };
 
 const getMediaDownloadedForVolume = (fid: ForeignId, files: string[]): string | undefined => {
-    const wavFile = mapFidToOutputFile(fid, '', '.wav');
-    const mp4File = mapFidToOutputFile(fid, '', `.${MEDIA_CONTAINER}`);
-
-    return [wavFile, mp4File].find((file) => files.includes(file));
+    const potentialMatches = ['.wav', '.mp3', `.${MEDIA_CONTAINER}`].map((ext) => mapFidToOutputFile(fid, '', ext));
+    return potentialMatches.find((file) => files.includes(file));
 };
 
 export const getMediasAlreadyDownloaded = (fids: ForeignId[], files: string[]): ForeignId[] => {

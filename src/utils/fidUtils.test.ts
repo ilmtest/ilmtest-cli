@@ -51,6 +51,11 @@ describe('fidUtils', () => {
             expect(actual).toBeEmpty();
         });
 
+        it('should filter out the mp3 files that was already pre-processed', () => {
+            const actual = getMissingMedias([{ id: '1', volume: 1 }], ['1.mp3']);
+            expect(actual).toBeEmpty();
+        });
+
         it('should return the values if nothing was pre-processed or downloaded', () => {
             const actual = getMissingMedias([{ id: '1', volume: 1 }], ['2.json']);
             expect(actual).toEqual([{ id: '1', volume: 1 }]);
@@ -66,6 +71,11 @@ describe('fidUtils', () => {
         it('should map the wav files that was already pre-processed', () => {
             const actual = getMediasAlreadyDownloaded([{ id: '1', volume: 1 }], ['1.wav']);
             expect(actual).toEqual([{ id: '1.wav', volume: 1 }]);
+        });
+
+        it('should map the wav files that was already pre-processed', () => {
+            const actual = getMediasAlreadyDownloaded([{ id: '1', volume: 1 }], ['1.mp3']);
+            expect(actual).toEqual([{ id: '1.mp3', volume: 1 }]);
         });
 
         it('should return empty array if nothing was downloaded', () => {
