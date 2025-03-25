@@ -1,10 +1,4 @@
-import {
-    DeleteObjectCommand,
-    HeadObjectCommand,
-    ListObjectsV2Command,
-    PutObjectCommand,
-    S3Client,
-} from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { confirm, input } from '@inquirer/prompts';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -47,7 +41,7 @@ export const uploadAsl = async () => {
 
     logger.info(`Compressing ${filePath}`);
 
-    const gzippedFilePath = await compressFile(filePath);
+    const gzippedFilePath = await compressFile(filePath, `${filePath}.gz`);
 
     logger.info(`Successfully compressed file to ${gzippedFilePath}`);
 
