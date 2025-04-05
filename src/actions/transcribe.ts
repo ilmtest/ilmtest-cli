@@ -144,8 +144,9 @@ const getSelectedCollection = async () => {
 };
 
 const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string) => {
-    await downloadTranscriptsAlreadyTranscribed(fids, outputDirectory); // update logic to only check for remaining ones not already downloaded
     let remainingFids = await getRemainingFids(fids, outputDirectory);
+    await downloadTranscriptsAlreadyTranscribed(remainingFids, outputDirectory);
+    remainingFids = await getRemainingFids(fids, outputDirectory);
     const remainingMediasNotDownloaded = getMissingMedias(remainingFids, await fs.readdir(outputDirectory));
     await downloadYouTubeVideos(remainingMediasNotDownloaded, outputDirectory);
 
