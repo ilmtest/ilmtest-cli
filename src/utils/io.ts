@@ -1,5 +1,6 @@
+import type { Readable } from 'node:stream';
+
 import { promises as fs } from 'node:fs';
-import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 
