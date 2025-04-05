@@ -1,7 +1,28 @@
 import { Presets, SingleBar } from 'cli-progress';
-import fs from 'node:fs';
 
 import logger from './logger.js';
+
+const SAMPLE_BYTES = 256_000; // bytes to download to test speed (~256 KB)
+
+const measureDownloadSpeed = async (url: string, signal: AbortSignal): Promise<{ speed: number; url: string }> => {
+    const start = performance.now();
+    const response = await fetch(url, { signal });
+
+    if (!response.ok || !response.body) throw new Error(`Failed: ${url}`);
+
+    const reader = response.body.getReader();
+    let totalBytes = 0;
+
+    while (totalBytes < SAMPLE_BYTES) {
+        const { done, value } = await reader.read();
+        if (done || !value) break;
+        totalBytes += value.byteLength;
+    }
+
+    const duration = (performance.now() - start) / 1000; // seconds
+    const speed = totalBytes / duration; // bytes/sec
+    return { speed, url };
+};
 
 /**
  * Downloads a streaming file (e.g., from YouTube) and saves it.
@@ -16,11 +37,9 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
         throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
     }
 
-    // Get the total size (may be unknown for streaming media)
     const totalBytes = Number(response.headers.get('content-length')) || 0;
     let downloadedBytes = 0;
 
-    // Initialize progress bar (handle unknown sizes gracefully)
     const bar = new SingleBar(
         { format: 'Downloading | {bar} | {percentage}% | {value}/{total} bytes', hideCursor: true },
         Presets.shades_classic,
@@ -32,51 +51,47 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
         logger.warn('Downloading (unknown file size)...');
     }
 
-    const fileStream = fs.createWriteStream(outputPath);
+    const writer = Bun.file(outputPath).writer();
     const reader = response.body.getReader();
 
-    // Process stream: Read, write, and update progress
-    const processStream = async () => {
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                break;
-            }
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-            downloadedBytes += value.byteLength;
-            fileStream.write(value); // Directly write chunk to file
-
-            if (totalBytes > 0) {
-                bar.update(downloadedBytes);
-            }
-        }
-
-        fileStream.end();
+        await writer.write(value); // No getWriter — write directly
+        downloadedBytes += value.byteLength;
 
         if (totalBytes > 0) {
-            bar.stop();
+            bar.update(downloadedBytes);
         }
+    }
 
-        logger.info(`Download complete: ${outputPath}`);
-    };
+    await writer.end();
 
-    await processStream();
+    if (totalBytes > 0) {
+        bar.stop();
+    }
+
+    logger.info(`Download complete: ${outputPath}`);
     return outputPath;
 };
 
-export const findFirstSuccessfulUrl = async (urls: string[]): Promise<string> => {
-    const abortController = new AbortController();
-    const { signal } = abortController;
-    const promises = urls.map((url) => {
-        return fetch(url, { signal }) // Attach signal to fetch
-            .then((response) => {
-                if (response.ok) {
-                    abortController.abort(); // Cancel remaining fetches
-                    return url;
-                }
-                throw new Error(`Failed: ${url}`);
-            });
-    });
+export const findBestDownloadUrl = async (urls: string[]): Promise<string> => {
+    // Measure download speeds of all URLs in parallel
+    const controllers = urls.map(() => new AbortController()); // Create abort controllers for each URL
+    const speedResults = Promise.race(
+        urls.map((url, index) =>
+            measureDownloadSpeed(url, controllers[index].signal).then((result) => {
+                // Abort all other fetches as soon as one completes
+                controllers.forEach((controller, i) => {
+                    if (i !== index) controller.abort(); // Abort other downloads
+                });
+                return result;
+            }),
+        ),
+    );
 
-    return Promise.any(promises);
+    const result = await speedResults;
+
+    return result.url; // Return the URL of the fastest one
 };

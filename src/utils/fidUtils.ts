@@ -1,6 +1,7 @@
+import type { ForeignId } from '@/types.js';
+
 import path from 'node:path';
 
-import { ForeignId } from '../types.js';
 import { MEDIA_CONTAINER } from './downloader.js';
 
 export const mapFidToOutputFile = (fid: ForeignId, outputDirectory = '', ext = '.json') => {

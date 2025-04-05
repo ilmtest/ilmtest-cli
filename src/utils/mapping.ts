@@ -1,7 +1,7 @@
+import type { Segment } from '@/types.js';
+
 import { type Segment as BahethSegment, Transcript as BahethTranscript } from 'baheth-sdk';
 import { type Token } from 'tafrigh';
-
-import { Segment } from '../types.js';
 
 type TafrighTranscript = { end: number; start: number; text: string; tokens: Token[] };
 

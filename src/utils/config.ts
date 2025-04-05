@@ -1,8 +1,9 @@
+import type { Config } from '@/types.js';
+
 import { input } from '@inquirer/prompts';
 import Conf from 'conf';
 import { init as initTafrigh } from 'tafrigh';
 
-import { Config } from '../types.js';
 import logger from './logger.js';
 
 const configData: Config = {} as Config;
