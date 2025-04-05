@@ -1,5 +1,5 @@
-import { GetObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { input } from '@inquirer/prompts';
+import { S3Client } from 'bun';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -16,36 +16,26 @@ export const downloadAsl = async () => {
     });
 
     const s3Client = new S3Client({
-        credentials: {
-            accessKeyId: config.awsAccessKey,
-            secretAccessKey: config.awsSecretKey,
-        },
+        accessKeyId: config.awsAccessKey,
+        bucket: config.awsBucket,
         region: config.awsRegion,
+        secretAccessKey: config.awsSecretKey,
     });
 
-    let file = path.format({ ext: '.json.gz', name: collectionId });
-    let isCompressed = true;
-
-    try {
-        await s3Client.send(new HeadObjectCommand({ Bucket: config.awsBucket, Key: file }));
-    } catch (err: any) {
-        logger.warn(err, `Compressed file not found, trying uncompressed version.`);
-        file = path.format({ ext: '.json', name: collectionId });
-        isCompressed = false;
-    }
-
-    logger.info(`Downloading ${config.awsBucket}/${file}`);
-
-    const response = await s3Client.send(new GetObjectCommand({ Bucket: config.awsBucket, Key: file }));
     const outputFile = path.format({ ext: '.json', name: collectionId });
 
     try {
-        if (isCompressed) {
+        if (await s3Client.exists(`${collectionId}.json.gz`)) {
             logger.info(`Decompressing and saving to ${outputFile}`);
-            await decompressFromStream(response.Body as Readable, outputFile);
+            await decompressFromStream(
+                s3Client.file(`${collectionId}.json.gz`).stream() as unknown as Readable,
+                outputFile,
+            );
         } else {
+            logger.info(`Downloading uncompressed file to ${outputFile}`);
+
             // For uncompressed files, save directly
-            const data = await response.Body!.transformToString();
+            const data = await s3Client.file(`${collectionId}.json`).text();
             logger.info(`Saving file ${outputFile}`);
             await fs.writeFile(outputFile, data);
         }
@@ -54,7 +44,5 @@ export const downloadAsl = async () => {
     } catch (error) {
         logger.error(error, `Error saving file ${outputFile}`);
         throw error;
-    } finally {
-        s3Client.destroy();
     }
 };

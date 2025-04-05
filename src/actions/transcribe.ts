@@ -1,20 +1,20 @@
-import { confirm, select } from '@inquirer/prompts';
-import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { transcribe } from 'tafrigh';
-
-import { getCollection, getCollections } from '../api/collections.js';
-import { ForeignId, Transcript } from '../types.js';
-import { downloadYouTubeVideo } from '../utils/downloader.js';
+import { getCollection, getCollections } from '@/api/collections.js';
+import { ForeignId, Transcript } from '@/types.js';
+import { downloadYouTubeVideo } from '@/utils/downloader.js';
 import {
     getMediasAlreadyDownloaded,
     getMissingMedias,
     getUnprocessedVolumes,
     mapFidToOutputFile,
-} from '../utils/fidUtils.js';
-import logger from '../utils/logger.js';
-import { mapSegmentsToTranscript } from '../utils/mapping.js';
+} from '@/utils/fidUtils.js';
+import logger from '@/utils/logger.js';
+import { mapSegmentsToTranscript } from '@/utils/mapping.js';
+import { confirm, select } from '@inquirer/prompts';
+import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
+import { file } from 'bun';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { transcribe } from 'tafrigh';
 
 const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: string): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
@@ -23,7 +23,7 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
         logger.info(`Downloading ${fid.id} from baheth`);
         const transcript = await getMediaTranscript(fid.id);
         const fileName = mapFidToOutputFile(fid, outputDirectory);
-        await fs.writeFile(fileName, JSON.stringify(transcript));
+        await file(fileName).write(JSON.stringify(transcript));
 
         logger.info(`Saved ${fid.id} to ${fileName}`);
 
@@ -163,7 +163,7 @@ const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string)
 const saveAndCleanup = async (data: Transcript, outputDirectory: string) => {
     const outputFile = path.format({ ext: '.json', name: outputDirectory });
     logger.info(`Writing to ${outputFile}`);
-    await fs.writeFile(outputFile, JSON.stringify(data, null, 2));
+    await file(outputFile).write(JSON.stringify(data, null, 2));
 
     const deleteOutputFolder = await confirm({ message: `Do we you want to delete ${outputDirectory}` });
 
