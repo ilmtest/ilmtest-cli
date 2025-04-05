@@ -36,7 +36,7 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
 const getTranscribedVolumes = async (fids: ForeignId[]): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
 
-    for (let fid of fids) {
+    for (const fid of fids) {
         logger.info(`Checking for existing transcription from baheth: ${fid.id}`);
         const url = await getMediaUrlForVideoId(fid.id);
 
