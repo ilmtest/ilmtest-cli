@@ -11,7 +11,6 @@ import logger from '@/utils/logger.js';
 import { mapSegmentsToTranscript } from '@/utils/mapping.js';
 import { confirm, select } from '@inquirer/prompts';
 import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
-import { file } from 'bun';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { transcribe } from 'tafrigh';
@@ -23,7 +22,7 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
         logger.info(`Downloading ${fid.id} from baheth`);
         const transcript = await getMediaTranscript(fid.id);
         const fileName = mapFidToOutputFile(fid, outputDirectory);
-        await file(fileName).write(JSON.stringify(transcript));
+        await Bun.file(fileName).write(JSON.stringify(transcript));
 
         logger.info(`Saved ${fid.id} to ${fileName}`);
 
@@ -73,7 +72,7 @@ const transcribeDownloadedVideos = async (
     logger.info(`Medias to transcribe ${JSON.stringify(downloadedVideos)}`);
 
     for (const video of downloadedVideos) {
-        const outputFile = await transcribe(path.join(outputDirectory, video.id), {
+        const segments = await transcribe(path.join(outputDirectory, video.id), {
             callbacks: {
                 onPreprocessingFinished: async (filePath) => logger.info(`Pre-formatted ${filePath}`),
                 onPreprocessingStarted: async (filePath) => logger.info(`Pre-formatting ${filePath}`),
@@ -82,10 +81,11 @@ const transcribeDownloadedVideos = async (
                 onTranscriptionStarted: async (total) => logger.info(`Starting transcription of ${total} chunks`),
             },
             concurrency: 5,
-            lineBreakSecondsThreshold: 2,
-            outputOptions: { includeTokens: true, outputFile: mapFidToOutputFile(video, outputDirectory) },
             splitOptions: { chunkDuration: 300 },
         });
+
+        const outputFile = mapFidToOutputFile(video, outputDirectory);
+        await Bun.file(mapFidToOutputFile(video, outputDirectory)).write(JSON.stringify(segments, null, 2));
 
         if (outputFile) {
             transcribed.push({ id: outputFile, volume: video.volume });
@@ -115,7 +115,11 @@ const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: strin
 
     for (const fid of fids) {
         const file = mapFidToOutputFile(fid, outputDirectory);
-        const { timestamp, transcripts, url } = mapSegmentsToTranscript(JSON.parse(await fs.readFile(file, 'utf-8')));
+        const { text, timestamp, transcripts, url } = mapSegmentsToTranscript(await Bun.file(file).json());
+
+        if (text) {
+            await Bun.file(path.format({ dir: outputDirectory, ext: '.txt', name: fid.volume.toString() })).write(text);
+        }
 
         result.parts.push({ part: fid.volume, timestamp: timestamp || new Date(), transcripts });
 
@@ -128,7 +132,12 @@ const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: strin
 };
 
 const getSelectedCollection = async () => {
-    const collections = await getCollections({ before: '9999', library: '62', limit: 10 });
+    const collections = await getCollections({
+        before: '9999',
+        library: '62',
+        limit: 10,
+        ...(process.argv[2] && { id: process.argv[2] }),
+    });
     const selectedCollection = await select({
         choices: collections.map((c) => ({ description: c.id, name: c.title, value: c.id })),
         default: collections[0].id,
@@ -164,7 +173,7 @@ const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string)
 const saveAndCleanup = async (data: Transcript, outputDirectory: string) => {
     const outputFile = path.format({ ext: '.json', name: outputDirectory });
     logger.info(`Writing to ${outputFile}`);
-    await file(outputFile).write(JSON.stringify(data, null, 2));
+    await Bun.file(outputFile).write(JSON.stringify(data, null, 2));
 
     const deleteOutputFolder = await confirm({ message: `Do we you want to delete ${outputDirectory}` });
 

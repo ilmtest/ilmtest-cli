@@ -1,3 +1,5 @@
+import type { Segment } from 'tafrigh';
+
 export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
 
 export type Config = {
@@ -13,8 +15,4 @@ export type ForeignId = { id: string; volume: number };
 
 export type Part = { part: number; timestamp?: Date; transcripts: Segment[] };
 
-export type Segment = { body: string; end: number; start: number; words: Word[] };
-
 export type Transcript = { parts: Part[]; timestamp: Date; urls: string[] };
-
-export type Word = { end: number; start: number; text: string };

@@ -14,23 +14,30 @@ describe('mapping', () => {
 
             const result = mapSegmentsToTranscript(bahethTranscript);
 
-            // Expect timestamp and URL to be passed through
-            expect(result.timestamp).toEqual(timestamp);
-            expect(result.url).toEqual('http://example.com/srt');
-
-            // There should be one transcript segment
-            expect(result.transcripts).toHaveLength(1);
-
-            const transcript = result.transcripts[0];
-            expect(transcript.body).toEqual('Hello world.');
-            expect(transcript.start).toBe(0);
-            expect(transcript.end).toBe(2);
-
-            // The segment text "Hello world." is split into two words:
-            // "Hello" from 0 to 1 and "world." from 1 to 2.
-            expect(transcript.words).toHaveLength(2);
-            expect(transcript.words[0]).toEqual({ end: 1, start: 0, text: 'Hello' });
-            expect(transcript.words[1]).toEqual({ end: 2, start: 1, text: 'world.' });
+            expect(result).toEqual({
+                text: '0:00: Hello world.',
+                timestamp,
+                transcripts: [
+                    {
+                        end: 2,
+                        start: 0,
+                        text: 'Hello world.',
+                        tokens: [
+                            {
+                                end: 1,
+                                start: 0,
+                                text: 'Hello',
+                            },
+                            {
+                                end: 2,
+                                start: 1,
+                                text: 'world.',
+                            },
+                        ],
+                    },
+                ],
+                url: 'http://example.com/srt',
+            });
         });
     });
 
@@ -45,13 +52,80 @@ describe('mapping', () => {
 
         const result = mapSegmentsToTranscript(bahethTranscript);
 
-        expect(result.transcripts).toHaveLength(1);
-        const transcript = result.transcripts[0];
-        // The expected body should not include the filler word.
-        expect(transcript.body).toEqual('Hello world.');
-        expect(transcript.words).toHaveLength(2);
-        expect(transcript.words[0]).toEqual({ end: 1.5, start: 0, text: 'Hello' });
-        expect(transcript.words[1]).toEqual({ end: 3, start: 1.5, text: 'world.' });
+        expect(result).toEqual(
+            expect.objectContaining({
+                text: '0:00: Hello world.',
+                transcripts: [
+                    {
+                        end: 3,
+                        start: 0,
+                        text: 'Hello world.',
+                        tokens: [
+                            {
+                                end: 1,
+                                start: 0,
+                                text: 'Hello',
+                            },
+                            {
+                                end: 3,
+                                start: 2,
+                                text: 'world.',
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('should filter filler words from tafrigh transcript', () => {
+        const result = mapSegmentsToTranscript([
+            {
+                end: 10,
+                start: 0,
+                text: 'العشرية اه. هي الاحرف دمراه.',
+                tokens: [
+                    { end: 1, start: 0, text: 'العشرية' },
+                    { end: 2, start: 1.5, text: 'اه.' },
+                    { end: 4, start: 3, text: 'هي' },
+                    { end: 7, start: 5, text: 'الاحرف' },
+                    { end: 10, start: 9, text: 'دمراه.' },
+                ],
+            },
+        ]);
+
+        expect(result).toEqual({
+            text: '0:00: العشرية هي الاحرف دمراه.',
+            transcripts: [
+                {
+                    end: 10,
+                    start: 0,
+                    text: 'العشرية هي الاحرف دمراه.',
+                    tokens: [
+                        {
+                            end: 1,
+                            start: 0,
+                            text: 'العشرية',
+                        },
+                        {
+                            end: 4,
+                            start: 3,
+                            text: 'هي',
+                        },
+                        {
+                            end: 7,
+                            start: 5,
+                            text: 'الاحرف',
+                        },
+                        {
+                            end: 10,
+                            start: 9,
+                            text: 'دمراه.',
+                        },
+                    ],
+                },
+            ],
+        });
     });
 
     it('should group words into multiple transcript segments when duration threshold is met', () => {
@@ -70,22 +144,40 @@ describe('mapping', () => {
 
         const result = mapSegmentsToTranscript(bahethTranscript);
 
-        // Expect two separate transcript segments to have been created.
-        expect(result.transcripts).toHaveLength(2);
-
-        // First transcript group
-        const transcript1 = result.transcripts[0];
-        expect(transcript1.body).toEqual('First sentence.');
-        expect(transcript1.start).toBe(0);
-        expect(transcript1.end).toBe(250);
-        expect(transcript1.words).toHaveLength(2);
-
-        // Second transcript group
-        const transcript2 = result.transcripts[1];
-        expect(transcript2.body).toEqual('Second sentence.');
-        expect(transcript2.start).toBe(250);
-        expect(transcript2.end).toBe(500);
-        expect(transcript2.words).toHaveLength(2);
+        expect(result).toEqual(
+            expect.objectContaining({
+                text: '0:00: First sentence.\n4:10: Second sentence.',
+                transcripts: [
+                    {
+                        end: 500,
+                        start: 0,
+                        text: 'First sentence.\nSecond sentence.',
+                        tokens: [
+                            {
+                                end: 125,
+                                start: 0,
+                                text: 'First',
+                            },
+                            {
+                                end: 250,
+                                start: 125,
+                                text: 'sentence.',
+                            },
+                            {
+                                end: 375,
+                                start: 250,
+                                text: 'Second',
+                            },
+                            {
+                                end: 500,
+                                start: 375,
+                                text: 'sentence.',
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
     });
 
     it('should map a Tafrigh transcript array correctly', () => {
@@ -95,33 +187,53 @@ describe('mapping', () => {
                 start: 10,
                 text: 'This is a اه test',
                 tokens: [
-                    { confidence: 0.95, end: 12, start: 10, token: 'This' },
-                    { confidence: 0.95, end: 14, start: 12, token: 'is' },
-                    { confidence: 0.95, end: 16, start: 14, token: 'a' },
-                    { confidence: 0.95, end: 18, start: 17, token: 'اه' },
-                    { confidence: 0.95, end: 20, start: 16, token: 'test' },
+                    { confidence: 0.95, end: 12, start: 10, text: 'This' },
+                    { confidence: 0.95, end: 14, start: 12, text: 'is' },
+                    { confidence: 0.95, end: 16, start: 14, text: 'a' },
+                    { confidence: 0.95, end: 18, start: 17, text: 'اه' },
+                    { confidence: 0.95, end: 20, start: 16, text: 'test' },
                 ],
             },
         ];
 
         const result = mapSegmentsToTranscript(tafrighTranscripts);
 
-        // In this branch, no timestamp or URL should be set.
-        expect(result.timestamp).toBeUndefined();
-        expect(result.url).toBeUndefined();
-        expect(result.transcripts).toHaveLength(1);
-
-        const transcript = result.transcripts[0];
-        expect(transcript.body).toEqual('This is a test');
-        expect(transcript.start).toBe(10);
-        expect(transcript.end).toBe(20);
-
-        // Each token should be mapped to a word.
-        expect(transcript.words).toHaveLength(4);
-        expect(transcript.words[0]).toEqual({ end: 12, start: 10, text: 'This' });
-        expect(transcript.words[1]).toEqual({ end: 14, start: 12, text: 'is' });
-        expect(transcript.words[2]).toEqual({ end: 16, start: 14, text: 'a' });
-        expect(transcript.words[3]).toEqual({ end: 20, start: 16, text: 'test' });
+        expect(result).toEqual({
+            text: '0:10: This is a test',
+            transcripts: [
+                {
+                    end: 20,
+                    start: 10,
+                    text: 'This is a test',
+                    tokens: [
+                        {
+                            confidence: 0.95,
+                            end: 12,
+                            start: 10,
+                            text: 'This',
+                        },
+                        {
+                            confidence: 0.95,
+                            end: 14,
+                            start: 12,
+                            text: 'is',
+                        },
+                        {
+                            confidence: 0.95,
+                            end: 16,
+                            start: 14,
+                            text: 'a',
+                        },
+                        {
+                            confidence: 0.95,
+                            end: 20,
+                            start: 16,
+                            text: 'test',
+                        },
+                    ],
+                },
+            ],
+        });
     });
 
     it("should handle multiple spaces and line breaks in a Baheth segment's text correctly", () => {
@@ -134,12 +246,29 @@ describe('mapping', () => {
 
         const result = mapSegmentsToTranscript(bahethTranscript);
 
-        expect(result.transcripts).toHaveLength(1);
-        const transcript = result.transcripts[0];
-        // Extra spaces should be collapsed, resulting in "hello world"
-        expect(transcript.body).toEqual('hello world');
-        expect(transcript.words).toHaveLength(2);
-        expect(transcript.words[0]).toEqual({ end: 1, start: 0, text: 'hello' });
-        expect(transcript.words[1]).toEqual({ end: 2, start: 1, text: 'world' });
+        expect(result).toEqual(
+            expect.objectContaining({
+                text: '0:00: hello world',
+                transcripts: [
+                    {
+                        end: 2,
+                        start: 0,
+                        text: 'hello world',
+                        tokens: [
+                            {
+                                end: 1,
+                                start: 0,
+                                text: 'hello',
+                            },
+                            {
+                                end: 2,
+                                start: 1,
+                                text: 'world',
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
     });
 });
