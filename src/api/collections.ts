@@ -1,7 +1,6 @@
-import type { Collection } from '@/types.js';
+import type { Collection } from '../types.js';
 
-import config from '@/utils/config.js';
-
+import config from '../utils/config.js';
 import { doGet, PagingParams } from './index.js';
 
 interface GetCollectionsParams extends PagingParams {

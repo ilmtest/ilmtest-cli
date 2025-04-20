@@ -1,11 +1,12 @@
-import config from '@/utils/config.js';
-import { decompressFromStream } from '@/utils/io.js';
-import logger from '@/utils/logger.js';
 import { input } from '@inquirer/prompts';
 import { S3Client } from 'bun';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+
+import config from '../utils/config.js';
+import { decompressFromStream } from '../utils/io.js';
+import logger from '../utils/logger.js';
 
 export const downloadAsl = async () => {
     const collectionId = await input({

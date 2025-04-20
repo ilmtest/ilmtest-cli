@@ -1,6 +1,6 @@
-import type { ForeignId } from '@/types.js';
-
 import path from 'node:path';
+
+import type { ForeignId } from '../types.js';
 
 import { MEDIA_CONTAINER } from './downloader.js';
 
