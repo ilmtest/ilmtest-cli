@@ -1,8 +1,9 @@
-import config from '@/utils/config.js';
-import logger from '@/utils/logger.js';
 import { confirm, input } from '@inquirer/prompts';
 import { file, gzipSync, S3Client } from 'bun';
 import path from 'node:path';
+
+import config from '../utils/config.js';
+import logger from '../utils/logger.js';
 
 const sanitizeInput = (input: string) => input.replace(/\\ /g, ' ').trim();
 

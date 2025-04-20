@@ -1,5 +1,6 @@
-import logger from '@/utils/logger.js';
 import { URL, URLSearchParams } from 'node:url';
+
+import logger from '../utils/logger.js';
 
 export const doGet = async (endpoint: string, params: Record<string, any>) => {
     const url = new URL(endpoint);

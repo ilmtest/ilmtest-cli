@@ -1,19 +1,21 @@
-import { getCollection, getCollections } from '@/api/collections.js';
-import { ForeignId, Transcript } from '@/types.js';
-import { downloadYouTubeVideo } from '@/utils/downloader.js';
-import {
-    getMediasAlreadyDownloaded,
-    getMissingMedias,
-    getUnprocessedVolumes,
-    mapFidToOutputFile,
-} from '@/utils/fidUtils.js';
-import logger from '@/utils/logger.js';
-import { mapSegmentsToTranscript } from '@/utils/mapping.js';
 import { confirm, select } from '@inquirer/prompts';
 import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { transcribe } from 'tafrigh';
+
+import type { ForeignId, Transcript } from '../types.js';
+
+import { getCollection, getCollections } from '../api/collections.js';
+import { downloadYouTubeVideo } from '../utils/downloader.js';
+import {
+    getMediasAlreadyDownloaded,
+    getMissingMedias,
+    getUnprocessedVolumes,
+    mapFidToOutputFile,
+} from '../utils/fidUtils.js';
+import logger from '../utils/logger.js';
+import { mapSegmentsToTranscript } from '../utils/mapping.js';
 
 const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: string): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];

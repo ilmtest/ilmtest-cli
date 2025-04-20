@@ -19,7 +19,11 @@ export const mapSegmentsToTranscript = (transcripts: BahethTranscript | Segment[
     };
 
     if (Array.isArray(transcripts)) {
-        result.transcripts = transcripts;
+        result.transcripts = transcripts.map(({ tokens, ...t }) => ({
+            ...t,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            tokens: tokens!.map(({ confidence, ...token }) => token),
+        }));
     } else {
         result.transcripts = (transcripts as BahethTranscript).segments.map(estimateSegmentFromToken);
         result.timestamp = transcripts.timestamp;
