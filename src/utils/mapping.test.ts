@@ -207,25 +207,21 @@ describe('mapping', () => {
                     text: 'This is a test',
                     tokens: [
                         {
-                            confidence: 0.95,
                             end: 12,
                             start: 10,
                             text: 'This',
                         },
                         {
-                            confidence: 0.95,
                             end: 14,
                             start: 12,
                             text: 'is',
                         },
                         {
-                            confidence: 0.95,
                             end: 16,
                             start: 14,
                             text: 'a',
                         },
                         {
-                            confidence: 0.95,
                             end: 20,
                             start: 16,
                             text: 'test',
