@@ -9,7 +9,11 @@ import {
     Segment as ParagrafSegment,
 } from 'paragrafs';
 
-const FILLER_WORDS = ['آآ', 'اه', 'ايه', 'وآآ', 'مم', 'ها'].flatMap((token) => [token, token + '.', token + '?']);
+const FILLER_WORDS = ['آآ', 'اه', 'ايه', 'وآآ', 'فآآ', 'مم', 'ها'].flatMap((token) => [
+    token,
+    token + '.',
+    token + '?',
+]);
 
 type TranscriptData = { text?: string; timestamp?: Date; transcripts: Segment[]; url?: string };
 
