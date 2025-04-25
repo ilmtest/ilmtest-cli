@@ -5,7 +5,7 @@
     },
     "dependencies": {
         "@distube/ytdl-core": "^4.16.8",
-        "@inquirer/prompts": "^7.4.1",
+        "@inquirer/prompts": "^7.5.0",
         "baheth-sdk": "^1.2.2",
         "cli-progress": "^3.12.0",
         "cli-welcome": "^3.0.1",
@@ -13,18 +13,18 @@
         "paragrafs": "^1.1.0",
         "pino": "^9.6.0",
         "pino-pretty": "^13.0.0",
-        "tafrigh": "^4.0.0"
+        "tafrigh": "^4.0.2"
     },
     "description": "CLI for IlmTest API.",
     "devDependencies": {
         "@eslint/js": "^9.25.1",
         "@types/bun": "^1.2.10",
         "@types/cli-progress": "^3.11.6",
-        "@types/node": "^22.14.1",
+        "@types/node": "^22.15.0",
         "@vitest/eslint-plugin": "^1.1.43",
         "eslint": "^9.25.1",
         "eslint-config-prettier": "^10.1.2",
-        "eslint-plugin-perfectionist": "^4.12.0",
+        "eslint-plugin-perfectionist": "^4.12.3",
         "eslint-plugin-prettier": "^5.2.6",
         "globals": "^16.0.0",
         "prettier": "^3.5.3",
@@ -51,5 +51,5 @@
     },
     "source": "src/index.ts",
     "type": "module",
-    "version": "1.5.0"
+    "version": "1.6.0"
 }
