@@ -17,6 +17,8 @@ const main = async () => {
     const action = await select({
         choices: [
             { name: 'AI Transcribe', value: 'transcribe' },
+            { name: 'Check Asl', value: 'checkAsl' },
+            { name: 'Delete Asl', value: 'deleteAsl' },
             { name: 'Download Asl', value: 'downloadAsl' },
             { name: 'Upload Asl', value: 'uploadAsl' },
         ],
@@ -27,10 +29,14 @@ const main = async () => {
     if (action === 'transcribe') {
         await loadConfiguration(packageJson.name, ['collectionsEndpoint', 'tafrighApiKeys']);
         await (await import('./actions/transcribe.js')).transcribeWithAI();
-    } else if (action === 'downloadAsl' || action === 'uploadAsl') {
+    } else if (['checkAsl', 'deleteAsl', 'downloadAsl', 'uploadAsl'].includes(action)) {
         await loadConfiguration(packageJson.name, ['awsRegion', 'awsAccessKey', 'awsSecretKey', 'awsBucket']);
 
-        if (action === 'downloadAsl') {
+        if (action === 'deleteAsl') {
+            await (await import('./actions/deleteAsl.js')).deleteAsl();
+        } else if (action === 'checkAsl') {
+            await (await import('./actions/checkAsl.js')).checkAsl();
+        } else if (action === 'downloadAsl') {
             await (await import('./actions/downloadAsl.js')).downloadAsl();
         } else if (action === 'uploadAsl') {
             await (await import('./actions/uploadAsl.js')).uploadAsl();

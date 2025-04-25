@@ -77,21 +77,34 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
 };
 
 export const findBestDownloadUrl = async (urls: string[]): Promise<string> => {
-    // Measure download speeds of all URLs in parallel
-    const controllers = urls.map(() => new AbortController()); // Create abort controllers for each URL
-    const speedResults = Promise.race(
-        urls.map((url, index) =>
-            measureDownloadSpeed(url, controllers[index].signal).then((result) => {
-                // Abort all other fetches as soon as one completes
+    const controllers = urls.map(() => new AbortController());
+
+    const speedTests = urls.map((url, index) => {
+        const signal = controllers[index].signal;
+        return measureDownloadSpeed(url, signal)
+            .then((result) => {
+                // Abort other fetches on first successful result
                 controllers.forEach((controller, i) => {
-                    if (i !== index) controller.abort(); // Abort other downloads
+                    if (i !== index) controller.abort();
                 });
                 return result;
+            })
+            .catch((err) => {
+                logger.warn(`Error testing ${url}: ${err.message}`);
+                return null; // Mark this one as failed
+            });
+    });
+
+    const result = await Promise.any(
+        speedTests.map((p) =>
+            p.then((res) => {
+                if (!res) throw new Error('Failed'); // Force rejection for nulls
+                return res;
             }),
         ),
-    );
+    ).catch(() => {
+        throw new Error('All speed tests failed');
+    });
 
-    const result = await speedResults;
-
-    return result.url; // Return the URL of the fastest one
+    return result.url;
 };
