@@ -2,6 +2,7 @@ import type { Transcript as BahethTranscript } from 'baheth-sdk';
 import type { Segment } from 'tafrigh';
 
 import {
+    createHints,
     estimateSegmentFromToken,
     formatSegmentsToTimestampedTranscript,
     mapSegmentsIntoFormattedSegments,
@@ -14,6 +15,15 @@ const FILLER_WORDS = ['آآ', 'اه', 'ايه', 'وآآ', 'فآآ', 'مم', 'ه�
     token + '.',
     token + '?',
 ]);
+
+const HINTS = [
+    'احسن الله اليكم',
+    'جزاك الله',
+    'احسن الله اليك',
+    'بسم الله الرحمن',
+    'وصلى الله وسلم على نبينا محمد',
+    'اما بعد',
+];
 
 type TranscriptData = { text?: string; timestamp?: Date; transcripts: Segment[]; url?: string };
 
@@ -37,6 +47,7 @@ export const mapSegmentsToTranscript = (transcripts: BahethTranscript | Segment[
     const combinedSegments = markAndCombineSegments(result.transcripts as ParagrafSegment[], {
         fillers: FILLER_WORDS,
         gapThreshold: 2,
+        hints: createHints(...HINTS),
         maxSecondsPerSegment: 240,
         minWordsPerSegment: 10,
     });

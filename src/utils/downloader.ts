@@ -1,6 +1,7 @@
 import ytdl from '@distube/ytdl-core';
+import { findBestDownloadUrl } from 'rabbito';
 
-import { downloadFileWithProgress, findBestDownloadUrl } from './network.js';
+import { downloadFileWithProgress } from './network.js';
 
 export const MEDIA_CONTAINER = 'mp4';
 
