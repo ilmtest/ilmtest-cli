@@ -17,6 +17,8 @@ import {
 import logger from '../utils/logger.js';
 import { mapSegmentsToTranscript } from '../utils/mapping.js';
 
+const targetCollection = process.argv[2];
+
 const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: string): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
 
@@ -138,13 +140,16 @@ const getSelectedCollection = async () => {
         before: '9999',
         library: '62',
         limit: 10,
-        ...(process.argv[2] && { id: process.argv[2] }),
+        ...(targetCollection && { id: targetCollection }),
     });
-    const selectedCollection = await select({
-        choices: collections.map((c) => ({ description: c.id, name: c.title, value: c.id })),
-        default: collections[0].id,
-        message: 'Select collection',
-    });
+
+    const selectedCollection =
+        targetCollection ||
+        (await select({
+            choices: collections.map((c) => ({ description: c.id, name: c.title, value: c.id })),
+            default: collections[0].id,
+            message: 'Select collection',
+        }));
 
     const [collection] = await Promise.all([
         getCollection(selectedCollection),
@@ -156,10 +161,28 @@ const getSelectedCollection = async () => {
 
 const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string) => {
     let remainingFids = await getRemainingFids(fids, outputDirectory);
-    await downloadTranscriptsAlreadyTranscribed(remainingFids, outputDirectory);
+
+    if (!targetCollection) {
+        await downloadTranscriptsAlreadyTranscribed(remainingFids, outputDirectory);
+    }
+
     remainingFids = await getRemainingFids(fids, outputDirectory);
     const remainingMediasNotDownloaded = getMissingMedias(remainingFids, await fs.readdir(outputDirectory));
+
     await downloadYouTubeVideos(remainingMediasNotDownloaded, outputDirectory);
+
+    if (targetCollection) {
+        logger.info('Here is your chance to pre-process the downloaded audio. Press any key to continue...');
+
+        await new Promise<void>((resolve) => {
+            process.stdin.setRawMode(true);
+            process.stdin.once('data', () => {
+                process.stdin.setRawMode(false);
+                resolve();
+            });
+            process.stdin.resume();
+        });
+    }
 
     const medias = getMediasAlreadyDownloaded(remainingFids, await fs.readdir(outputDirectory));
     const transcribed = await transcribeDownloadedVideos(medias, outputDirectory);
