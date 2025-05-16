@@ -26,21 +26,25 @@ const main = async () => {
         message: 'Select language',
     });
 
-    if (action === 'transcribe') {
-        await loadConfiguration(packageJson.name, ['collectionsEndpoint', 'tafrighApiKeys']);
-        await (await import('./actions/transcribe.js')).transcribeWithAI();
-    } else if (['checkAsl', 'deleteAsl', 'downloadAsl', 'uploadAsl'].includes(action)) {
-        await loadConfiguration(packageJson.name, ['awsRegion', 'awsAccessKey', 'awsSecretKey', 'awsBucket']);
+    await loadConfiguration(packageJson.name, [
+        'collectionsEndpoint',
+        'tafrighApiKeys',
+        'awsRegion',
+        'awsAccessKey',
+        'awsSecretKey',
+        'awsBucket',
+    ]);
 
-        if (action === 'deleteAsl') {
-            await (await import('./actions/deleteAsl.js')).deleteAsl();
-        } else if (action === 'checkAsl') {
-            await (await import('./actions/checkAsl.js')).checkAsl();
-        } else if (action === 'downloadAsl') {
-            await (await import('./actions/downloadAsl.js')).downloadAsl();
-        } else if (action === 'uploadAsl') {
-            await (await import('./actions/uploadAsl.js')).uploadAsl();
-        }
+    if (action === 'transcribe') {
+        await (await import('./actions/transcribe.js')).transcribeWithAI();
+    } else if (action === 'deleteAsl') {
+        await (await import('./actions/deleteAsl.js')).deleteAsl();
+    } else if (action === 'checkAsl') {
+        await (await import('./actions/checkAsl.js')).checkAsl();
+    } else if (action === 'downloadAsl') {
+        await (await import('./actions/downloadAsl.js')).downloadAsl();
+    } else if (action === 'uploadAsl') {
+        await (await import('./actions/uploadAsl.js')).uploadAsl();
     }
 };
 

@@ -26,10 +26,12 @@ export const getCollection = async (id: string): Promise<Collection> => {
     if (data.fid?.startsWith(`{"`) && data.fid?.endsWith('"}')) {
         const volumeToVideoId: Record<string, string> = JSON.parse(data.fid);
 
-        result.fid = Object.entries(volumeToVideoId).map(([volume, videoId]) => ({
-            id: videoId,
-            volume: parseInt(volume),
-        }));
+        result.fid = Object.entries(volumeToVideoId)
+            .map(([volume, videoId]) => ({
+                id: videoId,
+                volume: parseInt(volume),
+            }))
+            .toSorted((a, b) => a.volume - b.volume);
     } else if (data.fid) {
         result.fid = [{ id: data.fid, volume: 1 }];
     }
