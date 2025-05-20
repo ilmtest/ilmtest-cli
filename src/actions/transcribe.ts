@@ -1,10 +1,11 @@
-import { waitForKeyPress } from '@/utils/io.js';
 import { confirm, select } from '@inquirer/prompts';
 import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { estimateSegmentFromToken } from 'paragrafs';
 import { transcribe } from 'tafrigh';
+
+import { waitForKeyPress } from '@/utils/io.js';
 
 import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
 
@@ -28,8 +29,15 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
         logger.info(`Downloading ${fid.id} from baheth`);
         const transcript = await getMediaTranscript(fid.id);
         const transformed = {
+            segments: [
+                {
+                    end: transcript.segments.at(-1)!.end,
+                    start: transcript.segments[0].start,
+                    text: transcript.segments.map((segment) => segment.text).join(' '),
+                    tokens: transcript.segments.map(estimateSegmentFromToken).flatMap((segment) => segment.tokens),
+                },
+            ],
             timestamp: transcript.timestamp,
-            tokens: transcript.segments.map(estimateSegmentFromToken).flatMap((segment) => segment.tokens),
             urls: [transcript.metadata.srtLink],
             volume: fid.volume,
         } satisfies Transcript;
@@ -101,7 +109,18 @@ const transcribeDownloadedVideos = async (
         ).flatMap(({ tokens }) => tokens!.map(({ end, start, text }) => ({ end, start, text })));
 
         const outputFile = mapFidToOutputFile(video, outputDirectory);
-        const result = { timestamp: new Date(), tokens, volume: video.volume } satisfies Transcript;
+        const result = {
+            segments: [
+                {
+                    end: tokens.at(-1)!.end,
+                    start: tokens[0].start,
+                    text: tokens.map((t) => t.text).join(' '),
+                    tokens,
+                },
+            ],
+            timestamp: new Date(),
+            volume: video.volume,
+        } satisfies Transcript;
         await Bun.file(outputFile).write(JSON.stringify(result, null, 2));
 
         if (outputFile) {
@@ -129,7 +148,7 @@ const downloadTranscriptsAlreadyTranscribed = async (fids: ForeignId[], outputDi
 
 const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: string): Promise<TranscriptSeries> => {
     const result: TranscriptSeries = {
-        contractVersion: 'v0.1',
+        contractVersion: 'v1.0',
         createdAt: new Date(),
         lastUpdatedAt: new Date(),
         transcripts: [],
@@ -224,6 +243,7 @@ export const transcribeWithAI = async () => {
 
     logger.info(`Integrating ${fids.length} volumes from ${outputDirectory}`);
     const result = await integrateTranscriptions(fids, outputDirectory);
+    console.log('result', result);
 
     return saveAndCleanup(collection, result, outputDirectory);
 };
