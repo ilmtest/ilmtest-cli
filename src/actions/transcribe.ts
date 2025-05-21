@@ -243,7 +243,6 @@ export const transcribeWithAI = async () => {
 
     logger.info(`Integrating ${fids.length} volumes from ${outputDirectory}`);
     const result = await integrateTranscriptions(fids, outputDirectory);
-    console.log('result', result);
 
     return saveAndCleanup(collection, result, outputDirectory);
 };
