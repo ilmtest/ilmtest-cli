@@ -227,7 +227,7 @@ const saveAndCleanup = async (collection: string, data: TranscriptSeries, output
     const outputFileObj = Bun.file(outputFile);
     await outputFileObj.write(JSON.stringify(data, null, 2));
 
-    const shouldUpload = await confirm({ message: `Do we you want to upload to S3` });
+    const shouldUpload = await confirm({ message: `Do you want to upload to S3?` });
 
     if (shouldUpload) {
         await uploadAslToS3(collection, outputFile);
