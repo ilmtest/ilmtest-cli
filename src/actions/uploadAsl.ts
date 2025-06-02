@@ -70,7 +70,7 @@ export const uploadAsl = async () => {
     });
 
     const collectionFile = await uploadAslToS3(collectionId, filePath);
-    const deleteFile = await confirm({ message: `Do we you want to delete ${filePath}` });
+    const deleteFile = await confirm({ message: `Do you want to delete ${filePath}` });
 
     if (deleteFile) {
         await collectionFile.delete();
