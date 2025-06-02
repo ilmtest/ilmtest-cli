@@ -1,4 +1,4 @@
-import type { Segment } from 'tafrigh';
+import type { Segment } from 'paragrafs';
 
 export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
 
@@ -13,6 +13,16 @@ export type Config = {
 
 export type ForeignId = { id: string; volume: number };
 
-export type Part = { part: number; timestamp?: Date; transcripts: Segment[] };
+export type Transcript = {
+    readonly segments: Segment[];
+    readonly timestamp: Date;
+    readonly urls?: string[];
+    readonly volume: number;
+};
 
-export type Transcript = { parts: Part[]; timestamp: Date; urls: string[] };
+export type TranscriptSeries = {
+    contractVersion: string;
+    createdAt: Date;
+    lastUpdatedAt: Date;
+    transcripts: Transcript[];
+};

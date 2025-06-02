@@ -1,6 +1,7 @@
 import type { Readable } from 'node:stream';
 
 import { promises as fs } from 'node:fs';
+import process from 'node:process';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 
@@ -21,4 +22,15 @@ export const decompressFromStream = async (sourceStream: Readable, outputFilePat
     } catch (error) {
         throw new Error(`Failed to decompress stream to ${outputFilePath}: ${error}`);
     }
+};
+
+export const waitForKeyPress = async () => {
+    return new Promise<void>((resolve) => {
+        process.stdin.setRawMode(true);
+        process.stdin.once('data', () => {
+            process.stdin.setRawMode(false);
+            resolve();
+        });
+        process.stdin.resume();
+    });
 };

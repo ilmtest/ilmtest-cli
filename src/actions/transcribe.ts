@@ -2,9 +2,12 @@ import { confirm, select } from '@inquirer/prompts';
 import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { estimateSegmentFromToken } from 'paragrafs';
 import { transcribe } from 'tafrigh';
 
-import type { ForeignId, Transcript } from '../types.js';
+import { waitForKeyPress } from '@/utils/io.js';
+
+import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
 
 import { getCollection, getCollections } from '../api/collections.js';
 import { downloadYouTubeVideo } from '../utils/downloader.js';
@@ -15,9 +18,7 @@ import {
     mapFidToOutputFile,
 } from '../utils/fidUtils.js';
 import logger from '../utils/logger.js';
-import { mapSegmentsToTranscript } from '../utils/mapping.js';
-
-const targetCollection = process.argv[2];
+import { uploadAslToS3 } from './uploadAsl.js';
 
 const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: string): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
@@ -25,8 +26,21 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
     for (const fid of transcribed) {
         logger.info(`Downloading ${fid.id} from baheth`);
         const transcript = await getMediaTranscript(fid.id);
+        const transformed = {
+            segments: [
+                {
+                    end: transcript.segments.at(-1)!.end,
+                    start: transcript.segments[0].start,
+                    text: transcript.segments.map((segment) => segment.text).join(' '),
+                    tokens: transcript.segments.map(estimateSegmentFromToken).flatMap((segment) => segment.tokens),
+                },
+            ],
+            timestamp: transcript.timestamp,
+            urls: [transcript.metadata.srtLink],
+            volume: fid.volume,
+        } satisfies Transcript;
         const fileName = mapFidToOutputFile(fid, outputDirectory);
-        await Bun.file(fileName).write(JSON.stringify(transcript));
+        await Bun.file(fileName).write(JSON.stringify(transformed, null, 2));
 
         logger.info(`Saved ${fid.id} to ${fileName}`);
 
@@ -70,26 +84,43 @@ const downloadYouTubeVideos = async (fids: ForeignId[], outputDirectory: string)
 const transcribeDownloadedVideos = async (
     downloadedVideos: ForeignId[],
     outputDirectory: string,
+    targetCollection?: string,
 ): Promise<ForeignId[]> => {
     const transcribed: ForeignId[] = [];
 
     logger.info(`Medias to transcribe ${JSON.stringify(downloadedVideos)}`);
 
     for (const video of downloadedVideos) {
-        const segments = await transcribe(path.join(outputDirectory, video.id), {
-            callbacks: {
-                onPreprocessingFinished: async (filePath) => logger.info(`Pre-formatted ${filePath}`),
-                onPreprocessingStarted: async (filePath) => logger.info(`Pre-formatting ${filePath}`),
-                onTranscriptionFinished: async (transcripts) => logger.info(`Transcribed ${transcripts.length} chunks`),
-                onTranscriptionProgress: (index) => logger.info(`Transcribed #${index}`),
-                onTranscriptionStarted: async (total) => logger.info(`Starting transcription of ${total} chunks`),
-            },
-            concurrency: 5,
-            splitOptions: { chunkDuration: 300 },
-        });
+        const tokens = (
+            await transcribe(path.join(outputDirectory, video.id), {
+                callbacks: {
+                    onPreprocessingFinished: async (filePath) => logger.info(`Pre-formatted ${filePath}`),
+                    onPreprocessingStarted: async (filePath) => logger.info(`Pre-formatting ${filePath}`),
+                    onTranscriptionFinished: async (transcripts) =>
+                        logger.info(`Transcribed ${transcripts.length} chunks`),
+                    onTranscriptionProgress: (index) => logger.info(`Transcribed #${index}`),
+                    onTranscriptionStarted: async (total) => logger.info(`Starting transcription of ${total} chunks`),
+                },
+                concurrency: 5,
+                ...(targetCollection && { preprocessOptions: { noiseReduction: null } }),
+                splitOptions: { chunkDuration: 300 },
+            })
+        ).flatMap(({ tokens }) => tokens!.map(({ end, start, text }) => ({ end, start, text })));
 
         const outputFile = mapFidToOutputFile(video, outputDirectory);
-        await Bun.file(mapFidToOutputFile(video, outputDirectory)).write(JSON.stringify(segments, null, 2));
+        const result = {
+            segments: [
+                {
+                    end: tokens.at(-1)!.end,
+                    start: tokens[0].start,
+                    text: tokens.map((t) => t.text).join(' '),
+                    tokens,
+                },
+            ],
+            timestamp: new Date(),
+            volume: video.volume,
+        } satisfies Transcript;
+        await Bun.file(outputFile).write(JSON.stringify(result, null, 2));
 
         if (outputFile) {
             transcribed.push({ id: outputFile, volume: video.volume });
@@ -114,28 +145,24 @@ const downloadTranscriptsAlreadyTranscribed = async (fids: ForeignId[], outputDi
     return downloadTranscripts(fidTranscriptsAvailable, outputDirectory);
 };
 
-const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: string): Promise<Transcript> => {
-    const result: Transcript = { parts: [], timestamp: new Date(), urls: [] };
+const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: string): Promise<TranscriptSeries> => {
+    const result: TranscriptSeries = {
+        contractVersion: 'v1.0',
+        createdAt: new Date(),
+        lastUpdatedAt: new Date(),
+        transcripts: [],
+    };
 
     for (const fid of fids) {
         const file = mapFidToOutputFile(fid, outputDirectory);
-        const { text, timestamp, transcripts, url } = mapSegmentsToTranscript(await Bun.file(file).json());
-
-        if (text) {
-            await Bun.file(path.format({ dir: outputDirectory, ext: '.txt', name: fid.volume.toString() })).write(text);
-        }
-
-        result.parts.push({ part: fid.volume, timestamp: timestamp || new Date(), transcripts });
-
-        if (url) {
-            result.urls.push(url);
-        }
+        const transcript: Transcript = await Bun.file(file).json();
+        result.transcripts.push(transcript);
     }
 
     return result;
 };
 
-const getSelectedCollection = async () => {
+const getSelectedCollection = async (targetCollection?: string, selectedVolume?: number) => {
     const collections = await getCollections({
         before: '9999',
         library: '62',
@@ -156,10 +183,16 @@ const getSelectedCollection = async () => {
         fs.mkdir(selectedCollection, { recursive: true }),
     ]);
 
-    return { fids: collection.fid as ForeignId[], outputDirectory: selectedCollection };
+    let fids = collection.fid as ForeignId[];
+
+    if (selectedVolume) {
+        fids = fids.filter((f) => f.volume === selectedVolume);
+    }
+
+    return { collection: selectedCollection, fids, outputDirectory: selectedCollection };
 };
 
-const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string) => {
+const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string, targetCollection?: string) => {
     let remainingFids = await getRemainingFids(fids, outputDirectory);
 
     if (!targetCollection) {
@@ -173,19 +206,11 @@ const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string)
 
     if (targetCollection) {
         logger.info('Here is your chance to pre-process the downloaded audio. Press any key to continue...');
-
-        await new Promise<void>((resolve) => {
-            process.stdin.setRawMode(true);
-            process.stdin.once('data', () => {
-                process.stdin.setRawMode(false);
-                resolve();
-            });
-            process.stdin.resume();
-        });
+        await waitForKeyPress();
     }
 
     const medias = getMediasAlreadyDownloaded(remainingFids, await fs.readdir(outputDirectory));
-    const transcribed = await transcribeDownloadedVideos(medias, outputDirectory);
+    const transcribed = await transcribeDownloadedVideos(medias, outputDirectory, targetCollection);
     logger.info(`Transcribed ${JSON.stringify(transcribed)}`);
 
     remainingFids = await getRemainingFids(fids, outputDirectory);
@@ -195,10 +220,19 @@ const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string)
     }
 };
 
-const saveAndCleanup = async (data: Transcript, outputDirectory: string) => {
+const saveAndCleanup = async (collection: string, data: TranscriptSeries, outputDirectory: string) => {
     const outputFile = path.format({ ext: '.json', name: outputDirectory });
     logger.info(`Writing to ${outputFile}`);
-    await Bun.file(outputFile).write(JSON.stringify(data, null, 2));
+
+    const outputFileObj = Bun.file(outputFile);
+    await outputFileObj.write(JSON.stringify(data, null, 2));
+
+    const shouldUpload = await confirm({ message: `Do you want to upload to S3?` });
+
+    if (shouldUpload) {
+        await uploadAslToS3(collection, outputFile);
+        await outputFileObj.delete();
+    }
 
     const deleteOutputFolder = await confirm({ message: `Do we you want to delete ${outputDirectory}` });
 
@@ -207,13 +241,16 @@ const saveAndCleanup = async (data: Transcript, outputDirectory: string) => {
     }
 };
 
-export const transcribeWithAI = async () => {
-    const { fids, outputDirectory } = await getSelectedCollection();
+export const transcribeWithAI = async (targetCollection?: string, selectedVolume?: string) => {
+    const { collection, fids, outputDirectory } = await getSelectedCollection(
+        targetCollection,
+        selectedVolume ? parseInt(selectedVolume) : undefined,
+    );
 
-    await downloadAndTranscribe(fids, outputDirectory);
+    await downloadAndTranscribe(fids, outputDirectory, targetCollection);
 
     logger.info(`Integrating ${fids.length} volumes from ${outputDirectory}`);
     const result = await integrateTranscriptions(fids, outputDirectory);
 
-    return saveAndCleanup(result, outputDirectory);
+    return saveAndCleanup(collection, result, outputDirectory);
 };
