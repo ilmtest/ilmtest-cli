@@ -1,4 +1,4 @@
-import { Segment } from 'paragrafs';
+import type { Segment } from 'paragrafs';
 
 export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
 

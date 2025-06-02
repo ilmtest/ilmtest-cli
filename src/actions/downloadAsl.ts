@@ -8,12 +8,14 @@ import config from '../utils/config.js';
 import { decompressFromStream } from '../utils/io.js';
 import logger from '../utils/logger.js';
 
-export const downloadAsl = async () => {
-    const collectionId = await input({
-        message: 'Enter collection ID to download:',
-        required: true,
-        validate: (page) => (/\d+/.test(page) ? true : 'Please enter a valid collection ID'),
-    });
+export const downloadAsl = async (selectedCollection?: string) => {
+    const collectionId =
+        selectedCollection ||
+        (await input({
+            message: 'Enter collection ID to download:',
+            required: true,
+            validate: (page) => (/\d+/.test(page) ? true : 'Please enter a valid collection ID'),
+        }));
 
     const s3Client = new S3Client({
         accessKeyId: config.awsAccessKey,
