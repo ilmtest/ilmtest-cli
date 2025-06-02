@@ -24,30 +24,6 @@ type SuryaPage = SuryaPageOcrResult & {
     page: number;
 };
 
-const promptJsonFile = async (message: string) => {
-    const filePath = sanitizeInput(
-        await input({
-            message,
-            required: true,
-            transformer: (val) => sanitizeInput(val),
-            validate: async (input) => {
-                const f = sanitizeInput(input);
-
-                if (!f.endsWith('.json')) {
-                    return 'It must be a .json file';
-                }
-
-                if (await Bun.file(f).exists()) {
-                    return true;
-                }
-
-                return 'File does not exist. Please enter a valid file path';
-            },
-        }),
-    );
-
-    return filePath;
-};
 
 export const compileManuscript = async (folder?: string) => {
     const dataFolder =
