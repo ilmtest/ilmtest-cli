@@ -14,7 +14,7 @@ export const downloadAsl = async (selectedCollection?: string) => {
         (await input({
             message: 'Enter collection ID to download:',
             required: true,
-            validate: (page) => (/\d+/.test(page) ? true : 'Please enter a valid collection ID'),
+            validate: (page) => (/^\d+$/.test(page) ? true : 'Please enter a valid collection ID'),
         }));
 
     const s3Client = new S3Client({
