@@ -9,6 +9,8 @@ import {
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import type { Manuscript } from '@/types.js';
+
 import logger from '../utils/logger.js';
 import { sanitizeInput } from '../utils/textUtils.js';
 
@@ -23,7 +25,6 @@ type Metadata = {
 type SuryaPage = SuryaPageOcrResult & {
     page: number;
 };
-
 
 export const compileManuscript = async (folder?: string) => {
     const dataFolder =
@@ -83,27 +84,25 @@ export const compileManuscript = async (folder?: string) => {
             const structure = structures[imageFile];
             const alternateObservations = mapSuryaPageResultToObservations(suryaPage);
 
-            const blocks = buildTextBlocksFromOCR(
-                {
-                    alternateObservations,
-                    dpi: structure.dpi,
-                    ...(structure.horizontal_lines && { horizontalLines: structure.horizontal_lines }),
-                    ...(structure.rectangles && { rectangles: structure.rectangles }),
-                    observations: macOCRData.observations,
-                },
-                { minMarginRatio: 0.2 },
-            );
+            const blocks = buildTextBlocksFromOCR({
+                alternateObservations,
+                dpi: structure.dpi,
+                ...(structure.horizontal_lines && { horizontalLines: structure.horizontal_lines }),
+                ...(structure.rectangles && { rectangles: structure.rectangles }),
+                observations: macOCRData.observations,
+            });
 
             return { blocks, page: pageNumber };
         })
         .toSorted((a, b) => a.page - b.page);
 
+    const outputData = {
+        contractVersion: 'v0.1',
+        createdAt: new Date(),
+        data: result,
+        lastUpdatedAt: new Date(),
+    } satisfies Manuscript;
+
     logger.info('Writing output.json');
-    await Bun.file('output.json').write(
-        JSON.stringify(
-            { contractVersion: 'v0.1', createdAt: new Date(), data: result, lastUpdatedAt: new Date() },
-            null,
-            2,
-        ),
-    );
+    await Bun.file('output.json').write(JSON.stringify(outputData, null, 2));
 };
