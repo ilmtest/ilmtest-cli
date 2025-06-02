@@ -72,9 +72,14 @@ export const compileManuscript = async (folder?: string) => {
 
     const result = Object.entries(fileToObservations)
         .map(([imageFile, macOCRData]) => {
-            const name = path.parse(imageFile).name.substring(1); // discard leading -
+            const baseName = path.parse(imageFile).name;
+            const name = baseName.startsWith('-') ? baseName.substring(1) : baseName;
             const pageNumber = parseInt(name);
-            const suryaPage = surya.find((s) => s.page === pageNumber)!;
+            const suryaPage = surya.find((s) => s.page === pageNumber);
+
+            if (!suryaPage) {
+                throw new Error(`No Surya page data found for page ${pageNumber} (file: ${imageFile})`);
+            }
             const structure = structures[imageFile];
             const alternateObservations = mapSuryaPageResultToObservations(suryaPage);
 
