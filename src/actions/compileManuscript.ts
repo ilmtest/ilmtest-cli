@@ -41,15 +41,15 @@ export const compileManuscript = async (folder?: string) => {
                         const inputStats = await fs.stat(f);
 
                         if (inputStats.isDirectory()) {
-                            if (!(await Bun.file(path.join(dataFolder, 'batch_output.json')).exists())) {
+                            if (!(await Bun.file(path.join(f, 'batch_output.json')).exists())) {
                                 return 'macOCR observations not found.';
                             }
 
-                            if (!(await Bun.file(path.join(dataFolder, 'structures.json')).exists())) {
+                            if (!(await Bun.file(path.join(f, 'structures.json')).exists())) {
                                 return 'structures result not found.';
                             }
 
-                            if (!(await Bun.file(path.join(dataFolder, 'results.json')).exists())) {
+                            if (!(await Bun.file(path.join(f, 'results.json')).exists())) {
                                 return 'surya observations not found.';
                             }
 
@@ -57,7 +57,8 @@ export const compileManuscript = async (folder?: string) => {
                         }
 
                         return 'Please enter a valid directory.';
-                    } catch {
+                    } catch (err) {
+                        console.error(err);
                         return 'Directory not found. Please enter a valid directory.';
                     }
                 },
