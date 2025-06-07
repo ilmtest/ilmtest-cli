@@ -25,44 +25,46 @@ type Metadata = {
     readonly rectangles?: BoundingBox[];
 };
 
-export const compileManuscript = async (folder?: string) => {
-    const dataFolder =
-        folder ||
-        sanitizeInput(
-            await input({
-                message: 'Enter the folder which contains the OCR data',
-                required: true,
-                transformer: (val) => sanitizeInput(val),
-                validate: async (input) => {
-                    const f = sanitizeInput(input);
+const getSourceFolder = async () => {
+    return sanitizeInput(
+        await input({
+            message: 'Enter the folder which contains the OCR data',
+            required: true,
+            transformer: (val) => sanitizeInput(val),
+            validate: async (input) => {
+                const f = sanitizeInput(input);
 
-                    try {
-                        const inputStats = await fs.stat(f);
+                try {
+                    const inputStats = await fs.stat(f);
 
-                        if (inputStats.isDirectory()) {
-                            if (!(await Bun.file(path.join(f, 'batch_output.json')).exists())) {
-                                return 'macOCR observations not found.';
-                            }
-
-                            if (!(await Bun.file(path.join(f, 'structures.json')).exists())) {
-                                return 'structures result not found.';
-                            }
-
-                            if (!(await Bun.file(path.join(f, 'results.json')).exists())) {
-                                return 'surya observations not found.';
-                            }
-
-                            return true;
+                    if (inputStats.isDirectory()) {
+                        if (!(await Bun.file(path.join(f, 'batch_output.json')).exists())) {
+                            return 'macOCR observations not found.';
                         }
 
-                        return 'Please enter a valid directory.';
-                    } catch (err) {
-                        console.error(err);
-                        return 'Directory not found. Please enter a valid directory.';
+                        if (!(await Bun.file(path.join(f, 'structures.json')).exists())) {
+                            return 'structures result not found.';
+                        }
+
+                        if (!(await Bun.file(path.join(f, 'results.json')).exists())) {
+                            return 'surya observations not found.';
+                        }
+
+                        return true;
                     }
-                },
-            }),
-        );
+
+                    return 'Please enter a valid directory.';
+                } catch (err) {
+                    console.error(err);
+                    return 'Directory not found. Please enter a valid directory.';
+                }
+            },
+        }),
+    );
+};
+
+export const compileManuscript = async (folder?: string) => {
+    const dataFolder = folder || (await getSourceFolder());
 
     const fileToObservations: Record<string, MacOCR> = await Bun.file(
         path.join(dataFolder, 'batch_output.json'),

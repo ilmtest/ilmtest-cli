@@ -23,11 +23,13 @@ export type Manuscript = {
         page: number;
         rectangles?: BoundingBox[];
     }[];
+    groundTruthUrls?: string[];
     lastUpdatedAt: Date;
     metadata: {
         image: Size;
         pdf: Size;
     };
+    urlTemplate?: string;
 };
 
 export type Transcript = {
