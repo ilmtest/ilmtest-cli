@@ -1,4 +1,4 @@
-import type { TextBlock } from 'kokokor';
+import type { BoundingBox, Size, TextBlock } from 'kokokor';
 import type { Segment } from 'paragrafs';
 
 export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
@@ -19,9 +19,15 @@ export type Manuscript = {
     createdAt: Date;
     data: {
         blocks: TextBlock[];
+        lines?: BoundingBox[];
         page: number;
+        rectangles?: BoundingBox[];
     }[];
     lastUpdatedAt: Date;
+    metadata: {
+        image: Size;
+        pdf: Size;
+    };
 };
 
 export type Transcript = {
