@@ -5,8 +5,6 @@ import path from 'node:path';
 import { estimateSegmentFromToken } from 'paragrafs';
 import { transcribe } from 'tafrigh';
 
-import { waitForKeyPress } from '@/utils/io.js';
-
 import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
 
 import { getCollection, getCollections } from '../api/collections.js';
@@ -17,6 +15,7 @@ import {
     getUnprocessedVolumes,
     mapFidToOutputFile,
 } from '../utils/fidUtils.js';
+import { waitForKeyPress } from '../utils/io.js';
 import logger from '../utils/logger.js';
 import { uploadAslToS3 } from './uploadAsl.js';
 
