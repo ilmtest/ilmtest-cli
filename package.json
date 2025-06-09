@@ -4,7 +4,7 @@
         "ilmtest-cli": "./dist/index.js"
     },
     "dependencies": {
-        "@distube/ytdl-core": "4.16.11",
+        "@distube/ytdl-core": "4.16.8",
         "@inquirer/prompts": "^7.5.3",
         "baheth-sdk": "^1.2.2",
         "cli-progress": "^3.12.0",
