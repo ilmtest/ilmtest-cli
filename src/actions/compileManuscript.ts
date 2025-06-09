@@ -46,7 +46,7 @@ const getSourceFolder = async () => {
                             return 'structures result not found.';
                         }
 
-                        if (!(await Bun.file(path.join(f, 'results.json')).exists())) {
+                        if (!(await Bun.file(path.join(f, 'surya.json')).exists())) {
                             return 'surya observations not found.';
                         }
 
