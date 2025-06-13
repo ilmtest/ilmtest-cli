@@ -2,7 +2,6 @@ import { confirm, select } from '@inquirer/prompts';
 import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { estimateSegmentFromToken } from 'paragrafs';
 import { transcribe } from 'tafrigh';
 
 import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
@@ -26,14 +25,7 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
         logger.info(`Downloading ${fid.id} from baheth`);
         const transcript = await getMediaTranscript(fid.id);
         const transformed = {
-            segments: [
-                {
-                    end: transcript.segments.at(-1)!.end,
-                    start: transcript.segments[0].start,
-                    text: transcript.segments.map((segment) => segment.text).join(' '),
-                    tokens: transcript.segments.map(estimateSegmentFromToken).flatMap((segment) => segment.tokens),
-                },
-            ],
+            segments: transcript.segments,
             timestamp: transcript.timestamp,
             urls: [transcript.metadata.srtLink],
             volume: fid.volume,

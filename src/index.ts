@@ -39,6 +39,7 @@ const main = async () => {
         (await select({
             choices: [
                 { name: 'AI Transcribe', value: 'transcribe' },
+                { name: 'AI Translate', value: 'translate' },
                 { name: 'Check Asl', value: 'checkAsl' },
                 { name: 'Compile Manuscript', value: 'compileManuscript' },
                 { name: 'Delete Asl', value: 'deleteAsl' },
@@ -80,8 +81,8 @@ const main = async () => {
         await (await import('./actions/downloadAsl.js')).downloadAsl(values.downloadAsl);
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
-    } else if (action === 'compileManuscript') {
-        await (await import('./actions/compileManuscript.js')).compileManuscript(positionals[0]);
+    } else if (action === 'translate') {
+        await (await import('./actions/translate.js')).translateWithAI(positionals[0]);
     }
 };
 
