@@ -3,8 +3,8 @@ import { gzipSync, S3Client } from 'bun';
 import path from 'node:path';
 
 import config from '../utils/config.js';
+import { getFileSystemInput } from '../utils/io.js';
 import logger from '../utils/logger.js';
-import { sanitizeInput } from '../utils/textUtils.js';
 
 export const uploadAslToS3 = async (collectionId: string, filePath: string) => {
     const s3Client = new S3Client({
@@ -41,26 +41,20 @@ export const uploadAslToS3 = async (collectionId: string, filePath: string) => {
 };
 
 export const uploadAsl = async () => {
-    const filePath = sanitizeInput(
-        await input({
-            message: 'Enter the path to the JSON file:',
-            required: true,
-            transformer: (val) => sanitizeInput(val),
-            validate: async (input) => {
-                const f = sanitizeInput(input);
+    const filePath = await getFileSystemInput({
+        message: 'Enter the path to the JSON file:',
+        validate: async (f) => {
+            if (!f.endsWith('.json')) {
+                return 'The asl must be a .json file';
+            }
 
-                if (!f.endsWith('.json')) {
-                    return 'The asl must be a .json file';
-                }
+            if (await Bun.file(f).exists()) {
+                return true;
+            }
 
-                if (await Bun.file(f).exists()) {
-                    return true;
-                }
-
-                return 'File does not exist. Please enter a valid file path';
-            },
-        }),
-    );
+            return 'File does not exist. Please enter a valid file path';
+        },
+    });
 
     const collectionId = await input({
         default: path.parse(filePath).name,

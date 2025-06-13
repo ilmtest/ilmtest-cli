@@ -1,5 +1,4 @@
-import type { BoundingBox, Size, TextBlock } from 'kokokor';
-import type { Segment } from 'paragrafs';
+import type { Segment } from 'tafrigh';
 
 export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
 
@@ -13,24 +12,6 @@ export type Config = {
 };
 
 export type ForeignId = { id: string; volume: number };
-
-export type Manuscript = {
-    contractVersion: string;
-    createdAt: Date;
-    data: {
-        blocks: TextBlock[];
-        lines?: BoundingBox[];
-        page: number;
-        rectangles?: BoundingBox[];
-    }[];
-    groundTruthUrls?: string[];
-    lastUpdatedAt: Date;
-    metadata: {
-        image: Size;
-        pdf: Size;
-    };
-    urlTemplate?: string;
-};
 
 export type Transcript = {
     readonly segments: Segment[];
