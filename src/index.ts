@@ -26,8 +26,14 @@ const main = async () => {
                 short: 'd',
                 type: 'string',
             },
+            preview: {
+                type: 'boolean',
+            },
             transcribe: {
                 short: 't',
+                type: 'boolean',
+            },
+            translate: {
                 type: 'boolean',
             },
         },
@@ -71,6 +77,10 @@ const main = async () => {
         action = 'downloadAsl';
     }
 
+    if (values.translate) {
+        action = 'translate';
+    }
+
     if (action === 'transcribe') {
         await (await import('./actions/transcribe.js')).transcribeWithAI(positionals[0], positionals[1]);
     } else if (action === 'deleteAsl') {
@@ -82,7 +92,7 @@ const main = async () => {
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {
-        await (await import('./actions/translate.js')).translateWithAI(positionals[0]);
+        await (await import('./actions/translate.js')).translateWithAI(positionals[0], positionals[1], values.preview);
     }
 };
 

@@ -58,3 +58,21 @@ export const getFileSystemInput = async ({
         }),
     );
 };
+
+export const getNumericInput = async (message: string, error: string, defaultValue?: string) => {
+    if (defaultValue) {
+        return defaultValue;
+    }
+
+    return input({
+        message,
+        required: true,
+        validate: async (c) => {
+            if (/^\d+$/.test(c)) {
+                return true;
+            }
+
+            return error;
+        },
+    });
+};
