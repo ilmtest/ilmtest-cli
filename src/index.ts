@@ -92,7 +92,9 @@ const main = async () => {
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {
-        await (await import('./actions/translate.js')).translateWithAI(positionals[0], positionals[1], values.preview);
+        await (
+            await import('./actions/translate/index.js')
+        ).translateWithAI(positionals[0], positionals[1], values.preview);
     }
 };
 

@@ -18,7 +18,7 @@ export const doGet = async (endpoint: string, params: Record<string, any>) => {
     const response = await fetch(url as any);
     const result: any = await response.json();
 
-    logger.debug(`Success response ${url}`);
+    logger.trace(`Success response ${url}`);
 
     return result;
 };
@@ -34,7 +34,7 @@ export const doGet = async (endpoint: string, params: Record<string, any>) => {
 export const doPost = async (endpoint: string, body: Record<string, any>, headers: Record<string, string> = {}) => {
     const url = new URL(endpoint);
 
-    logger.debug(`POST ${url}`);
+    logger.trace(`POST ${url}`);
 
     const response = await fetch(url as any, {
         body: JSON.stringify(body),
@@ -47,7 +47,7 @@ export const doPost = async (endpoint: string, body: Record<string, any>, header
 
     const result: any = await response.json();
 
-    logger.debug(`Success response ${url}`);
+    logger.trace(`Success response ${url}`);
 
     return result;
 };
@@ -63,7 +63,7 @@ export const doPost = async (endpoint: string, body: Record<string, any>, header
 export const doPut = async (endpoint: string, body: Record<string, any>, headers: Record<string, string> = {}) => {
     const url = new URL(endpoint);
 
-    logger.debug(`PUT ${url}`);
+    logger.trace(`PUT ${url}`);
 
     const response = await fetch(url as any, {
         body: JSON.stringify({ ...body, ...(headers.user_id && { user_id: headers.user_id }) }),
@@ -76,7 +76,7 @@ export const doPut = async (endpoint: string, body: Record<string, any>, headers
 
     const result: any = await response.json();
 
-    logger.debug(`Success response ${url}`);
+    logger.trace(`Success response ${url}`);
 
     return result;
 };

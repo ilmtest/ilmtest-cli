@@ -1,4 +1,5 @@
 import { Presets, SingleBar } from 'cli-progress';
+import path from 'node:path';
 
 import logger from './logger.js';
 
@@ -52,4 +53,25 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
 
     logger.info(`Download complete: ${outputPath}`);
     return outputPath;
+};
+
+export const loadOrDownload = async <T>(
+    fileName: string,
+    getter: (collectionId: string) => Promise<T[]>,
+    collectionId: string,
+    dir: string,
+): Promise<T[]> => {
+    const file = Bun.file(path.format({ dir, ext: '.json', name: fileName }));
+
+    if (await file.exists()) {
+        return file.json();
+    } else {
+        logger.info(`Downloading ${fileName}`);
+        const data = await getter(collectionId);
+
+        logger.info(`Saving ${fileName}`);
+        await file.write(JSON.stringify(data));
+
+        return data;
+    }
 };
