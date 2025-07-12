@@ -3,7 +3,7 @@ import { gzipSync, S3Client } from 'bun';
 import path from 'node:path';
 
 import config from '../utils/config.js';
-import { getFileSystemInput } from '../utils/io.js';
+import { getFileSystemInput, getNumericInput } from '../utils/io.js';
 import logger from '../utils/logger.js';
 
 export const uploadAslToS3 = async (collectionId: string, filePath: string) => {
@@ -41,27 +41,13 @@ export const uploadAslToS3 = async (collectionId: string, filePath: string) => {
 };
 
 export const uploadAsl = async () => {
-    const filePath = await getFileSystemInput({
-        message: 'Enter the path to the JSON file:',
-        validate: async (f) => {
-            if (!f.endsWith('.json')) {
-                return 'The asl must be a .json file';
-            }
+    const filePath = await getFileSystemInput();
 
-            if (await Bun.file(f).exists()) {
-                return true;
-            }
-
-            return 'File does not exist. Please enter a valid file path';
-        },
-    });
-
-    const collectionId = await input({
-        default: path.parse(filePath).name,
-        message: 'Enter collection ID to upload:',
-        required: true,
-        validate: (id) => (/\d+/.test(id) ? true : 'Please enter a valid collection ID'),
-    });
+    const collectionId = await getNumericInput(
+        'Enter collection ID to upload:',
+        'Please enter a valid collection ID',
+        path.parse(filePath).name,
+    );
 
     const collectionFile = await uploadAslToS3(collectionId, filePath);
     const deleteFile = await confirm({ message: `Do you want to delete ${filePath}` });

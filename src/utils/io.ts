@@ -21,9 +21,20 @@ export const decompressFromStream = async (sourceStream: Readable, outputFilePat
 
         await destinationStream.close();
         return outputFilePath;
-    } catch (error) {
+    } catch (error: any) {
+        console.error(error.stack);
         throw new Error(`Failed to decompress stream to ${outputFilePath}: ${error}`);
     }
+};
+
+export const handlePromptTermination = () => {
+    process.on('unhandledRejection', (error) => {
+        if (error instanceof Error && error.name === 'ExitPromptError') {
+            // ignore
+        } else {
+            throw error;
+        }
+    });
 };
 
 export const waitForKeyPress = async () => {
@@ -37,13 +48,27 @@ export const waitForKeyPress = async () => {
     });
 };
 
-export const getFileSystemInput = async ({
-    message,
-    validate,
-}: {
-    message: string;
-    validate: (value: string) => boolean | Promise<boolean | string> | string;
-}) => {
+export const validateJsonFile = async (f: string) => {
+    if (!f.endsWith('.json')) {
+        return 'The asl must be a .json file';
+    }
+
+    if (await Bun.file(f).exists()) {
+        return true;
+    }
+
+    return 'File does not exist. Please enter a valid file path';
+};
+
+export const getFileSystemInput = async (
+    {
+        message,
+        validate,
+    }: {
+        message: string;
+        validate: (value: string) => boolean | Promise<boolean | string> | string;
+    } = { message: 'Enter the path to the JSON file:', validate: validateJsonFile },
+) => {
     return unescapeSpaces(
         await input({
             message,
@@ -60,12 +85,9 @@ export const getFileSystemInput = async ({
 };
 
 export const getNumericInput = async (message: string, error: string, defaultValue?: string) => {
-    if (defaultValue) {
-        return defaultValue;
-    }
-
     return input({
         message,
+        ...(defaultValue && { default: defaultValue }),
         required: true,
         validate: async (c) => {
             if (/^\d+$/.test(c)) {

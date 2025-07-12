@@ -3,17 +3,21 @@ import { select } from '@inquirer/prompts';
 import welcome from 'cli-welcome';
 import { parseArgs } from 'node:util';
 
-import packageJson from '../package.json' assert { type: 'json' };
+import packageJson from '../package.json' with { type: 'json' };
 import { loadConfiguration } from './utils/config.js';
+import { handlePromptTermination } from './utils/io.js';
 
 const main = async () => {
     welcome({
         bgColor: `#FADC00`,
         bold: true,
+        clear: false,
         color: `#000000`,
         title: packageJson.name,
         version: packageJson.version,
     });
+
+    handlePromptTermination();
 
     const { positionals, values } = parseArgs({
         allowPositionals: true,
@@ -24,6 +28,10 @@ const main = async () => {
             },
             downloadAsl: {
                 short: 'd',
+                type: 'string',
+            },
+            migrateChats: {
+                short: 'm',
                 type: 'string',
             },
             preview: {
@@ -50,6 +58,7 @@ const main = async () => {
                 { name: 'Compile Manuscript', value: 'compileManuscript' },
                 { name: 'Delete Asl', value: 'deleteAsl' },
                 { name: 'Download Asl', value: 'downloadAsl' },
+                { name: 'Migrate ChatGPT Conversations', value: 'migrateChats' },
                 { name: 'Upload Asl', value: 'uploadAsl' },
             ],
             default: 'transcribe',
@@ -67,6 +76,10 @@ const main = async () => {
 
     if (values.compileManuscript) {
         action = 'compileManuscript';
+    }
+
+    if (values.migrateChats) {
+        action = 'migrateChats';
     }
 
     if (values.transcribe) {
@@ -89,12 +102,16 @@ const main = async () => {
         await (await import('./actions/checkAsl.js')).checkAsl();
     } else if (action === 'downloadAsl') {
         await (await import('./actions/downloadAsl.js')).downloadAsl(values.downloadAsl);
+    } else if (action === 'migrateChats') {
+        await (
+            await import('./actions/migrateChats/index.js')
+        ).migrateChats(values.migrateChats, positionals[0], positionals[1]);
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {
         await (
             await import('./actions/translate/index.js')
-        ).translateWithAI(positionals[0], positionals[1], values.preview);
+        ).translateWithAI({ collection: positionals[0], isPreview: values.preview, translator: positionals[1] });
     }
 };
 

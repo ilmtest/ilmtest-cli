@@ -1,6 +1,17 @@
 import type { Entry } from '../../api/entries.js';
 import type { Page } from '../../api/maktabah.js';
 
+export const PATTERNS = {
+    AbdurrazaqLine: /^(ʿAbd al-Razzāq,?|Akhbaranā)$/g,
+    ArabicText: /[\u0600-\u06FF]/,
+    BodyReferences: /\s?(?<!^)-?\[\d+\]\s?/, // [1]
+    NumberedMultilineText: /(?=^\d+\s*[-–—]\s*)/gm, // 1 - First item
+    NumberedParagraph: /^(\d+) - (.*)$/gm,
+    NumberedSahihJami: /(\d+) (?:[-–—] |\s+)(?:\d+ [-–—] )?(.*?)(?=\d+ (?:[-–—] |\s+)(?:\d+ [-–—] )?|$)/gs, // 1338 - 581 - text or 87  1 -[text]
+    SquareBracketReferencesWithColon: /-\[\d+\]: /g, // "-[123]: "
+    SquareBracketReferencesWithDash: /(?<!^)-\[\d+\]/g, // "-[123]",
+};
+
 const createNewEntryFromPage = (page: Page, body: string, index?: number, type?: number) => {
     return {
         arabic: page.body,
@@ -113,29 +124,34 @@ export const sanitizePageBody = (page: Page) => {
     return {
         ...page,
         body: page.body
-            .replace(/-\[\d+\]: /g, '') // Remove "-[123]: " pattern
-            .replace(/(?<!^)-\[\d+\]/g, ''), // Remove "-[123]" pattern
+            .replace(PATTERNS.SquareBracketReferencesWithColon, '')
+            .replace(PATTERNS.SquareBracketReferencesWithDash, ''),
     };
 };
 
 export const sanitizeTranslation = (text: string) => {
     return (
         text
-            .replace(/^(ʿAbd al-Razzāq,?|Akhbaranā)$/g, '')
-            //.replace(/\s?(?<!^)-?\[\d+\]\s?/, '')
-            .split(/(?=^\d+\s*[-–—]\s*)/gm)
-            .filter((entry) => !/[\u0600-\u06FF]/.test(entry))
+            .replace(PATTERNS.AbdurrazaqLine, '')
+            //.replace(PATTERNS.BodyReferences, '')
+            .split(PATTERNS.NumberedMultilineText)
+            .filter((entry) => !PATTERNS.ArabicText.test(entry))
             .filter((entry) => entry.trim())
     );
 };
 
-export const indexArabicPages = (pages: Page[]) => {
+export const indexArabicPages = (pages: Page[], pattern = PATTERNS.NumberedParagraph, discardFootnotes = false) => {
     const indexToArabic: Record<string, Page> = {};
     const pageToBab: Record<string, Page> = {};
 
     for (const page of pages) {
+        const body =
+            discardFootnotes && page.body.includes('_')
+                ? page.body.substring(0, page.body.lastIndexOf('_'))
+                : page.body;
+
         // Check if no matches found by converting iterator to array
-        const matchesArray = [...page.body.matchAll(/^(\d+) - (.*)$/gm)];
+        const matchesArray = [...body.matchAll(pattern)];
 
         if (matchesArray.length === 0) {
             pageToBab[page.page] = page;
@@ -147,6 +163,23 @@ export const indexArabicPages = (pages: Page[]) => {
     }
 
     return { indexToArabic, pageToBab };
+};
+
+export const mapIndexToMatn = (contents: string[]) => {
+    const indexToMatn: Record<string, string> = {};
+
+    const bodies = contents.map((c) => {
+        return c.includes('_') ? c.substring(0, c.lastIndexOf('_')) : c;
+    });
+
+    const body = bodies.join('\n');
+    const matches = body.matchAll(PATTERNS.NumberedSahihJami);
+
+    for (const [, index, text] of matches) {
+        indexToMatn[index] = text.trim();
+    }
+
+    return indexToMatn;
 };
 
 export const indexEntriesByPage = (entries: Entry[]) => {
