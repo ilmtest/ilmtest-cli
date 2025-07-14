@@ -62,7 +62,7 @@ export const getMessages = (conversation: ConversationData) => {
         })
         .sort((a, b) => a.timestamp - b.timestamp);
 
-    return messages
+    const result = messages
         .filter((m, i, arr) => {
             return i === 0 || m.model !== arr[i - 1].model;
         })
@@ -73,6 +73,8 @@ export const getMessages = (conversation: ConversationData) => {
 
             return [];
         });
+
+    return result;
 };
 
 // Handle user selection when multiple conversation match

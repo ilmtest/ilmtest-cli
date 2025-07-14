@@ -49,14 +49,15 @@ export const migrateChats = async (inputFile?: string, targetCollection?: string
     if (volume === '0') {
         const messages = getMessages(conversation)
             .flat()
-            .filter((m) => m.model);
+            .filter((m) => m?.model);
 
         const dir = path.join(OUTPUT_DIR, collectionId);
         await fs.mkdir(dir, { recursive: true });
 
         logger.info(`models: ${Array.from(new Set(messages.map((m) => m.model)))}`);
 
-        const data = removeMd(messages.map((m) => m.text).join('\n')).replace(/\\(.)/g, '$1');
+        let data = removeMd(messages.map((m) => m.text).join('\n')).replace(/\\(.)/g, '$1');
+        data = messages.map((m) => m.text).join('\n');
 
         await Bun.file(path.join(dir, 'translation.txt')).write(data);
 

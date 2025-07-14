@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
-import { mapIndexToMatn } from './utils';
+import { mapIndexToText } from './utils';
 
 describe('utils', () => {
-    describe('mapIndexToMatn', () => {
+    describe('mapIndexToText', () => {
         it('should map the content from the 3 pages', () => {
             const pages = [
                 ['7929 - 3023 - A', 'EFG".'].join('\n'),
@@ -12,7 +12,7 @@ describe('utils', () => {
                 '4762 - x y\nz',
             ];
 
-            const actual = mapIndexToMatn(pages);
+            const actual = mapIndexToText(pages);
             expect(actual).toEqual({
                 '4762': 'x y\nz',
                 '7929': 'A\nEFG".\n(صحيح) [خ] عن عائشة.',
@@ -28,7 +28,7 @@ describe('utils', () => {
                 '8195 – "The upper',
             ];
 
-            const actual = mapIndexToMatn(pages);
+            const actual = mapIndexToText(pages);
 
             expect(actual).toEqual({
                 '7922': '“O Aisha',
@@ -43,7 +43,7 @@ describe('utils', () => {
 (صحيح) … [حم، ت] عن أبي هريرة. الصحيحة 847، ومختصر مسلم 1836.`,
             ];
 
-            const actual = mapIndexToMatn(pages);
+            const actual = mapIndexToText(pages);
 
             expect(actual).toEqual({
                 '87': '1 -[أتدرون ما المفلس؟ إن المفلس من أمتي من يأتي يوم القيامة بصلاة وصيام وزكاة ويأتي قد شتم هذا وقذف هذا وأكل مال هذا وسفك دم هذا وضرب هذا فيعطى هذا من حسناته وهذا من حسناته فإن فنيت حسناته قبل أن يقضى ما عليه أخذ من خطاياهم فطرحت عليه ثم طرح في النار].\n(صحيح) … [حم، ت] عن أبي هريرة. الصحيحة 847، ومختصر مسلم 1836.',

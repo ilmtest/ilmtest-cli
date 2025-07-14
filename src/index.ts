@@ -26,6 +26,9 @@ const main = async () => {
                 short: 'c',
                 type: 'boolean',
             },
+            diff: {
+                type: 'string',
+            },
             downloadAsl: {
                 short: 'd',
                 type: 'string',
@@ -111,7 +114,14 @@ const main = async () => {
     } else if (action === 'translate') {
         await (
             await import('./actions/translate/index.js')
-        ).translateWithAI({ collection: positionals[0], isPreview: values.preview, translator: positionals[1] });
+        ).translateWithAI({
+            collection: positionals[0],
+            isPreview: values.preview,
+            ...(values.diff && {
+                translationIndexDiff: Number(values.diff.startsWith('n') ? '-' + values.diff.slice(1) : values.diff),
+            }),
+            translator: positionals[1],
+        });
     }
 };
 

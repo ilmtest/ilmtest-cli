@@ -10,22 +10,33 @@ import logger from '../../utils/logger.js';
 import { loadOrDownload } from '../../utils/network.js';
 import {
     indexArabicPages,
+    indexEntriesByNumber,
     indexEntriesByPage,
-    mapIndexToMatn,
+    mapEntriesToUpdates,
+    mapIndexToPage,
+    mapIndexToText,
     mapLinesToEntries,
     PATTERNS,
     sanitizePageBody,
     sanitizeTranslation,
 } from './utils.js';
 
-const getTranslatedData = async (dir: string) => {
+const getTranslatedData = async (dir: string, diff = 0) => {
     const translationFile = Bun.file(path.format({ dir, ext: '.txt', name: 'translation' }));
 
     if (!(await translationFile.exists())) {
         await Bun.file(path.format({ dir, ext: '.txt', name: 'translation' })).write('');
     }
 
-    const lines = sanitizeTranslation(await translationFile.text());
+    const contents = await translationFile.text();
+
+    if (diff) {
+        const contents2 = contents.replace(/^(\d+)/gm, (match, num) => (parseInt(num) + diff).toString());
+
+        await Bun.file(path.format({ dir, ext: '.txt', name: 'translation2' })).write(contents2);
+    }
+
+    const lines = sanitizeTranslation(contents);
 
     return lines;
 };
@@ -55,10 +66,61 @@ const saveEntries = async (entriesToUpdate: Partial<Entry>[], newEntries: Entry[
 type TranslateOptions = {
     collection?: string;
     isPreview?: boolean;
+    translationIndexDiff?: number;
     translator?: string;
 };
 
-export const translateWithAI = async ({ collection, isPreview = false, translator }: TranslateOptions = {}) => {
+const processSahihJamiStyle = async (
+    pages: Page[],
+    lines: string[],
+    { collection, dir, isPreview, translator }: Required<TranslateOptions> & { dir: string },
+) => {
+    const indexToPage = mapIndexToPage(
+        pages.filter((p) => p.page),
+        true,
+    );
+    const indexToHadith = mapIndexToText(lines);
+    const indexToEntry = indexEntriesByNumber(await loadOrDownload<Entry>('entries', getEntries, collection, dir));
+
+    const entries = Object.entries(indexToHadith).map(([index, translation]) => {
+        const page = indexToPage[index];
+
+        if (!page) {
+            console.error('page not found for index', index);
+        }
+
+        return {
+            arabic: page.body.replace(PATTERNS.NumericPrefix, '').replace(PATTERNS.HyphenPrefix, ''),
+            collection: Number(collection),
+            flags: 3,
+            from: page.page,
+            ...(page.end && page.end !== page.page && { to: page.end }),
+            index: Number(index),
+            pp: page.pp,
+            translation: translation.replace(PATTERNS.NumericPrefix, '').replace(PATTERNS.HyphenPrefix, ''),
+            translator: Number(translator),
+            volume: page.volume,
+        } as Entry;
+    });
+
+    entries.forEach((e, i, arr) => {
+        const diff = i > 0 && e.index! - arr[i - 1].index!;
+
+        if (i > 0 && diff !== 1) {
+            console.error('WATCH OUT FOR', e.index);
+        }
+    });
+
+    const result = mapEntriesToUpdates(entries, indexToEntry);
+    await saveEntries(result.entriesToUpdate, result.newEntries, isPreview);
+};
+
+export const translateWithAI = async ({
+    collection,
+    isPreview = false,
+    translationIndexDiff,
+    translator,
+}: TranslateOptions = {}) => {
     const collectionId =
         collection ||
         (await getNumericInput('Enter collection ID to translate:', 'Please enter a valid collection ID'));
@@ -70,24 +132,9 @@ export const translateWithAI = async ({ collection, isPreview = false, translato
     await fs.mkdir(dir, { recursive: true });
 
     const pages = (await loadOrDownload<Page>('pages', getPages, collectionId, dir)).map(sanitizePageBody);
-    const lines = await getTranslatedData(dir);
+    const lines = await getTranslatedData(dir, translationIndexDiff);
 
-    const { indexToArabic, pageToBab } = indexArabicPages(pages, PATTERNS.NumberedSahihJami, true);
-    const indexToMatn = mapIndexToMatn(pages.filter((p) => p.page).map((p) => p.body));
-    //const indexToHadith = mapIndexToMatn(lines);
-
-    Object.entries(indexToHadith)
-        //.filter(([index]) => index === '53')
-        .forEach(([index, translation]) => {
-            const arabic = indexToMatn[index];
-            const page = indexToArabic[index];
-
-            console.log('index', index, 'page', page.page);
-            console.log('arabic', arabic);
-            console.log('translation', translation);
-
-            console.log();
-        });
+    const { indexToArabic, pageToBab } = indexArabicPages(pages);
 
     try {
         const { entriesToUpdate, newEntries } = mapLinesToEntries(
@@ -99,7 +146,7 @@ export const translateWithAI = async ({ collection, isPreview = false, translato
             Number(translatorId),
         );
 
-        //await saveEntries(entriesToUpdate, newEntries, isPreview);
+        await saveEntries(entriesToUpdate, newEntries, isPreview);
     } catch (err: any) {
         logger.error(`index: ${err.index}, content: ${err.content}, ${err.stack}`);
     }

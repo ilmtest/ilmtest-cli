@@ -28,13 +28,13 @@ export const decompressFromStream = async (sourceStream: Readable, outputFilePat
 };
 
 export const handlePromptTermination = () => {
-    process.on('unhandledRejection', (error) => {
+    /*process.on('unhandledRejection', (error) => {
         if (error instanceof Error && error.name === 'ExitPromptError') {
             // ignore
         } else {
             throw error;
         }
-    });
+    }); */
 };
 
 export const waitForKeyPress = async () => {

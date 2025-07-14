@@ -7,6 +7,7 @@ export const getTextMessages = (data: ConversationData): Message[] => {
             (node) =>
                 node.message?.content.content_type === 'text' &&
                 node.message.create_time &&
+                node.message.author.role !== 'tool' &&
                 node.message.content.parts.filter((p) => p.trim()).length,
         )
         .map((node) => node.message!);

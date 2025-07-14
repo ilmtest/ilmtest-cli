@@ -1,3 +1,5 @@
+import { convertArabicIndicToRoman, toTitleCase } from '@/utils/textUtils.js';
+
 import type { Entry } from '../../api/entries.js';
 import type { Page } from '../../api/maktabah.js';
 
@@ -5,9 +7,11 @@ export const PATTERNS = {
     AbdurrazaqLine: /^(ʿAbd al-Razzāq,?|Akhbaranā)$/g,
     ArabicText: /[\u0600-\u06FF]/,
     BodyReferences: /\s?(?<!^)-?\[\d+\]\s?/, // [1]
+    HyphenPrefix: /^[-–] /g,
     NumberedMultilineText: /(?=^\d+\s*[-–—]\s*)/gm, // 1 - First item
     NumberedParagraph: /^(\d+) - (.*)$/gm,
     NumberedSahihJami: /(\d+) (?:[-–—] |\s+)(?:\d+ [-–—] )?(.*?)(?=\d+ (?:[-–—] |\s+)(?:\d+ [-–—] )?|$)/gs, // 1338 - 581 - text or 87  1 -[text]
+    NumericPrefix: /^[-–] \d+ [-–] \d+ |^[-–] \d+ [-–] /g,
     SquareBracketReferencesWithColon: /-\[\d+\]: /g, // "-[123]: "
     SquareBracketReferencesWithDash: /(?<!^)-\[\d+\]/g, // "-[123]",
 };
@@ -63,9 +67,14 @@ const mapLineToEntry = (
         if (totalAbwabPagesAfterCurrent === 0) {
             // then it must all just be commentary on this existing page so do nothing
         } else if (totalAbwabPagesAfterCurrent <= content.length - 1) {
+            const linesToDistribute = content.slice(totalAbwabPagesAfterCurrent);
+            const merged = [linesToDistribute.join('\n')];
+            //const merged = linesToDistribute;
+
             // distribute each line into each page
-            content.slice(totalAbwabPagesAfterCurrent).forEach((title, i) => {
+            merged.forEach((title, i) => {
                 const chapterPage = pageToBab[currentPageNumber + i + 1];
+
                 const chapterEntry = pageToEntry[chapterPage.page];
 
                 if (chapterEntry) {
@@ -99,7 +108,7 @@ export const mapLinesToEntries = (
     translator: number,
 ) => {
     const entries = lines.flatMap((line) => {
-        const [, index, content] = line.match(/^(\d+) - (.*)/s) || [];
+        const [, index, content] = line.match(/^(\d+) [-–] (.*)/s) || [];
 
         if (index && content) {
             try {
@@ -123,7 +132,7 @@ export const mapLinesToEntries = (
 export const sanitizePageBody = (page: Page) => {
     return {
         ...page,
-        body: page.body
+        body: convertArabicIndicToRoman(page.body)
             .replace(PATTERNS.SquareBracketReferencesWithColon, '')
             .replace(PATTERNS.SquareBracketReferencesWithDash, ''),
     };
@@ -132,26 +141,24 @@ export const sanitizePageBody = (page: Page) => {
 export const sanitizeTranslation = (text: string) => {
     return (
         text
-            .replace(PATTERNS.AbdurrazaqLine, '')
+            //.replace(PATTERNS.AbdurrazaqLine, '')
             //.replace(PATTERNS.BodyReferences, '')
             .split(PATTERNS.NumberedMultilineText)
-            .filter((entry) => !PATTERNS.ArabicText.test(entry))
+            //.filter((entry) => !PATTERNS.ArabicText.test(entry))
+            //.split('\n')
             .filter((entry) => entry.trim())
     );
 };
 
-export const indexArabicPages = (pages: Page[], pattern = PATTERNS.NumberedParagraph, discardFootnotes = false) => {
+export const indexArabicPages = (pages: Page[]) => {
     const indexToArabic: Record<string, Page> = {};
     const pageToBab: Record<string, Page> = {};
 
     for (const page of pages) {
-        const body =
-            discardFootnotes && page.body.includes('_')
-                ? page.body.substring(0, page.body.lastIndexOf('_'))
-                : page.body;
+        const body = page.body;
 
         // Check if no matches found by converting iterator to array
-        const matchesArray = [...body.matchAll(pattern)];
+        const matchesArray = [...body.matchAll(PATTERNS.NumberedParagraph)];
 
         if (matchesArray.length === 0) {
             pageToBab[page.page] = page;
@@ -165,21 +172,101 @@ export const indexArabicPages = (pages: Page[], pattern = PATTERNS.NumberedParag
     return { indexToArabic, pageToBab };
 };
 
-export const mapIndexToMatn = (contents: string[]) => {
-    const indexToMatn: Record<string, string> = {};
+const splitIndexFromText = (line: string) => {
+    const index = line.slice(0, line.indexOf(' ')).trim();
+    const text = line.slice(line.indexOf(' ') + 1).trim();
 
-    const bodies = contents.map((c) => {
-        return c.includes('_') ? c.substring(0, c.lastIndexOf('_')) : c;
+    return { index, text };
+};
+
+export const mapEntriesToUpdates = (entries: Entry[], indexToEntry: Record<number, Entry>) => {
+    const newEntries: Entry[] = [];
+    const entriesToUpdate: Partial<Entry>[] = [];
+
+    entries.forEach(({ id, ...e }) => {
+        if (e.index && indexToEntry[e.index]) {
+            const patchedEntry = createPatch(indexToEntry[e.index], e.translation!);
+            entriesToUpdate.push(patchedEntry);
+        } else {
+            newEntries.push(e as Entry);
+        }
     });
 
-    const body = bodies.join('\n');
-    const matches = body.matchAll(PATTERNS.NumberedSahihJami);
+    return { entriesToUpdate, newEntries };
+};
 
-    for (const [, index, text] of matches) {
-        indexToMatn[index] = text.trim();
+type PageRange = Page & {
+    end?: number;
+};
+
+export const mapIndexToPage = (pages: Page[], discardFootnotes = false) => {
+    const indexToArabic: Record<string, PageRange> = {};
+    const indexToText: Record<string, string[]> = {};
+
+    let lastIndex = '';
+
+    for (const page of pages) {
+        const body =
+            discardFootnotes && page.body.includes('_') ? page.body.slice(0, page.body.indexOf('_')) : page.body;
+
+        body.split('\n').forEach((line) => {
+            if (/^\d+ [-–—]|^\d+ {2}|^\d+ «/.test(line)) {
+                const { index, text } = splitIndexFromText(line);
+
+                if (!indexToArabic[index]) {
+                    indexToArabic[index] = { ...page };
+                    indexToText[index] = [text];
+                    lastIndex = index;
+                } else {
+                    console.warn('mapIndexToPage Already', index);
+                }
+            } else if (lastIndex) {
+                indexToText[lastIndex].push(line.trim());
+                indexToArabic[lastIndex].end = page.page;
+            }
+        });
     }
 
-    return indexToMatn;
+    for (const [index, texts] of Object.entries(indexToText)) {
+        indexToArabic[index] = {
+            ...indexToArabic[index],
+            body: texts
+                .map((t) => t.trim())
+                .filter(Boolean)
+                .join('\n'),
+        };
+    }
+
+    return indexToArabic;
+};
+
+export const mapIndexToText = (lines: string[]) => {
+    const indexToText: Record<string, string[]> = {};
+
+    let lastIndex = '';
+
+    for (const line of lines) {
+        if (/^\d+ [-–—]/.test(line)) {
+            const { index, text } = splitIndexFromText(line);
+
+            if (indexToText[index]) {
+                console.warn('mapIndexToText Already', index);
+            } else {
+                indexToText[index] = [text];
+                lastIndex = index;
+            }
+        } else if (lastIndex) {
+            indexToText[lastIndex].push(line.trim());
+        }
+    }
+
+    const result: Record<string, string> = {};
+
+    for (const [index, texts] of Object.entries(indexToText)) {
+        result[index] = texts.join('\n');
+    }
+
+    return result;
 };
 
 export const indexEntriesByPage = (entries: Entry[]) => {
@@ -187,6 +274,18 @@ export const indexEntriesByPage = (entries: Entry[]) => {
 
     for (const entry of entries) {
         indexToEntry[entry.from] = entry;
+    }
+
+    return indexToEntry;
+};
+
+export const indexEntriesByNumber = (entries: Entry[]) => {
+    const indexToEntry: Record<number, Entry> = {};
+
+    for (const entry of entries) {
+        if (entry.index) {
+            indexToEntry[entry.index] = entry;
+        }
     }
 
     return indexToEntry;

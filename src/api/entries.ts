@@ -9,6 +9,7 @@ export type Entry = {
     id: number;
     index?: number;
     pp: number;
+    to?: number;
     translation?: string;
     translator?: number;
     type?: number;
@@ -25,6 +26,7 @@ type RawEntry = {
     index_number?: number;
     part_number: number;
     part_page: number;
+    to_page?: number;
     translator?: number;
     type?: number;
 };
@@ -45,6 +47,7 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
         volume: rawEntry.part_number,
         ...(rawEntry.flags && { flags: Number(rawEntry.flags) }),
         ...(rawEntry.index_number && { index: rawEntry.index_number }),
+        ...(rawEntry.to_page && { to: rawEntry.to_page }),
         ...(rawEntry.translator && { translator: rawEntry.translator }),
         ...(rawEntry.type && { translator: rawEntry.type }),
     };
@@ -59,6 +62,7 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
     return {
         ...(entry.translation && { body: entry.translation }),
         ...(entry.from && { from_page: String(entry.from) }),
+        ...(entry.to && { to_page: entry.to }),
         ...(entry.arabic && { ar_body: entry.arabic }),
         ...(entry.id && { id: entry.id }),
         ...(entry.collection && { collection: String(entry.collection) }),
