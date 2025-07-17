@@ -16,6 +16,7 @@ type BasicMessage = {
 export const MODEL_TO_ID = {
     'gpt-4-5': 867,
     'gpt-4o': 619,
+    'gpt-4o-mini': 619,
     o3: 870,
     'o3-mini-high': 875,
 } as const;

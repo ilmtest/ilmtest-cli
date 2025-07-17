@@ -8,6 +8,7 @@ import { OUTPUT_DIR } from '../../utils/constants.js';
 import { getNumericInput } from '../../utils/io.js';
 import logger from '../../utils/logger.js';
 import { loadOrDownload } from '../../utils/network.js';
+import { removeFootnotesFromPages } from './transform.js';
 import {
     indexArabicPages,
     indexEntriesByNumber,
@@ -25,15 +26,14 @@ const getTranslatedData = async (dir: string, diff = 0) => {
     const translationFile = Bun.file(path.format({ dir, ext: '.txt', name: 'translation' }));
 
     if (!(await translationFile.exists())) {
-        await Bun.file(path.format({ dir, ext: '.txt', name: 'translation' })).write('');
+        await translationFile.write('');
     }
 
     const contents = await translationFile.text();
 
     if (diff) {
         const contents2 = contents.replace(/^(\d+)/gm, (match, num) => (parseInt(num) + diff).toString());
-
-        await Bun.file(path.format({ dir, ext: '.txt', name: 'translation2' })).write(contents2);
+        await translationFile.write(contents2);
     }
 
     const lines = sanitizeTranslation(contents);
@@ -66,7 +66,6 @@ const saveEntries = async (entriesToUpdate: Partial<Entry>[], newEntries: Entry[
 type TranslateOptions = {
     collection?: string;
     isPreview?: boolean;
-    translationIndexDiff?: number;
     translator?: string;
 };
 
@@ -120,7 +119,7 @@ export const translateWithAI = async ({
     isPreview = false,
     translationIndexDiff,
     translator,
-}: TranslateOptions = {}) => {
+}: TranslateOptions & { translationIndexDiff?: number } = {}) => {
     const collectionId =
         collection ||
         (await getNumericInput('Enter collection ID to translate:', 'Please enter a valid collection ID'));
@@ -132,7 +131,17 @@ export const translateWithAI = async ({
     await fs.mkdir(dir, { recursive: true });
 
     const pages = (await loadOrDownload<Page>('pages', getPages, collectionId, dir)).map(sanitizePageBody);
+    //pages = removeFootnotesFromPages(pages);
     const lines = await getTranslatedData(dir, translationIndexDiff);
+
+    if (1 === Number(1)) {
+        return processSahihJamiStyle(pages, lines, {
+            collection: collectionId,
+            dir,
+            isPreview,
+            translator: translatorId,
+        });
+    }
 
     const { indexToArabic, pageToBab } = indexArabicPages(pages);
 
@@ -141,9 +150,10 @@ export const translateWithAI = async ({
             lines,
             indexToArabic,
             pageToBab,
-            indexEntriesByPage(await loadOrDownload<Entry>('entries', getEntries, collectionId, dir)),
+            indexEntriesByPage(await loadOrDownload<Entry>('entries', getEntries, collectionId, dir, true)),
             Number(collectionId),
             Number(translatorId),
+            //true,
         );
 
         await saveEntries(entriesToUpdate, newEntries, isPreview);

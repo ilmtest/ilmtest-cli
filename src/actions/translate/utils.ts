@@ -42,6 +42,7 @@ const mapLineToEntry = (
     page: Page,
     pageToBab: Record<number, Page>,
     pageToEntry: Record<number, Entry>,
+    applyTitleCase?: boolean,
 ): Partial<Entry>[] => {
     let content = translationText
         .trim()
@@ -72,8 +73,9 @@ const mapLineToEntry = (
             //const merged = linesToDistribute;
 
             // distribute each line into each page
-            merged.forEach((title, i) => {
+            merged.forEach((chapterLine, i) => {
                 const chapterPage = pageToBab[currentPageNumber + i + 1];
+                const title = applyTitleCase ? toTitleCase(chapterLine) : chapterLine;
 
                 const chapterEntry = pageToEntry[chapterPage.page];
 
@@ -106,13 +108,21 @@ export const mapLinesToEntries = (
     pageToEntry: Record<number, Entry>,
     collection: number,
     translator: number,
+    applyTitleCase?: boolean,
 ) => {
     const entries = lines.flatMap((line) => {
         const [, index, content] = line.match(/^(\d+) [-–] (.*)/s) || [];
 
         if (index && content) {
             try {
-                return mapLineToEntry(Number(index), content, indexToPage[index], pageToChapter, pageToEntry);
+                return mapLineToEntry(
+                    Number(index),
+                    content,
+                    indexToPage[index],
+                    pageToChapter,
+                    pageToEntry,
+                    applyTitleCase,
+                );
             } catch (err: any) {
                 err.index = index;
                 err.content = content;
@@ -165,7 +175,12 @@ export const indexArabicPages = (pages: Page[]) => {
         }
 
         for (const [, index, body] of matchesArray) {
-            indexToArabic[index] = { ...page, body };
+            if (indexToArabic[index]) {
+                // add it as a chapter instead
+                pageToBab[page.page] = page;
+            } else {
+                indexToArabic[index] = { ...page, body };
+            }
         }
     }
 

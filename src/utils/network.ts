@@ -60,10 +60,11 @@ export const loadOrDownload = async <T>(
     getter: (collectionId: string) => Promise<T[]>,
     collectionId: string,
     dir: string,
+    forceRefresh = false,
 ): Promise<T[]> => {
     const file = Bun.file(path.format({ dir, ext: '.json', name: fileName }));
 
-    if (await file.exists()) {
+    if (!forceRefresh && (await file.exists())) {
         return file.json();
     } else {
         logger.info(`Downloading ${fileName}`);

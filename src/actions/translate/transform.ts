@@ -12,7 +12,7 @@ export const removeFootnotesFromPages = (pages: Page[], symbol = '_') => {
         const indexOfFootnote = page.body.indexOf(symbol);
 
         if (indexOfFootnote >= 0) {
-            return page.body.slice(0, indexOfFootnote);
+            return { ...page, body: page.body.slice(0, indexOfFootnote) };
         }
 
         return page;
