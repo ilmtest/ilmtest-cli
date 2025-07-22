@@ -42,3 +42,23 @@ export const toTitleCase = (str: string) => {
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
 };
+
+/**
+ * Parses page input string into array of page numbers, supporting ranges and lists
+ * @param pageInput - Page specification string (e.g., "1-5" or "1,3,5")
+ * @returns Array of page numbers
+ * @throws Error when start page exceeds end page in range
+ */
+export const parsePageRanges = (pageInput: string): number[] => {
+    if (pageInput.includes('-')) {
+        const [start, end] = pageInput.split('-').map(Number);
+
+        if (start > end) {
+            throw new Error('Start page cannot be greater than end page');
+        }
+
+        return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    } else {
+        return pageInput.split(',').map(Number);
+    }
+};

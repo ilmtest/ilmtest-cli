@@ -70,8 +70,10 @@ export const loadOrDownload = async <T>(
         logger.info(`Downloading ${fileName}`);
         const data = await getter(collectionId);
 
-        logger.info(`Saving ${fileName}`);
-        await file.write(JSON.stringify(data));
+        if (!forceRefresh) {
+            logger.info(`Saving ${fileName}`);
+            await file.write(JSON.stringify(data));
+        }
 
         return data;
     }

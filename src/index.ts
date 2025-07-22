@@ -37,6 +37,9 @@ const main = async () => {
                 short: 'm',
                 type: 'string',
             },
+            pages: {
+                type: 'string',
+            },
             preview: {
                 type: 'boolean',
             },
@@ -116,7 +119,11 @@ const main = async () => {
             await import('./actions/translate/index.js')
         ).translateWithAI({
             collection: positionals[0],
-            isPreview: values.preview,
+            isPreview: values.preview || Boolean(values.diff),
+            ...(values.pages && {
+                fromPage: Number(values.pages.split('-')[0]),
+                toPage: Number(values.pages.split('-').at(-1)),
+            }),
             ...(values.diff && {
                 translationIndexDiff: Number(values.diff.startsWith('n') ? '-' + values.diff.slice(1) : values.diff),
             }),

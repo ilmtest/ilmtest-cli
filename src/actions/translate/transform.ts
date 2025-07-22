@@ -67,3 +67,15 @@ export const indexSpanningNarrations = (pages: Page[]) => {
 
     return indexToArabic;
 };
+
+export type ListItem = { index: number; text: string };
+
+export const indexTranslationLines = (lines: string[], pattern = /^(\d+) [-–] (.*)/s): ListItem[] => {
+    return lines
+        .map((line) => {
+            const [, index, text] = line.match(pattern) || [];
+            return { index, text };
+        })
+        .filter((data) => data.text && data.index)
+        .map((data) => ({ index: Number(data.index), text: data.text }));
+};

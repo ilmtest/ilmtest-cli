@@ -93,6 +93,7 @@ const transcribeDownloadedVideos = async (
                     onTranscriptionStarted: async (total) => logger.info(`Starting transcription of ${total} chunks`),
                 },
                 concurrency: 5,
+                retries: 10,
                 ...(targetCollection && { preprocessOptions: { noiseReduction: null } }),
                 splitOptions: { chunkDuration: 300 },
             })
