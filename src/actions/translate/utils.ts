@@ -30,11 +30,15 @@ const createNewEntryFromPage = (page: Page, body: string, index?: number, type?:
     };
 };
 
-const createPatch = (entry: Entry, translation: string) => {
+const createPatch = (
+    entry: Pick<Entry, 'id' | 'translation' | 'translator'>,
+    patch: Pick<Entry, 'translation' | 'translator'>,
+) => {
     return {
         flags: 4,
         id: entry.id,
-        translation: [entry.translation, translation].join('\n\n'),
+        translation: [entry.translation, patch.translation].join('\n\n'),
+        ...(!entry.translator && patch.translator && { translator: patch.translator }),
     };
 };
 
@@ -113,6 +117,11 @@ export const mapLinesToEntries = (
     applyTitleCase?: boolean,
 ) => {
     const entries = listItems.flatMap((item) => {
+        if (!indexToPage[item.index]) {
+            console.log('indexToPage', indexToPage);
+            console.log('index', item.index);
+        }
+
         return mapLineToEntry(
             item.index,
             item.text,
@@ -309,9 +318,9 @@ export const mapEntriesToUpdates = (entries: Entry[], indexToEntry: Record<numbe
     const newEntries: Entry[] = [];
     const entriesToUpdate: Partial<Entry>[] = [];
 
-    entries.forEach(({ id, ...e }) => {
-        if (e.index && indexToEntry[e.index]) {
-            const patchedEntry = createPatch(indexToEntry[e.index], e.translation!);
+    entries.forEach((e) => {
+        if (e.index && indexToEntry[e.index]?.from === e.from) {
+            const patchedEntry = createPatch(indexToEntry[e.index], e);
             entriesToUpdate.push(patchedEntry);
         } else {
             newEntries.push(e as Entry);

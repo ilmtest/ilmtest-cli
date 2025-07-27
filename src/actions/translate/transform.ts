@@ -9,7 +9,7 @@ export const FOOTNOTES_SYMBOL = '_';
 
 export const removeFootnotesFromPages = (pages: Page[], symbol = '_') => {
     return pages.map((page) => {
-        const indexOfFootnote = page.body.indexOf(symbol);
+        const indexOfFootnote = page.body.lastIndexOf(symbol);
 
         if (indexOfFootnote >= 0) {
             return { ...page, body: page.body.slice(0, indexOfFootnote) };
@@ -70,10 +70,19 @@ export const indexSpanningNarrations = (pages: Page[]) => {
 
 export type ListItem = { index: number; text: string };
 
-export const indexTranslationLines = (lines: string[], pattern = /^(\d+) [-–] (.*)/s): ListItem[] => {
+export const indexTranslationLines = (
+    lines: string[],
+    pattern = /^(\d+) [-–] (.*)/s,
+    chapterPattern?: RegExp,
+): ListItem[] => {
     return lines
         .map((line) => {
             const [, index, text] = line.match(pattern) || [];
+
+            if (chapterPattern?.test(line)) {
+                return { index: 0, text: line };
+            }
+
             return { index, text };
         })
         .filter((data) => data.text && data.index)

@@ -26,9 +26,6 @@ const main = async () => {
                 short: 'c',
                 type: 'boolean',
             },
-            diff: {
-                type: 'string',
-            },
             downloadAsl: {
                 short: 'd',
                 type: 'string',
@@ -36,12 +33,6 @@ const main = async () => {
             migrateChats: {
                 short: 'm',
                 type: 'string',
-            },
-            pages: {
-                type: 'string',
-            },
-            preview: {
-                type: 'boolean',
             },
             transcribe: {
                 short: 't',
@@ -51,7 +42,7 @@ const main = async () => {
                 type: 'boolean',
             },
         },
-        strict: true,
+        strict: false,
     });
 
     let action =
@@ -115,20 +106,7 @@ const main = async () => {
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {
-        await (
-            await import('./actions/translate/index.js')
-        ).translateWithAI({
-            collection: positionals[0],
-            isPreview: values.preview || Boolean(values.diff),
-            ...(values.pages && {
-                fromPage: Number(values.pages.split('-')[0]),
-                toPage: Number(values.pages.split('-').at(-1)),
-            }),
-            ...(values.diff && {
-                translationIndexDiff: Number(values.diff.startsWith('n') ? '-' + values.diff.slice(1) : values.diff),
-            }),
-            translator: positionals[1],
-        });
+        await (await import('./actions/translate/index.js')).translateWithAI();
     }
 };
 

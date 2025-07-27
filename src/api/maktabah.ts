@@ -3,6 +3,7 @@ import { changeEndpointName, doGet } from './index.js';
 
 export type Page = {
     body: string;
+    collection: string;
     id: number;
     page: number;
     pp: number;
@@ -11,6 +12,7 @@ export type Page = {
 
 type RawPage = {
     body: string;
+    collection: string;
     id: number;
     page_number: number;
     part_number: number;
@@ -24,6 +26,13 @@ export const getPages = async (collectionId: string): Promise<Page[]> => {
     });
 
     return data
-        .map((p) => ({ body: p.body, id: p.id, page: p.page_number, pp: p.part_page, volume: p.part_number }))
+        .map((p) => ({
+            body: p.body,
+            collection: p.collection,
+            id: p.id,
+            page: p.page_number,
+            pp: p.part_page,
+            volume: p.part_number,
+        }))
         .sort((a, b) => a.page - b.page);
 };

@@ -11,3 +11,13 @@ export const validateGaplessEntryIndices = (entries: Entry[]) => {
         }
     });
 };
+
+export const validateIndices = (arabicIndices: string[], translationIndices: string[]) => {
+    const arabicKeys = new Set(arabicIndices);
+
+    const missingIndices = translationIndices.filter((index) => !arabicKeys.has(index));
+
+    if (missingIndices.length) {
+        throw new Error(`Indexes ${missingIndices.toString()} are missing from Arabic.`);
+    }
+};
