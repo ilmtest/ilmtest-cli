@@ -2,11 +2,8 @@ import type { Page } from '../../api/maktabah.js';
 import type { PageRange } from './types.js';
 
 import { createEntryFromPageRange } from './mapping.js';
+import { PATTERNS } from './patterns.js';
 import { validateIndices } from './validation.js';
-
-const PATTERNS = {
-    MatchNumericListItem: /^(\d+)\s?[-–—ـ](.*)/,
-};
 
 export const walkAndIndexPages = (pages: Page[], pattern = PATTERNS.MatchNumericListItem) => {
     const indexToMatn: Record<string, PageRange> = {};

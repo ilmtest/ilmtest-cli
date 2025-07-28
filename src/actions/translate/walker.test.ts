@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
 import type { Page } from '../../api/maktabah';
-import type { PageRange } from './types';
 
 import { walkAndIndexLines, walkAndIndexPages } from './walker';
 
@@ -20,8 +19,8 @@ describe('walker', () => {
 
             expect(actual).toEqual({
                 '1': 'Text1',
-                '2': ' Text2',
-                '3': ' Text3\nSomething\n4 else',
+                '2': 'Text2',
+                '3': 'Text3\nSomething\n4 else',
                 '6': 'Another\nline',
             });
         });

@@ -10,7 +10,6 @@ describe('textUtils', () => {
             const actual = convertArabicIndicToRoman(arabicText.join('\n')).split('\n');
 
             expect(actual).toEqual(['2 - A', '3 - B', '12 - C', '25 - D']);
-            console.log(actual);
         });
     });
 });

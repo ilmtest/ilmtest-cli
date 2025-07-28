@@ -14,6 +14,9 @@ export const promptTranslateInputs = async () => {
             diff: {
                 type: 'string',
             },
+            discrete: {
+                type: 'boolean',
+            },
             footnotes: {
                 type: 'boolean',
             },
@@ -80,6 +83,7 @@ export const promptTranslateInputs = async () => {
         autoFix: Boolean(values.autoFix),
         collectionId,
         diff,
+        discrete: Boolean(values.discrete),
         fromPage: Number(fromPage),
         isPreview: Boolean(values.preview),
         refresh: Boolean(values.refresh),

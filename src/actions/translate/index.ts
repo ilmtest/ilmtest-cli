@@ -7,6 +7,7 @@ import { getPages, Page } from '../../api/maktabah.js';
 import { OUTPUT_DIR } from '../../utils/constants.js';
 import logger from '../../utils/logger.js';
 import { loadOrDownload } from '../../utils/network.js';
+import { indexDiscretePagesToEntries } from './discrete.js';
 import { promptTranslateInputs } from './prompt.js';
 import { removeFootnotesFromPages } from './transform.js';
 import {
@@ -15,7 +16,6 @@ import {
     indexEntriesByNumber,
     mapEntriesToUpdates,
     sanitizePageBody,
-    sanitizeTranslation,
 } from './utils.js';
 import { validateGaplessEntryIndices } from './validation.js';
 import { walkAndMapPagesToEntries } from './walker.js';
@@ -34,9 +34,7 @@ const getTranslatedData = async (dir: string, diff = 0) => {
         await translationFile.write(contents);
     }
 
-    const lines = sanitizeTranslation(contents);
-
-    return lines;
+    return contents;
 };
 
 const saveEntries = async (entriesToUpdate: Partial<Entry>[], newEntries: Entry[], isPreview: boolean) => {
@@ -66,8 +64,19 @@ const saveEntries = async (entriesToUpdate: Partial<Entry>[], newEntries: Entry[
 };
 
 export const translateWithAI = async () => {
-    const { autoFix, collectionId, diff, fromPage, isPreview, refresh, removeFootnotes, toPage, translatorId, walk } =
-        await promptTranslateInputs();
+    const {
+        autoFix,
+        collectionId,
+        diff,
+        discrete,
+        fromPage,
+        isPreview,
+        refresh,
+        removeFootnotes,
+        toPage,
+        translatorId,
+        walk,
+    } = await promptTranslateInputs();
 
     const dir = path.join(OUTPUT_DIR, collectionId);
     await fs.mkdir(dir, { recursive: true });
@@ -79,7 +88,7 @@ export const translateWithAI = async () => {
         pages = removeFootnotesFromPages(pages);
     }
 
-    let lines = await getTranslatedData(dir, diff);
+    let lines = (await getTranslatedData(dir, diff)).split('\n').filter((entry) => entry.trim());
 
     if (autoFix) {
         pages = correctMissingIndices(pages);
@@ -90,6 +99,8 @@ export const translateWithAI = async () => {
 
     if (walk) {
         entries = walkAndMapPagesToEntries(pages, lines, translatorId);
+    } else if (discrete) {
+        entries = indexDiscretePagesToEntries(pages, lines, translatorId);
     }
 
     validateGaplessEntryIndices(entries);
