@@ -4,6 +4,7 @@ import { changeEndpointName, doGet, doPut } from './index.js';
 export type Entry = {
     arabic?: string;
     collection: number;
+    explains?: string[];
     flags?: number;
     from: number;
     id: number;
@@ -67,6 +68,7 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
         ...(entry.id && { id: entry.id }),
         ...(entry.collection && { collection: String(entry.collection) }),
         ...(entry.volume && { part_number: entry.volume }),
+        ...(entry.explains && { explains: entry.explains.join(',') }),
         ...(entry.pp && { part_page: entry.pp }),
         ...(entry.flags && { flags: String(entry.flags) }),
         ...(entry.index && { index_number: entry.index }),

@@ -1,4 +1,5 @@
 import { magentaBright, yellow } from 'ansis';
+import { removeSingleDigitReferences } from 'bitaboom';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -69,6 +70,7 @@ export const translateWithAI = async () => {
         collectionId,
         diff,
         discrete,
+        explains,
         fromPage,
         isPreview,
         refresh,
@@ -83,6 +85,10 @@ export const translateWithAI = async () => {
 
     let pages = (await loadOrDownload<Page>('pages', getPages, collectionId, dir)).map(sanitizePageBody);
     pages = pages.filter((p) => p.page >= fromPage && p.page <= toPage);
+    pages = pages.map((p) => ({
+        ...p,
+        body: removeSingleDigitReferences(p.body),
+    }));
 
     if (removeFootnotes) {
         pages = removeFootnotesFromPages(pages);
@@ -103,13 +109,19 @@ export const translateWithAI = async () => {
         entries = indexDiscretePagesToEntries(pages, lines, translatorId);
     }
 
+    entries.forEach((e) => {
+        if (e.arabic?.endsWith('*')) {
+            e.arabic = e.arabic.slice(0, -1);
+        }
+    });
+
     validateGaplessEntryIndices(entries);
 
     const indexToEntry = indexEntriesByNumber(
         await loadOrDownload<Entry>('entries', getEntries, collectionId, dir, refresh),
     );
 
-    const result = mapEntriesToUpdates(entries, indexToEntry);
+    const result = mapEntriesToUpdates(entries, indexToEntry, explains);
 
     try {
         await saveEntries(result.entriesToUpdate, result.newEntries, isPreview);

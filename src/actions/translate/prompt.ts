@@ -17,6 +17,9 @@ export const promptTranslateInputs = async () => {
             discrete: {
                 type: 'boolean',
             },
+            explains: {
+                type: 'string',
+            },
             footnotes: {
                 type: 'boolean',
             },
@@ -84,6 +87,7 @@ export const promptTranslateInputs = async () => {
         collectionId,
         diff,
         discrete: Boolean(values.discrete),
+        explains: values.explains,
         fromPage: Number(fromPage),
         isPreview: Boolean(values.preview),
         refresh: Boolean(values.refresh),

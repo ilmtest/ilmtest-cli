@@ -2,6 +2,13 @@ import { stripDiacritics } from 'bitaboom';
 
 import type { Page } from '../../api/maktabah.js';
 
+import {
+    createKitabProcessor,
+    createNumberedParagraphProcessor,
+    createSimpleBabProcessor,
+} from '../processors/handlers.js';
+import { indexPages } from '../processors/index.js';
+import { buildDiacriticsInsensitiveExactRegex, makeDiacriticInsensitive } from '../processors/utils.js';
 import { createEntryFromPage, TYPE_BOOK, TYPE_CHAPTER } from './mapping.js';
 import { PATTERNS } from './patterns.js';
 import { validateIndices } from './validation.js';
@@ -29,6 +36,10 @@ export const indexDiscretePages = (
             const [, babMatch, rest] = babPattern ? body.match(babPattern) || [] : [];
 
             if (babMatch) {
+                if (indexToBab[lastIndex]) {
+                    lastIndex += '.';
+                }
+
                 indexToBab[lastIndex] = { ...page, body: babMatch.trim() };
                 body = rest || '';
             }
@@ -67,6 +78,10 @@ export const indexDiscreteTranslations = (
             }
 
             if (chapterPattern && line.match(chapterPattern)) {
+                if (indexToChapter[lastIndex]) {
+                    lastIndex += '.';
+                }
+
                 indexToChapter[lastIndex] = line;
                 continue;
             }
@@ -89,18 +104,24 @@ export const indexDiscreteTranslations = (
 };
 
 export const indexDiscretePagesToEntries = (pages: Page[], translationLines: string[], translatorId: string) => {
-    const { indexToBab, indexToKitab, indexToMatn } = indexDiscretePages(
+    /*const { indexToBab, indexToKitab, indexToMatn } = indexDiscretePages(
         pages,
         PATTERNS.MatchNumberedParagraph,
         PATTERNS.MatchBabTitlesUpToNumberedListItem,
-        PATTERNS.NumberedKitabTitles,
-    );
+        PATTERNS.KitabPrefix,
+    ); */
     const { indexToBook, indexToChapter, indexToText } = indexDiscreteTranslations(
         translationLines,
         PATTERNS.MatchNumericListItem,
         PATTERNS.ChapterTitles,
         PATTERNS.BookTitles,
     );
+
+    const { indexToBab, indexToKitab, indexToMatn } = indexPages(pages, [
+        createKitabProcessor(PATTERNS.KitabPrefix),
+        createSimpleBabProcessor(buildDiacriticsInsensitiveExactRegex('باب', 'جماع')),
+        createNumberedParagraphProcessor(PATTERNS.MatchNumberedParagraph),
+    ]);
 
     try {
         validateIndices(Object.keys(indexToKitab), Object.keys(indexToBook));

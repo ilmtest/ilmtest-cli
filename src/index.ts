@@ -30,10 +30,6 @@ const main = async () => {
                 short: 'd',
                 type: 'string',
             },
-            migrateChats: {
-                short: 'm',
-                type: 'string',
-            },
             transcribe: {
                 short: 't',
                 type: 'boolean',
@@ -55,7 +51,6 @@ const main = async () => {
                 { name: 'Compile Manuscript', value: 'compileManuscript' },
                 { name: 'Delete Asl', value: 'deleteAsl' },
                 { name: 'Download Asl', value: 'downloadAsl' },
-                { name: 'Migrate ChatGPT Conversations', value: 'migrateChats' },
                 { name: 'Upload Asl', value: 'uploadAsl' },
             ],
             default: 'transcribe',
@@ -98,11 +93,7 @@ const main = async () => {
     } else if (action === 'checkAsl') {
         await (await import('./actions/checkAsl.js')).checkAsl();
     } else if (action === 'downloadAsl') {
-        await (await import('./actions/downloadAsl.js')).downloadAsl(values.downloadAsl);
-    } else if (action === 'migrateChats') {
-        await (
-            await import('./actions/migrateChats/index.js')
-        ).migrateChats(values.migrateChats, positionals[0], positionals[1]);
+        await (await import('./actions/downloadAsl.js')).downloadAsl(positionals[0]);
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {

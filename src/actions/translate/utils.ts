@@ -151,7 +151,7 @@ export const correctMissingIndices = (arr: Page[]) => {
     return result;
 };
 
-export const mapEntriesToUpdates = (entries: Entry[], indexToEntry: Record<number, Entry>) => {
+export const mapEntriesToUpdates = (entries: Entry[], indexToEntry: Record<number, Entry>, explains?: string) => {
     const newEntries: Entry[] = [];
     const entriesToUpdate: Partial<Entry>[] = [];
 
@@ -160,7 +160,7 @@ export const mapEntriesToUpdates = (entries: Entry[], indexToEntry: Record<numbe
             const patchedEntry = createPatch(indexToEntry[e.index], e);
             entriesToUpdate.push(patchedEntry);
         } else {
-            newEntries.push(e as Entry);
+            newEntries.push({ ...e, ...(explains && { explains: [explains] }) } as Entry);
         }
     });
 

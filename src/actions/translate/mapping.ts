@@ -21,7 +21,7 @@ export const createEntryFromPage = (
         collection: Number(page.collection),
         flags,
         from: page.page,
-        index: Number(index),
+        index: parseInt(index),
         pp: page.pp,
         translation,
         translator: Number(translatorId),
