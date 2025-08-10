@@ -74,10 +74,30 @@ export const doPut = async (endpoint: string, body: Record<string, any>, headers
         method: 'PUT',
     });
 
-    const result: any = await response.json();
+    // Try to parse JSON with error handling
+    let result: any;
+    try {
+        result = await response.json();
+    } catch (error: any) {
+        // Only get response text on failure for debugging
+        const responseText = await response.text();
 
-    logger.trace(`Success response ${url}`);
+        logger.error(`Failed to parse JSON from ${url}:`, {
+            error: error.message,
+            responseHeaders: Object.fromEntries(response.headers.entries()),
+            responseStatus: response.status,
+            responseText: responseText,
+        });
 
+        throw new Error(`Invalid JSON response from ${url}: ${responseText}`);
+    }
+
+    // Check if the response is ok after parsing
+    if (!response.ok) {
+        logger.error(`HTTP Error: ${response.status} ${response.statusText} for ${url}`, result);
+    }
+
+    logger.trace(`Success response ${url}`, result);
     return result;
 };
 

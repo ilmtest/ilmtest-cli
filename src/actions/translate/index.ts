@@ -3,6 +3,8 @@ import { removeSingleDigitReferences } from 'bitaboom';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { getCollection } from '@/api/collections.js';
+
 import { addOrUpdateEntry, Entry, getEntries } from '../../api/entries.js';
 import { getPages, Page } from '../../api/maktabah.js';
 import { OUTPUT_DIR } from '../../utils/constants.js';
@@ -64,6 +66,30 @@ const saveEntries = async (entriesToUpdate: Partial<Entry>[], newEntries: Entry[
     }
 };
 
+const writePromptFile = async (dir: string, collectionId: string, pages: Page[], coveredPageNumbers: number[]) => {
+    const promptFile = Bun.file(path.format({ dir, ext: '.txt', name: 'prompt' }));
+    const usedPageNumbers = new Set(coveredPageNumbers);
+
+    if (!(await promptFile.exists())) {
+        logger.info(`Writing ${promptFile.name}...`);
+        const collection = await getCollection(collectionId);
+
+        await promptFile.write(
+            [
+                `You are a professional Arabic to English translator who specializes in Islāmic content.`,
+                `You will be translating from the book: ${collection.title}.`,
+                'Translate the following Arabic text into English with the highest level of accuracy preferring literal translations except when the context fits to translate by meaning.',
+                'Carefully analyze the context to ensure the correct usage of Islamic technical terminology.',
+                'Preserve full chains of narration and use ALA-LC transliteration only on the names of the narrators in the chain.',
+                'Respond only in plain-text, no markdown or formatting. Keep each narration in a single line without any line breaks within it.',
+                'Revise your translation 3 times before sending it to verify its accuracy.',
+                '\n',
+                ...pages.filter((p) => !usedPageNumbers.has(p.page)).map((p) => p.body),
+            ].join('\n'),
+        );
+    }
+};
+
 export const translateWithAI = async () => {
     const {
         autoFix,
@@ -119,6 +145,13 @@ export const translateWithAI = async () => {
 
     const indexToEntry = indexEntriesByNumber(
         await loadOrDownload<Entry>('entries', getEntries, collectionId, dir, refresh),
+    );
+
+    await writePromptFile(
+        dir,
+        collectionId,
+        pages,
+        Object.values(indexToEntry).map((e) => e.from),
     );
 
     const result = mapEntriesToUpdates(entries, indexToEntry, explains);

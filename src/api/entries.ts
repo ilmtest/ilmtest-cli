@@ -85,7 +85,7 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
 export const getEntries = async (collectionId: string): Promise<Entry[]> => {
     const data: RawEntry[] = await doGet(changeEndpointName(config.collectionsEndpoint, 'entries'), {
         collection: collectionId,
-        limit: 999999,
+        limit: -1,
     });
 
     return data.map(mapRawEntryToEntry);

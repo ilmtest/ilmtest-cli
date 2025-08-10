@@ -1,62 +1,17 @@
-import { stripDiacritics } from 'bitaboom';
+import { isAllUppercase, toTitleCase } from '@/utils/textUtils.js';
 
 import type { Page } from '../../api/maktabah.js';
 
+import { createEntryFromPage, TYPE_BOOK, TYPE_CHAPTER } from './mapping.js';
+import { PATTERNS } from './patterns.js';
 import {
     createKitabProcessor,
     createNumberedParagraphProcessor,
     createSimpleBabProcessor,
-} from '../processors/handlers.js';
-import { indexPages } from '../processors/index.js';
-import { buildDiacriticsInsensitiveExactRegex, makeDiacriticInsensitive } from '../processors/utils.js';
-import { createEntryFromPage, TYPE_BOOK, TYPE_CHAPTER } from './mapping.js';
-import { PATTERNS } from './patterns.js';
+} from './processors/handlers.js';
+import { indexPages } from './processors/index.js';
+import { buildDiacriticsInsensitiveExactRegex } from './processors/utils.js';
 import { validateIndices } from './validation.js';
-
-export const indexDiscretePages = (
-    pages: Page[],
-    narrationPattern: RegExp,
-    babPattern?: RegExp,
-    kitabPattern?: RegExp,
-) => {
-    const indexToMatn: Record<string, Page> = {};
-    const indexToBab: Record<string, Page> = {};
-    const indexToKitab: Record<string, Page> = {};
-    let lastIndex = '';
-
-    for (const page of pages) {
-        let body = page.body;
-
-        if (lastIndex) {
-            if (kitabPattern && stripDiacritics(body).match(kitabPattern)) {
-                indexToKitab[lastIndex] = page;
-                continue;
-            }
-
-            const [, babMatch, rest] = babPattern ? body.match(babPattern) || [] : [];
-
-            if (babMatch) {
-                if (indexToBab[lastIndex]) {
-                    lastIndex += '.';
-                }
-
-                indexToBab[lastIndex] = { ...page, body: babMatch.trim() };
-                body = rest || '';
-            }
-        }
-
-        const matchesArray = [...body.matchAll(narrationPattern)];
-
-        for (const [, index, text] of matchesArray) {
-            if (index && text && !indexToMatn[index]) {
-                indexToMatn[index] = { ...page, body: text.trim() };
-                lastIndex = index;
-            }
-        }
-    }
-
-    return { indexToBab, indexToKitab, indexToMatn };
-};
 
 export const indexDiscreteTranslations = (
     lines: string[],
@@ -104,47 +59,49 @@ export const indexDiscreteTranslations = (
 };
 
 export const indexDiscretePagesToEntries = (pages: Page[], translationLines: string[], translatorId: string) => {
-    /*const { indexToBab, indexToKitab, indexToMatn } = indexDiscretePages(
-        pages,
-        PATTERNS.MatchNumberedParagraph,
-        PATTERNS.MatchBabTitlesUpToNumberedListItem,
-        PATTERNS.KitabPrefix,
-    ); */
     const { indexToBook, indexToChapter, indexToText } = indexDiscreteTranslations(
         translationLines,
         PATTERNS.MatchNumericListItem,
-        PATTERNS.ChapterTitles,
+        /^\D+/,
+        //PATTERNS.ChapterTitles,
         PATTERNS.BookTitles,
     );
 
     const { indexToBab, indexToKitab, indexToMatn } = indexPages(pages, [
-        createKitabProcessor(PATTERNS.KitabPrefix),
-        createSimpleBabProcessor(buildDiacriticsInsensitiveExactRegex('باب', 'جماع')),
+        createKitabProcessor(PATTERNS.NumberedKitabTitles),
+        //createSimpleBabProcessor(buildDiacriticsInsensitiveExactRegex('باب', 'مساله', 'حديث', 'ما')),
+        createSimpleBabProcessor(/^\D+/),
         createNumberedParagraphProcessor(PATTERNS.MatchNumberedParagraph),
     ]);
 
-    try {
-        validateIndices(Object.keys(indexToKitab), Object.keys(indexToBook));
-    } catch (err) {
+    let missing = validateIndices(Object.keys(indexToKitab), Object.keys(indexToBook));
+
+    if (missing.length) {
         console.error('indexToKitab', indexToKitab);
         console.error('indexToBook', indexToBook);
-        throw err;
+        throw new Error(`Book Indexes ${missing.sort().join(', ')} are missing from Arabic.`);
     }
 
-    try {
-        validateIndices(Object.keys(indexToBab), Object.keys(indexToChapter));
-    } catch (err) {
-        console.error('indexToBab', indexToBab);
-        console.error('indexToChapter', indexToChapter);
-        throw err;
+    missing = validateIndices(Object.keys(indexToBab), Object.keys(indexToChapter));
+
+    if (missing.length) {
+        console.error(
+            'indexToBab',
+            Object.fromEntries(Object.entries(indexToBab).sort(([a], [b]) => a.localeCompare(b))),
+        );
+        console.error(
+            'indexToChapter',
+            Object.fromEntries(Object.entries(indexToChapter).sort(([a], [b]) => a.localeCompare(b))),
+        );
+        throw new Error(`Chapter Indexes ${missing.sort().join(', ')} are missing from Arabic.`);
     }
 
-    try {
-        validateIndices(Object.keys(indexToMatn), Object.keys(indexToText));
-    } catch (err) {
+    missing = validateIndices(Object.keys(indexToMatn), Object.keys(indexToText));
+
+    if (missing.length) {
         console.error('indexToMatn', indexToMatn);
         console.error('indexToText', indexToText);
-        throw err;
+        throw new Error(`Matn Indexes ${missing.sort().join(', ')} are missing from Arabic.`);
     }
 
     const entries = Object.entries(indexToText).map(([index, translation]) => {
@@ -154,7 +111,15 @@ export const indexDiscretePagesToEntries = (pages: Page[], translationLines: str
 
     const chapters = Object.entries(indexToChapter).map(([index, translation]) => {
         const page = indexToBab[index];
-        return createEntryFromPage(page, '', translation, translatorId, undefined, TYPE_CHAPTER);
+
+        return createEntryFromPage(
+            page,
+            '',
+            isAllUppercase(translation) ? toTitleCase(translation) : translation,
+            translatorId,
+            undefined,
+            TYPE_CHAPTER,
+        );
     });
 
     const books = Object.entries(indexToBook).map(([index, translation]) => {

@@ -44,6 +44,23 @@ export const toTitleCase = (str: string) => {
 };
 
 /**
+ * Detects if text is entirely in uppercase letters
+ * @param text - The text to check
+ * @returns true if all alphabetic characters are uppercase, false otherwise
+ */
+export const isAllUppercase = (text: string) => {
+    // Remove non-alphabetic characters and check if the result equals its uppercase version
+    const alphabeticOnly = text.replace(/[^a-zA-Z]/g, '');
+
+    // If there are no alphabetic characters, return false
+    if (alphabeticOnly.length === 0) {
+        return false;
+    }
+
+    return alphabeticOnly === alphabeticOnly.toUpperCase();
+};
+
+/**
  * Parses page input string into array of page numbers, supporting ranges and lists
  * @param pageInput - Page specification string (e.g., "1-5" or "1,3,5")
  * @returns Array of page numbers
