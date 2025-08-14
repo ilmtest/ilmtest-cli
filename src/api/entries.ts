@@ -14,6 +14,7 @@ export type Entry = {
     translation?: string;
     translator?: number;
     type?: number;
+    url?: string;
     volume: number;
 };
 
@@ -30,6 +31,7 @@ type RawEntry = {
     to_page?: number;
     translator?: number;
     type?: number;
+    url?: string;
 };
 
 /**
@@ -51,6 +53,7 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
         ...(rawEntry.to_page && { to: rawEntry.to_page }),
         ...(rawEntry.translator && { translator: rawEntry.translator }),
         ...(rawEntry.type && { translator: rawEntry.type }),
+        ...(rawEntry.url && { url: rawEntry.url }),
     };
 };
 
@@ -73,6 +76,7 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
         ...(entry.flags && { flags: String(entry.flags) }),
         ...(entry.index && { index_number: entry.index }),
         ...(entry.type && { type: entry.type }),
+        ...(entry.url && { url: entry.url }),
         ...(entry.translator && { translator: entry.translator }),
     };
 };

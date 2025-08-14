@@ -7,7 +7,7 @@ export type Config = {
     awsBucket: string;
     awsRegion: string;
     awsSecretKey: string;
-    collectionsEndpoint: string;
+    geminiApiKeys: string[];
     tafrighApiKeys: string;
 };
 

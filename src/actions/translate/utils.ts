@@ -151,30 +151,45 @@ export const correctMissingIndices = (arr: Page[]) => {
     return result;
 };
 
-export const mapEntriesToUpdates = (entries: Entry[], indexToEntry: Record<number, Entry>, explains?: string) => {
+export const mapEntriesToUpdates = (
+    entries: Entry[],
+    indexToEntry: Record<number, Entry>,
+    pageToEntries: Record<number, Entry[]>,
+    explains?: string,
+    url?: string,
+) => {
     const newEntries: Entry[] = [];
     const entriesToUpdate: Partial<Entry>[] = [];
 
-    entries.forEach((e) => {
-        if (e.index && indexToEntry[e.index]?.from === e.from) {
-            const patchedEntry = createPatch(indexToEntry[e.index], e);
-            entriesToUpdate.push(patchedEntry);
-        } else {
-            newEntries.push({ ...e, ...(explains && { explains: [explains] }) } as Entry);
-        }
-    });
+    entries
+        .filter((e) => !pageToEntries[e.from])
+        .forEach((e) => {
+            if (e.index && indexToEntry[e.index]?.from === e.from) {
+                const patchedEntry = createPatch(indexToEntry[e.index], e);
+                entriesToUpdate.push(patchedEntry);
+            } else {
+                newEntries.push({ ...e, ...(explains && { explains: [explains] }), ...(url && { url }) } as Entry);
+            }
+        });
 
     return { entriesToUpdate, newEntries };
 };
 
 export const indexEntriesByNumber = (entries: Entry[]) => {
     const indexToEntry: Record<number, Entry> = {};
+    const pageToEntries: Record<number, Entry[]> = {};
 
     for (const entry of entries) {
         if (entry.index) {
             indexToEntry[entry.index] = entry;
         }
+
+        if (!pageToEntries[entry.from]) {
+            pageToEntries[entry.from] = [];
+        }
+
+        pageToEntries[entry.from].push(entry);
     }
 
-    return indexToEntry;
+    return { indexToEntry, pageToEntries };
 };

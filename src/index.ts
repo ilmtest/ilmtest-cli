@@ -22,13 +22,12 @@ const main = async () => {
     const { positionals, values } = parseArgs({
         allowPositionals: true,
         options: {
-            compileManuscript: {
-                short: 'c',
-                type: 'boolean',
-            },
             downloadAsl: {
                 short: 'd',
                 type: 'string',
+            },
+            extract: {
+                type: 'boolean',
             },
             transcribe: {
                 short: 't',
@@ -48,9 +47,9 @@ const main = async () => {
                 { name: 'AI Transcribe', value: 'transcribe' },
                 { name: 'AI Translate', value: 'translate' },
                 { name: 'Check Asl', value: 'checkAsl' },
-                { name: 'Compile Manuscript', value: 'compileManuscript' },
                 { name: 'Delete Asl', value: 'deleteAsl' },
                 { name: 'Download Asl', value: 'downloadAsl' },
+                { name: 'Extract', value: 'extract' },
                 { name: 'Upload Asl', value: 'uploadAsl' },
             ],
             default: 'transcribe',
@@ -66,20 +65,16 @@ const main = async () => {
         'awsBucket',
     ]);
 
-    if (values.compileManuscript) {
-        action = 'compileManuscript';
-    }
-
-    if (values.migrateChats) {
-        action = 'migrateChats';
-    }
-
     if (values.transcribe) {
         action = 'transcribe';
     }
 
     if (values.downloadAsl) {
         action = 'downloadAsl';
+    }
+
+    if (values.extract) {
+        action = 'extract';
     }
 
     if (values.translate) {
@@ -94,6 +89,8 @@ const main = async () => {
         await (await import('./actions/checkAsl.js')).checkAsl();
     } else if (action === 'downloadAsl') {
         await (await import('./actions/downloadAsl.js')).downloadAsl(positionals[0]);
+    } else if (action === 'extract') {
+        await (await import('./actions/extractor.js')).extractor();
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {

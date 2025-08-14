@@ -103,6 +103,7 @@ export const translateWithAI = async () => {
         removeFootnotes,
         toPage,
         translatorId,
+        url,
         walk,
     } = await promptTranslateInputs();
 
@@ -143,18 +144,13 @@ export const translateWithAI = async () => {
 
     validateGaplessEntryIndices(entries);
 
-    const indexToEntry = indexEntriesByNumber(
+    const { indexToEntry, pageToEntries } = indexEntriesByNumber(
         await loadOrDownload<Entry>('entries', getEntries, collectionId, dir, refresh),
     );
 
-    await writePromptFile(
-        dir,
-        collectionId,
-        pages,
-        Object.values(indexToEntry).map((e) => e.from),
-    );
+    await writePromptFile(dir, collectionId, pages, Object.keys(pageToEntries).map(Number));
 
-    const result = mapEntriesToUpdates(entries, indexToEntry, explains);
+    const result = mapEntriesToUpdates(entries, indexToEntry, pageToEntries, explains, url);
 
     try {
         await saveEntries(result.entriesToUpdate, result.newEntries, isPreview);

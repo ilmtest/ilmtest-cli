@@ -5,9 +5,6 @@ import { getNumericInput } from '../../utils/io.js';
 export const promptTranslateInputs = async () => {
     const { values } = parseArgs({
         options: {
-            autoFix: {
-                type: 'boolean',
-            },
             collection: {
                 type: 'string',
             },
@@ -19,6 +16,9 @@ export const promptTranslateInputs = async () => {
             },
             explains: {
                 type: 'string',
+            },
+            fix: {
+                type: 'boolean',
             },
             footnotes: {
                 type: 'boolean',
@@ -36,6 +36,9 @@ export const promptTranslateInputs = async () => {
                 type: 'boolean',
             },
             translator: {
+                type: 'string',
+            },
+            url: {
                 type: 'string',
             },
             walk: {
@@ -83,7 +86,7 @@ export const promptTranslateInputs = async () => {
         ));
 
     return {
-        autoFix: Boolean(values.autoFix),
+        autoFix: Boolean(values.fix),
         collectionId,
         diff,
         discrete: Boolean(values.discrete),
@@ -94,6 +97,7 @@ export const promptTranslateInputs = async () => {
         removeFootnotes: !values.footnotes,
         toPage: Number(toPage),
         translatorId,
+        url: values.url,
         walk: Boolean(values.walk),
     };
 };
