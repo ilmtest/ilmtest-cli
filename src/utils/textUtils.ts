@@ -1,15 +1,3 @@
-export const getArabicScore = (text: string) => {
-    if (!text || text.length === 0) return 0;
-
-    const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
-    const nonWhitespacePattern = /[^\s\d]/g;
-
-    const arabicMatches = text.match(arabicPattern) || [];
-    const totalMatches = text.match(nonWhitespacePattern) || [];
-
-    return totalMatches.length === 0 ? 0 : arabicMatches.length / totalMatches.length;
-};
-
 export const convertArabicIndicToRoman = (text: string) => {
     // Create formatters
     const romanFormatter = new Intl.NumberFormat('en', { numberingSystem: 'roman' });
@@ -33,49 +21,4 @@ export const convertArabicIndicToRoman = (text: string) => {
             });
         })
         .join('\n');
-};
-
-export const toTitleCase = (str: string) => {
-    return str
-        .toLowerCase()
-        .split(' ')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-};
-
-/**
- * Detects if text is entirely in uppercase letters
- * @param text - The text to check
- * @returns true if all alphabetic characters are uppercase, false otherwise
- */
-export const isAllUppercase = (text: string) => {
-    // Remove non-alphabetic characters and check if the result equals its uppercase version
-    const alphabeticOnly = text.replace(/[^a-zA-Z]/g, '');
-
-    // If there are no alphabetic characters, return false
-    if (alphabeticOnly.length === 0) {
-        return false;
-    }
-
-    return alphabeticOnly === alphabeticOnly.toUpperCase();
-};
-
-/**
- * Parses page input string into array of page numbers, supporting ranges and lists
- * @param pageInput - Page specification string (e.g., "1-5" or "1,3,5")
- * @returns Array of page numbers
- * @throws Error when start page exceeds end page in range
- */
-export const parsePageRanges = (pageInput: string): number[] => {
-    if (pageInput.includes('-')) {
-        const [start, end] = pageInput.split('-').map(Number);
-
-        if (start > end) {
-            throw new Error('Start page cannot be greater than end page');
-        }
-
-        return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-    } else {
-        return pageInput.split(',').map(Number);
-    }
 };

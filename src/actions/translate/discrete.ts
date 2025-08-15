@@ -1,4 +1,4 @@
-import { isAllUppercase, toTitleCase } from '@/utils/textUtils.js';
+import { isAllUppercase, toTitleCase } from 'bitaboom';
 
 import type { Page } from '../../api/maktabah.js';
 
@@ -50,7 +50,10 @@ export const indexDiscreteTranslations = (
         }
 
         if (index && text && !indexToText[index]) {
-            indexToText[index] = text;
+            if (text.trim()) {
+                indexToText[index] = text;
+            }
+
             lastIndex = index;
         }
     }

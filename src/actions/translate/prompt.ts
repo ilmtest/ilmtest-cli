@@ -60,6 +60,7 @@ export const promptTranslateInputs = async () => {
         return {
             autoFix: false,
             collectionId,
+            diff,
             fromPage: 1,
             isPreview: true,
             refresh: false,

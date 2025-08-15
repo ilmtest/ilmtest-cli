@@ -136,12 +136,6 @@ export const translateWithAI = async () => {
         entries = indexDiscretePagesToEntries(pages, lines, translatorId);
     }
 
-    entries.forEach((e) => {
-        if (e.arabic?.endsWith('*')) {
-            e.arabic = e.arabic.slice(0, -1);
-        }
-    });
-
     validateGaplessEntryIndices(entries);
 
     const { indexToEntry, pageToEntries } = indexEntriesByNumber(

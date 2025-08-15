@@ -162,10 +162,15 @@ export const mapEntriesToUpdates = (
     const entriesToUpdate: Partial<Entry>[] = [];
 
     entries
-        .filter((e) => !pageToEntries[e.from])
+        //.filter((e) => !pageToEntries[e.from])
         .forEach((e) => {
             if (e.index && indexToEntry[e.index]?.from === e.from) {
                 const patchedEntry = createPatch(indexToEntry[e.index], e);
+                entriesToUpdate.push(patchedEntry);
+            } else if (!e.index && pageToEntries[e.from]?.some((existingEntry) => !existingEntry.index)) {
+                // chapters which already exist
+                const existing = pageToEntries[e.from].find((existingEntry) => !existingEntry.index)!;
+                const patchedEntry = createPatch(existing, e);
                 entriesToUpdate.push(patchedEntry);
             } else {
                 newEntries.push({ ...e, ...(explains && { explains: [explains] }), ...(url && { url }) } as Entry);
