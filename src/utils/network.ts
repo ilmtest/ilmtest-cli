@@ -57,8 +57,7 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
 
 export const loadOrDownload = async <T>(
     fileName: string,
-    getter: (collectionId: string) => Promise<T[]>,
-    collectionId: string,
+    getter: () => Promise<T[]>,
     dir: string,
     forceRefresh = false,
 ): Promise<T[]> => {
@@ -68,7 +67,7 @@ export const loadOrDownload = async <T>(
         return file.json();
     } else {
         logger.info(`Downloading ${fileName}`);
-        const data = await getter(collectionId);
+        const data = await getter();
 
         if (!forceRefresh) {
             logger.info(`Saving ${fileName}`);

@@ -62,17 +62,22 @@ export const validateJsonFile = async (f: string) => {
 
 export const getFileSystemInput = async (
     {
+        defaultValue,
         message,
+        required = true,
         validate,
     }: {
+        defaultValue?: string;
         message: string;
+        required?: boolean;
         validate: (value: string) => boolean | Promise<boolean | string> | string;
     } = { message: 'Enter the path to the JSON file:', validate: validateJsonFile },
 ) => {
     return unescapeSpaces(
         await input({
+            default: defaultValue,
             message,
-            required: true,
+            required,
             transformer: (val) => unescapeSpaces(val),
             validate: async (input) => {
                 const f = unescapeSpaces(input);

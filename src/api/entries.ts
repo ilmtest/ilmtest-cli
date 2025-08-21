@@ -1,5 +1,5 @@
 import config from '../utils/config.js';
-import { changeEndpointName, doGet, doPut } from './index.js';
+import { changeEndpointName, doGet, doPut, type PagingParams } from './index.js';
 
 export type Entry = {
     arabic?: string;
@@ -30,7 +30,7 @@ type RawEntry = {
     part_page: number;
     to_page?: number;
     translator?: number;
-    type?: number;
+    type?: string;
     url?: string;
 };
 
@@ -52,7 +52,7 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
         ...(rawEntry.index_number && { index: rawEntry.index_number }),
         ...(rawEntry.to_page && { to: rawEntry.to_page }),
         ...(rawEntry.translator && { translator: rawEntry.translator }),
-        ...(rawEntry.type && { translator: rawEntry.type }),
+        ...(rawEntry.type && { type: Number(rawEntry.type) }),
         ...(rawEntry.url && { url: rawEntry.url }),
     };
 };
@@ -75,21 +75,25 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
         ...(entry.pp && { part_page: entry.pp }),
         ...(entry.flags && { flags: String(entry.flags) }),
         ...(entry.index && { index_number: entry.index }),
-        ...(entry.type && { type: entry.type }),
+        ...(entry.type && { type: String(entry.type) }),
         ...(entry.url && { url: entry.url }),
         ...(entry.translator && { translator: entry.translator }),
     };
 };
+
+interface GetEntriesParams extends PagingParams {
+    type?: number;
+}
 
 /**
  * Retrieves all entries for a given collection
  * @param collectionId - The ID of the collection to fetch entries for
  * @returns Promise that resolves to an array of Entry objects
  */
-export const getEntries = async (collectionId: string): Promise<Entry[]> => {
+export const getEntries = async (collectionId: string, options: GetEntriesParams = {}): Promise<Entry[]> => {
     const data: RawEntry[] = await doGet(changeEndpointName(config.collectionsEndpoint, 'entries'), {
         collection: collectionId,
-        limit: -1,
+        ...options,
     });
 
     return data.map(mapRawEntryToEntry);

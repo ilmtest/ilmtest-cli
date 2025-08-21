@@ -17,7 +17,7 @@ const main = async () => {
         version: packageJson.version,
     });
 
-    handlePromptTermination();
+    //handlePromptTermination();
 
     const { positionals, values } = parseArgs({
         allowPositionals: true,
@@ -27,6 +27,9 @@ const main = async () => {
                 type: 'string',
             },
             extract: {
+                type: 'boolean',
+            },
+            rearrange: {
                 type: 'boolean',
             },
             transcribe: {
@@ -81,6 +84,10 @@ const main = async () => {
         action = 'translate';
     }
 
+    if (values.rearrange) {
+        action = 'rearrange';
+    }
+
     if (action === 'transcribe') {
         await (await import('./actions/transcribe.js')).transcribeWithAI(positionals[0], positionals[1]);
     } else if (action === 'deleteAsl') {
@@ -95,6 +102,8 @@ const main = async () => {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
     } else if (action === 'translate') {
         await (await import('./actions/translate/index.js')).translateWithAI();
+    } else if (action === 'rearrange') {
+        await (await import('./actions/rearrange.js')).rearrangeEntries(positionals[0]);
     }
 };
 

@@ -1,24 +1,61 @@
-import type { Page } from '../../api/maktabah.js';
+/* eslint-disable prefer-const */
+import { Entry } from '@/api/entries.js';
+
+import type { Bookmark, Page } from '../../api/maktabah.js';
 import type { PageRange } from './types.js';
 
-import { createEntryFromPageRange } from './mapping.js';
+import { createChapterEntry, createEntryFromPage, createEntryFromPageRange, TYPE_BOOK } from './mapping.js';
 import { PATTERNS } from './patterns.js';
 import { validateIndices } from './validation.js';
 
-export const walkAndIndexPages = (pages: Page[], pattern = PATTERNS.MatchNumericListItem) => {
+type WalkAndIndexPagesOptions = {
+    bookmarks: Bookmark[];
+    narrationPattern: RegExp;
+    stopPattern?: RegExp;
+};
+
+const indexBookmarks = (bookmarks: Bookmark[]) => {
+    const pageToBookmarks: Record<number, Bookmark> = {};
+
+    for (const bookmark of bookmarks) {
+        pageToBookmarks[bookmark.page] = bookmark;
+    }
+
+    return pageToBookmarks;
+};
+
+export const walkAndIndexPages = (
+    pages: Page[],
+    { bookmarks, narrationPattern, stopPattern }: WalkAndIndexPagesOptions,
+) => {
     const indexToMatn: Record<string, PageRange> = {};
     const indexToLines: Record<string, string[]> = {};
-
+    const pageToBookmarks = indexBookmarks(bookmarks);
     let lastIndex = '';
 
     for (const page of pages) {
+        const bookmark = pageToBookmarks[page.page];
+
+        if (lastIndex && bookmark?.level) {
+            indexToMatn[`${lastIndex}/${bookmark.level}`] = { ...page };
+            lastIndex = '';
+        }
+
         page.body
             .split('\n')
             .filter((line) => line.trim())
             .forEach((line) => {
-                const [, index, text] = line.match(pattern) || [];
+                const [, index, text] = line.match(narrationPattern) || [];
 
-                if (index && text && !indexToMatn[index]) {
+                if (line.includes('تلخيص الذهبي')) {
+                    const [, refIndex, commentary] = line.match(/(\d+)\s?[-–—ـ](.*)/) || [];
+                    lastIndex = refIndex;
+                    line = `الذهبي: ${commentary}`;
+                }
+
+                if (stopPattern?.test(line)) {
+                    lastIndex = '';
+                } else if (index && text && !indexToMatn[index]) {
                     indexToMatn[index] = { ...page };
                     indexToLines[index] = [text];
                     lastIndex = index;
@@ -51,6 +88,11 @@ export const walkAndIndexLines = (lines: string[], pattern = PATTERNS.MatchNumer
     let lastIndex = '';
 
     for (const line of lines) {
+        if (line.startsWith('The Book') || line.startsWith('Book of')) {
+            lastIndex += '/1';
+            indexToLines[lastIndex] = [];
+        }
+
         const [, index, text] = line.match(pattern) || [];
 
         if (index && text && !indexToLines[index]) {
@@ -70,16 +112,45 @@ export const walkAndIndexLines = (lines: string[], pattern = PATTERNS.MatchNumer
     return result;
 };
 
-export const walkAndMapPagesToEntries = (pages: Page[], translationLines: string[], translatorId: string) => {
-    const indexToMatn = walkAndIndexPages(pages);
+export const walkAndMapPagesToEntries = (
+    pages: Page[],
+    translationLines: string[],
+    translatorId: string,
+    bookmarks: Bookmark[],
+) => {
+    const indexToMatn = walkAndIndexPages(pages, {
+        bookmarks,
+        narrationPattern: PATTERNS.MatchNumericListItem,
+    });
+
     const indexToTranslation = walkAndIndexLines(translationLines);
 
     validateIndices(Object.keys(indexToMatn), Object.keys(indexToTranslation));
 
-    const entries = Object.entries(indexToTranslation).map(([index, translation]) => {
+    const entries: Entry[] = [];
+
+    for (let [index, translation] of Object.entries(indexToTranslation)) {
         const page = indexToMatn[index];
-        return createEntryFromPageRange(page, index, translation, translatorId);
-    });
+
+        if (!page) {
+            console.error('Index not found in Arabic pages:', index);
+            return [];
+        }
+
+        if (index.endsWith('/1')) {
+            entries.push(createEntryFromPage(page, '', translation, translatorId, undefined, TYPE_BOOK));
+        } else if (indexToMatn[`${index}/2`]) {
+            if (translation.includes('\n')) {
+                const lines = translation.split('\n');
+                entries.push(createChapterEntry(page, lines.at(-1)!, translatorId));
+                translation = lines.slice(0, -1).join('\n');
+            } else {
+                console.warn('Chapter translation was not found for', index);
+            }
+        }
+
+        entries.push(createEntryFromPageRange(page, index, translation, translatorId));
+    }
 
     return entries;
 };

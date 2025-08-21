@@ -1,6 +1,12 @@
 import config from '../utils/config.js';
 import { changeEndpointName, doGet } from './index.js';
 
+export type Bookmark = {
+    level: number;
+    page: number;
+    title: string;
+};
+
 export type Page = {
     body: string;
     collection: string;
@@ -8,6 +14,13 @@ export type Page = {
     page: number;
     pp: number;
     volume: number;
+};
+
+type RawBookmark = {
+    id: number;
+    level: number;
+    page_id: number;
+    title: string;
 };
 
 type RawPage = {
@@ -35,4 +48,17 @@ export const getPages = async (collectionId: string): Promise<Page[]> => {
             volume: p.part_number,
         }))
         .sort((a, b) => a.page - b.page);
+};
+
+export const getBookmarks = async (collection: string): Promise<Bookmark[]> => {
+    const data: RawBookmark[] = await doGet(changeEndpointName(config.collectionsEndpoint, 'bookmarks'), {
+        collection,
+        limit: -1,
+    });
+
+    return data.map((b) => ({
+        level: b.level,
+        page: b.page_id,
+        title: b.title,
+    }));
 };

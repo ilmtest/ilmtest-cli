@@ -23,6 +23,9 @@ export const promptTranslateInputs = async () => {
             footnotes: {
                 type: 'boolean',
             },
+            interactive: {
+                type: 'boolean',
+            },
             pages: {
                 type: 'string',
             },
@@ -67,7 +70,6 @@ export const promptTranslateInputs = async () => {
             removeFootnotes: false,
             toPage: 1,
             translatorId: '1',
-            walk: false,
         };
     }
 
@@ -86,19 +88,28 @@ export const promptTranslateInputs = async () => {
             Number.MAX_SAFE_INTEGER.toString(),
         ));
 
+    let strategy = '';
+
+    if (values.discrete) {
+        strategy = 'discrete';
+    } else if (values.walk) {
+        strategy = 'walk';
+    } else if (values.interactive) {
+        strategy = 'interactive';
+    }
+
     return {
         autoFix: Boolean(values.fix),
         collectionId,
         diff,
-        discrete: Boolean(values.discrete),
         explains: values.explains,
         fromPage: Number(fromPage),
         isPreview: Boolean(values.preview),
         refresh: Boolean(values.refresh),
         removeFootnotes: !values.footnotes,
+        strategy,
         toPage: Number(toPage),
         translatorId,
         url: values.url,
-        walk: Boolean(values.walk),
     };
 };

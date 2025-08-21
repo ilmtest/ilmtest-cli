@@ -1,5 +1,3 @@
-import { Page } from '@/api/maktabah.js';
-
 import type { Entry } from '../../api/entries.js';
 
 import logger from '../../utils/logger.js';
@@ -16,8 +14,6 @@ export const validateGaplessEntryIndices = (entries: Entry[]) => {
             }
         });
 };
-
-export const autoCorrectChapters = (indexToBab: Record<string, Page>, indexToChapter: Record<string, string>) => {};
 
 export const validateIndices = (arabicIndices: string[], translationIndices: string[]) => {
     const arabicKeys = new Set(arabicIndices);

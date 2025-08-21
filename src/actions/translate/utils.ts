@@ -12,7 +12,7 @@ export const PATTERNS = {
 const createPatch = (
     entry: Pick<Entry, 'id' | 'translation' | 'translator'>,
     patch: Pick<Entry, 'translation' | 'translator'>,
-) => {
+): Partial<Entry> => {
     return {
         flags: 4,
         id: entry.id,
@@ -151,42 +151,83 @@ export const correctMissingIndices = (arr: Page[]) => {
     return result;
 };
 
+type MapEntriesToUpdatesOptions = {
+    explains?: string;
+    shouldMatchIndexWithAnyPage?: boolean;
+    shouldSkipEntriesOnCoveredPages?: boolean;
+    shouldUpdateArabic?: boolean;
+    url?: string;
+};
+
+const getEntryKey = (e: Entry) => `${e.index}t${e.type || 0}`;
+
 export const mapEntriesToUpdates = (
     entries: Entry[],
-    indexToEntry: Record<number, Entry>,
+    indexToEntry: Record<string, Entry>,
     pageToEntries: Record<number, Entry[]>,
-    explains?: string,
-    url?: string,
+    {
+        explains,
+        shouldMatchIndexWithAnyPage,
+        shouldSkipEntriesOnCoveredPages,
+        shouldUpdateArabic,
+        url,
+    }: MapEntriesToUpdatesOptions,
 ) => {
     const newEntries: Entry[] = [];
     const entriesToUpdate: Partial<Entry>[] = [];
 
-    entries
-        //.filter((e) => !pageToEntries[e.from])
-        .forEach((e) => {
-            if (e.index && indexToEntry[e.index]?.from === e.from) {
-                const patchedEntry = createPatch(indexToEntry[e.index], e);
-                entriesToUpdate.push(patchedEntry);
-            } else if (!e.index && pageToEntries[e.from]?.some((existingEntry) => !existingEntry.index)) {
-                // chapters which already exist
-                const existing = pageToEntries[e.from].find((existingEntry) => !existingEntry.index)!;
-                const patchedEntry = createPatch(existing, e);
-                entriesToUpdate.push(patchedEntry);
-            } else {
-                newEntries.push({ ...e, ...(explains && { explains: [explains] }), ...(url && { url }) } as Entry);
+    if (shouldSkipEntriesOnCoveredPages) {
+        entries = entries.filter((e) => !pageToEntries[e.from]);
+    }
+
+    entries.forEach((e) => {
+        if (
+            e.index &&
+            indexToEntry[getEntryKey(e)] &&
+            (shouldMatchIndexWithAnyPage || indexToEntry[getEntryKey(e)]?.from === e.from)
+        ) {
+            const patchedEntry = createPatch(indexToEntry[getEntryKey(e)], e);
+
+            if (shouldUpdateArabic) {
+                patchedEntry.arabic = e.arabic;
+                patchedEntry.volume = e.volume;
+                patchedEntry.from = e.from;
+                patchedEntry.to = e.to;
+                patchedEntry.pp = e.pp;
+                patchedEntry.url = e.url;
             }
-        });
+
+            entriesToUpdate.push(patchedEntry);
+        } else if (!e.index && pageToEntries[e.from]?.some((existingEntry) => !existingEntry.index)) {
+            // chapters which already exist
+            const existing = pageToEntries[e.from].find((existingEntry) => !existingEntry.index)!;
+            const patchedEntry = createPatch(existing, e);
+
+            if (shouldUpdateArabic) {
+                patchedEntry.arabic = e.arabic;
+                patchedEntry.volume = e.volume;
+                patchedEntry.from = e.from;
+                patchedEntry.to = e.to;
+                patchedEntry.pp = e.pp;
+                patchedEntry.url = e.url;
+            }
+
+            entriesToUpdate.push(patchedEntry);
+        } else {
+            newEntries.push({ ...e, ...(explains && { explains: [explains] }), ...(url && { url }) } as Entry);
+        }
+    });
 
     return { entriesToUpdate, newEntries };
 };
 
 export const indexEntriesByNumber = (entries: Entry[]) => {
-    const indexToEntry: Record<number, Entry> = {};
+    const indexToEntry: Record<string, Entry> = {};
     const pageToEntries: Record<number, Entry[]> = {};
 
     for (const entry of entries) {
         if (entry.index) {
-            indexToEntry[entry.index] = entry;
+            indexToEntry[getEntryKey(entry)] = entry;
         }
 
         if (!pageToEntries[entry.from]) {

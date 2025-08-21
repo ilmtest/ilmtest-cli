@@ -1,3 +1,5 @@
+import { isAllUppercase, toTitleCase } from 'bitaboom';
+
 import type { Entry } from '../../api/entries.js';
 import type { Page } from '../../api/maktabah.js';
 import type { PageRange } from './types.js';
@@ -28,6 +30,17 @@ export const createEntryFromPage = (
         volume: page.volume,
         ...(type && { type }),
     } as Entry;
+};
+
+export const createChapterEntry = (page: Page, title: string, translatorId: string) => {
+    return createEntryFromPage(
+        page,
+        '',
+        isAllUppercase(title) ? toTitleCase(title) : title,
+        translatorId,
+        undefined,
+        TYPE_CHAPTER,
+    );
 };
 
 export const createEntryFromPageRange = (

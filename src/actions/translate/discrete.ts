@@ -1,8 +1,6 @@
-import { isAllUppercase, toTitleCase } from 'bitaboom';
-
 import type { Page } from '../../api/maktabah.js';
 
-import { createEntryFromPage, TYPE_BOOK, TYPE_CHAPTER } from './mapping.js';
+import { createChapterEntry, createEntryFromPage, TYPE_BOOK } from './mapping.js';
 import { PATTERNS } from './patterns.js';
 import {
     createKitabProcessor,
@@ -114,15 +112,7 @@ export const indexDiscretePagesToEntries = (pages: Page[], translationLines: str
 
     const chapters = Object.entries(indexToChapter).map(([index, translation]) => {
         const page = indexToBab[index];
-
-        return createEntryFromPage(
-            page,
-            '',
-            isAllUppercase(translation) ? toTitleCase(translation) : translation,
-            translatorId,
-            undefined,
-            TYPE_CHAPTER,
-        );
+        return createChapterEntry(page, translation, translatorId);
     });
 
     const books = Object.entries(indexToBook).map(([index, translation]) => {

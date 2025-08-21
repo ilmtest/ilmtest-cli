@@ -107,6 +107,9 @@ export const doPut = async (endpoint: string, body: Record<string, any>, headers
 export interface PagingParams {
     /** Cursor for pagination - items before this cursor */
     before?: string;
+    /** Force full data */
+    full?: number;
+
     /** Maximum number of items to return */
     limit?: number;
 }
