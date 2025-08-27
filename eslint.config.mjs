@@ -1,8 +1,7 @@
 import pluginJs from '@eslint/js';
 import vitest from '@vitest/eslint-plugin';
-import eslintConfigPrettier from 'eslint-config-prettier';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import perfectionist from 'eslint-plugin-perfectionist';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -13,7 +12,6 @@ export default [
     { languageOptions: { ecmaVersion: 'latest', globals: globals.es2025, sourceType: 'module' } },
     pluginJs.configs.recommended,
     ...tseslint.configs.recommended,
-    eslintPluginPrettierRecommended,
     eslintConfigPrettier,
     {
         rules: {

@@ -32,6 +32,9 @@ const main = async () => {
             rearrange: {
                 type: 'boolean',
             },
+            shamela: {
+                type: 'string',
+            },
             transcribe: {
                 short: 't',
                 type: 'boolean',
@@ -104,6 +107,8 @@ const main = async () => {
         await (await import('./actions/translate/index.js')).translateWithAI();
     } else if (action === 'rearrange') {
         await (await import('./actions/rearrange.js')).rearrangeEntries(positionals[0]);
+    } else if (values.shamela) {
+        await (await import('./actions/shamela.js')).processShamela(values.shamela as string);
     }
 };
 

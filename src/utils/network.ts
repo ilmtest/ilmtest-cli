@@ -57,10 +57,10 @@ export const downloadFileWithProgress = async (url: string, outputPath: string):
 
 export const loadOrDownload = async <T>(
     fileName: string,
-    getter: () => Promise<T[]>,
+    getter: () => Promise<T>,
     dir: string,
     forceRefresh = false,
-): Promise<T[]> => {
+): Promise<T> => {
     const file = Bun.file(path.format({ dir, ext: '.json', name: fileName }));
 
     if (!forceRefresh && (await file.exists())) {

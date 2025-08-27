@@ -6,11 +6,12 @@ import { doGet, PagingParams } from './index.js';
 interface GetCollectionsParams extends PagingParams {
     library?: string;
 }
-type RawCollection = { author_name: string; display_name: string; fid?: string; id: number };
+type RawCollection = { author_name: string; display_name: string; fid?: string; id: number; library?: number };
 
 const mapRawToCollection = (c: RawCollection): Collection => ({
     id: c.id.toString(),
     title: [c.display_name, c.author_name].filter(Boolean).join(', '),
+    ...(c.library && { library: c.library }),
 });
 
 export const getCollections = async (params: GetCollectionsParams = {}): Promise<Collection[]> => {

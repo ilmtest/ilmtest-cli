@@ -1,6 +1,6 @@
 import type { Segment } from 'tafrigh';
 
-export type Collection = { fid?: ForeignId[] | string; id: string; title: string };
+export type Collection = { fid?: ForeignId[]; id: string; library?: number; title: string };
 
 export type Config = {
     awsAccessKey: string;

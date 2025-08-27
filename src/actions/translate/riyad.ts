@@ -3,7 +3,6 @@ import type { PageRange } from './types.js';
 
 import { createEntryFromPageRange } from './mapping.js';
 import { PATTERNS } from './patterns.js';
-import { buildDiacriticsInsensitiveExactRegex } from './processors/utils.js';
 
 type WalkAndIndexPagesOptions = {
     narrationPattern: RegExp;

@@ -10,6 +10,17 @@ export const TYPE_CHAPTER = 2;
 
 export const TYPE_BOOK = 1;
 
+export const createBaseEntryFromPage = (page: Page, arabic: string, index: string) => {
+    return {
+        arabic,
+        collection: Number(page.collection),
+        from: page.page,
+        index: parseInt(index),
+        pp: page.pp,
+        volume: page.volume,
+    } as Entry;
+};
+
 export const createEntryFromPage = (
     page: Page,
     index: string,
@@ -19,15 +30,10 @@ export const createEntryFromPage = (
     type?: number,
 ) => {
     return {
-        arabic: page.body,
-        collection: Number(page.collection),
+        ...createBaseEntryFromPage(page, page.body, index),
         flags,
-        from: page.page,
-        index: parseInt(index),
-        pp: page.pp,
         translation,
         translator: Number(translatorId),
-        volume: page.volume,
         ...(type && { type }),
     } as Entry;
 };

@@ -153,13 +153,15 @@ export const correctMissingIndices = (arr: Page[]) => {
 
 type MapEntriesToUpdatesOptions = {
     explains?: string;
+    flags?: number;
     shouldMatchIndexWithAnyPage?: boolean;
     shouldSkipEntriesOnCoveredPages?: boolean;
     shouldUpdateArabic?: boolean;
+    translatorId: string;
     url?: string;
 };
 
-const getEntryKey = (e: Entry) => `${e.index}t${e.type || 0}`;
+export const getEntryKey = (e: Entry) => `${e.index}t${e.type || 0}`;
 
 export const mapEntriesToUpdates = (
     entries: Entry[],
@@ -167,9 +169,11 @@ export const mapEntriesToUpdates = (
     pageToEntries: Record<number, Entry[]>,
     {
         explains,
+        flags,
         shouldMatchIndexWithAnyPage,
         shouldSkipEntriesOnCoveredPages,
         shouldUpdateArabic,
+        translatorId,
         url,
     }: MapEntriesToUpdatesOptions,
 ) => {
@@ -189,7 +193,7 @@ export const mapEntriesToUpdates = (
             const patchedEntry = createPatch(indexToEntry[getEntryKey(e)], e);
 
             if (shouldUpdateArabic) {
-                patchedEntry.arabic = e.arabic;
+                patchedEntry.arabic = e.arabic?.trim();
                 patchedEntry.volume = e.volume;
                 patchedEntry.from = e.from;
                 patchedEntry.to = e.to;
@@ -204,7 +208,7 @@ export const mapEntriesToUpdates = (
             const patchedEntry = createPatch(existing, e);
 
             if (shouldUpdateArabic) {
-                patchedEntry.arabic = e.arabic;
+                patchedEntry.arabic = e.arabic?.trim();
                 patchedEntry.volume = e.volume;
                 patchedEntry.from = e.from;
                 patchedEntry.to = e.to;
@@ -214,7 +218,14 @@ export const mapEntriesToUpdates = (
 
             entriesToUpdate.push(patchedEntry);
         } else {
-            newEntries.push({ ...e, ...(explains && { explains: [explains] }), ...(url && { url }) } as Entry);
+            newEntries.push({
+                ...e,
+                ...(e.arabic && { arabic: e.arabic.trim() }),
+                ...(translatorId && { translator: Number(translatorId) }),
+                ...(flags && { flags }),
+                ...(explains && { explains: [explains] }),
+                ...(url && { url }),
+            } as Entry);
         }
     });
 
@@ -238,4 +249,12 @@ export const indexEntriesByNumber = (entries: Entry[]) => {
     }
 
     return { indexToEntry, pageToEntries };
+};
+
+export const getCoveredPages = (entries: Entry[]) => {
+    const pages = entries
+        .filter((e) => e.from)
+        .flatMap((e) => [e.from, e.to])
+        .filter(Boolean);
+    return new Set(pages) as Set<number>;
 };

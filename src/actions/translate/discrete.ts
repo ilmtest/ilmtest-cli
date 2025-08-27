@@ -8,7 +8,6 @@ import {
     createSimpleBabProcessor,
 } from './processors/handlers.js';
 import { indexPages } from './processors/index.js';
-import { buildDiacriticsInsensitiveExactRegex } from './processors/utils.js';
 import { validateIndices } from './validation.js';
 
 export const indexDiscreteTranslations = (

@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'bun:test';
+import { makeDiacriticInsensitive } from 'bitaboom';
+import { describe, it } from 'bun:test';
 
-import type { Page } from '../../api/maktabah';
+import type { Page } from '../../../api/maktabah';
 
 import { indexPages } from '.';
-import { PATTERNS } from '../translate/patterns';
+import { PATTERNS } from '../../translate/patterns';
 import { createKitabProcessor, createNumberedParagraphProcessor, createSimpleBabProcessor } from './handlers';
-import { makeDiacriticInsensitive } from './utils';
 
 describe('discrete', () => {
     describe('indexDiscretePages', () => {

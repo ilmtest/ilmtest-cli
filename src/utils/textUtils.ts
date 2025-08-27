@@ -22,3 +22,7 @@ export const convertArabicIndicToRoman = (text: string) => {
         })
         .join('\n');
 };
+
+export const arabicNumeralToNumber = (arabic: string) => {
+    return parseInt(arabic.replace(/[\u0660-\u0669]/g, (c) => (c.charCodeAt(0) - 0x0660).toString()));
+};

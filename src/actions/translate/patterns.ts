@@ -5,7 +5,7 @@ export const PATTERNS = {
     ChapterTitles: /^Chapter: |^Collection of |^Issue |^What /,
     KitabPrefix: new RegExp([`^${KITAB_ARABIC} `, `^\\d+ ${KITAB_ARABIC}`].join('|')),
     MatchBabTitlesUpToNumberedListItem: /^(بَ[َُِّ]*ابُ[َُِّ]*.*?)(?:(\d+\s*-.*))?$/s,
-    MatchNumberedParagraph: /^(\d+)\s?[-–] (.*)$/gm,
+    MatchNumberedParagraph: /^(\d+)\s+[-–—ـ]\s+(.*)$/gm,
     MatchNumericListItem: /^(\d+)\s?[-–—ـ](.*)/,
     NumberedKitabTitles: /^\d+ - كتاب/,
 };
