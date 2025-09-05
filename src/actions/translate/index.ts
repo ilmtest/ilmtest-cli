@@ -113,7 +113,7 @@ const loadPages = async () => {
     //pages = injectIndexByPrefix(pages, 'حدثن');
     //pages = injectIndexByPage(pages);
 
-    const bookmarks = await loadOrDownload<Bookmark>(
+    const bookmarks = await loadOrDownload<Bookmark[]>(
         'bookmarks',
         async () => {
             return getBookmarks(collectionId);
@@ -145,15 +145,15 @@ export const translateWithAI = async () => {
 
     if (strategy === 'walk') {
         //entries = sprintAndMapPages(pages);
-        entries = sprintAndMapPagesByParagraphs(pages);
-        //entries = sprintAndMapPagesByLines(pages);
+        //entries = sprintAndMapPagesByParagraphs(pages);
+        entries = sprintAndMapPagesByLines(pages);
     }
 
     entries = fixGaps(entries);
     //validateGaplessEntryIndices(entries);
 
     //entries = entries.filter((e) => indexToEntry[getEntryKey(e)]?.from !== e.from);
-    entries = entries.filter((e) => !pageToEntries[e.from]);
+    //entries = entries.filter((e) => !pageToEntries[e.from]);
 
     await writePromptFile(dir, collectionId, entries);
 

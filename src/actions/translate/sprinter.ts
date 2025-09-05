@@ -24,9 +24,22 @@ export const sprintAndMapPagesByLines = (pages: Page[]) => {
             if (index && text) {
                 entries.push(createBaseEntryFromPage(page, text, index));
                 lastIndex = i === lines.length - 1 && !line.endsWith('.') ? index : '';
+                //lastIndex = index;
             } else if (lastIndex) {
-                entries.at(-1)!.to = page.page;
-                entries.at(-1)!.arabic += ' ' + line;
+                const lastEntry = entries.at(-1)!;
+
+                if (lastEntry.from !== page.page) {
+                    lastEntry.to = page.page;
+                }
+
+                lastEntry.arabic += ' ' + line;
+                /*
+                if (entries.at(-1)!.arabic?.endsWith('.')) {
+                    entries.at(-1)!.arabic += '\n' + line;
+                } else {
+                    entries.at(-1)!.arabic += ' ' + line;
+                } */
+
                 lastIndex = !line.endsWith('.') ? index : '';
             }
         }

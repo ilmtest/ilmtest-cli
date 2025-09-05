@@ -161,7 +161,7 @@ type MapEntriesToUpdatesOptions = {
     url?: string;
 };
 
-export const getEntryKey = (e: Entry) => `${e.index}t${e.type || 0}`;
+export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e.type || 0}`;
 
 export const mapEntriesToUpdates = (
     entries: Entry[],
@@ -233,22 +233,23 @@ export const mapEntriesToUpdates = (
 };
 
 export const indexEntriesByNumber = (entries: Entry[]) => {
-    const indexToEntry: Record<string, Entry> = {};
+    const indexToEntries: Record<string, Entry[]> = {};
     const pageToEntries: Record<number, Entry[]> = {};
 
     for (const entry of entries) {
         if (entry.index) {
-            indexToEntry[getEntryKey(entry)] = entry;
+            const key = getEntryKey(entry);
+            indexToEntries[key] = (indexToEntries[key] || []).concat(entry);
         }
 
-        if (!pageToEntries[entry.from]) {
-            pageToEntries[entry.from] = [];
-        }
+        pageToEntries[entry.from] = (pageToEntries[entry.from] || []).concat(entry);
 
-        pageToEntries[entry.from].push(entry);
+        if (entry.to && entry.to !== entry.from) {
+            pageToEntries[entry.to] = (pageToEntries[entry.to] || []).concat(entry);
+        }
     }
 
-    return { indexToEntry, pageToEntries };
+    return { indexToEntries, pageToEntries };
 };
 
 export const getCoveredPages = (entries: Entry[]) => {

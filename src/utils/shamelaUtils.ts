@@ -78,5 +78,5 @@ function splitIntoLines(text: string): string[] {
 
 export const removeFootnoteReferencesSimple = (text: string): string => {
     // This version removes footnotes and normalizes spaces
-    return text.replace(/\s*\(\u00AC[\u0660-\u0669]+\)\s*/g, ' ').replace(/\s+/g, ' '); // Normalize multiple spaces to single space
+    return text.replace(/\s*\(\u00AC[\u0660-\u0669]+\)\s*/g, ' ').replace(/ +/g, ' '); // Normalize multiple spaces to single space
 };

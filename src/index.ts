@@ -29,6 +29,9 @@ const main = async () => {
             extract: {
                 type: 'boolean',
             },
+            migrate: {
+                type: 'boolean',
+            },
             rearrange: {
                 type: 'boolean',
             },
@@ -108,7 +111,9 @@ const main = async () => {
     } else if (action === 'rearrange') {
         await (await import('./actions/rearrange.js')).rearrangeEntries(positionals[0]);
     } else if (values.shamela) {
-        await (await import('./actions/shamela.js')).processShamela(values.shamela as string);
+        await (await import('./actions/shamela.js')).processShamela();
+    } else if (values.migrate) {
+        await (await import('./actions/shamela.js')).migrateEntries();
     }
 };
 
