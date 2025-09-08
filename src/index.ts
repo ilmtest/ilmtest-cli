@@ -5,7 +5,6 @@ import { parseArgs } from 'node:util';
 
 import packageJson from '../package.json' with { type: 'json' };
 import { loadConfiguration } from './utils/config.js';
-import { handlePromptTermination } from './utils/io.js';
 
 const main = async () => {
     welcome({
@@ -22,6 +21,9 @@ const main = async () => {
     const { positionals, values } = parseArgs({
         allowPositionals: true,
         options: {
+            diff: {
+                type: 'string',
+            },
             downloadAsl: {
                 short: 'd',
                 type: 'string',
@@ -36,7 +38,7 @@ const main = async () => {
                 type: 'boolean',
             },
             shamela: {
-                type: 'string',
+                type: 'boolean',
             },
             transcribe: {
                 short: 't',
@@ -113,7 +115,9 @@ const main = async () => {
     } else if (values.shamela) {
         await (await import('./actions/shamela.js')).processShamela();
     } else if (values.migrate) {
-        await (await import('./actions/shamela.js')).migrateEntries();
+        await (await import('./actions/migrate.js')).migrateEntries();
+    } else if (values.diff) {
+        await (await import('./actions/adjust.js')).adjustIndices();
     }
 };
 

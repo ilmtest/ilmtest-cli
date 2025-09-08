@@ -1,5 +1,4 @@
 import { magentaBright, yellow } from 'ansis';
-import { areSimilarAfterNormalization, calculateSimilarity, normalizeArabicText } from 'baburchi';
 import { isAllUppercase, toTitleCase } from 'bitaboom';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -22,23 +21,34 @@ import { getEntryKey, indexEntriesByNumber } from './translate/utils.js';
 
 const ARABIC_NUMERIC_LIST_ITEM = /^([\u0660-\u0669]+)\s?[-–—ـ](.*)/;
 
+const TYPE_MARKER = -1;
+
 const parseInputArgs = () => {
     const { values } = parseArgs({
         options: {
             collection: {
                 type: 'string',
             },
+            entries: {
+                type: 'string',
+            },
             log: {
                 type: 'string',
             },
-            migrate: {
-                type: 'boolean',
+            max: {
+                type: 'string',
             },
             pages: {
                 type: 'string',
             },
             shamela: {
                 type: 'boolean',
+            },
+            unused: {
+                type: 'string',
+            },
+            url: {
+                type: 'string',
             },
         },
         strict: true,
@@ -54,7 +64,15 @@ const parseInputArgs = () => {
 
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
 
-    return { collectionId: values.collection, from, migrate: Boolean(values.migrate), to };
+    return {
+        collectionId: values.collection,
+        entriesToFilter: values.entries?.split(',').map(Number),
+        from,
+        max: Number(values.max || Number.MAX_SAFE_INTEGER),
+        to,
+        unused: values.unused,
+        url: values.url,
+    };
 };
 
 const sanitizePageContent = (text: string) => {
@@ -89,8 +107,8 @@ type LoadDataOptions = {
     loadFullEntries?: boolean;
 };
 
-const loadData = async (options: LoadDataOptions = {}) => {
-    const { collectionId, from, to } = parseInputArgs();
+export const loadData = async (options: LoadDataOptions = {}) => {
+    const { collectionId, from, to, ...rest } = parseInputArgs();
 
     const dir = path.join(OUTPUT_DIR, collectionId);
     await fs.mkdir(dir, { recursive: true });
@@ -107,14 +125,15 @@ const loadData = async (options: LoadDataOptions = {}) => {
         dir,
     );
 
-    return { book, collection, dir, ...indexEntriesByNumber(entries), entries };
+    return { book, collection, dir, ...indexEntriesByNumber(entries), entries, ...rest };
 };
 
 type MapBookPagesToEntriesOptions = {
-    indexLoosePages?: boolean;
+    markerPattern?: RegExp;
+    max: number;
 };
 
-const mapBookPagesToEntries = (book: BookData, options: MapBookPagesToEntriesOptions = {}) => {
+export const mapBookPagesToEntries = (book: BookData, options: MapBookPagesToEntriesOptions) => {
     const entries: Partial<Entry>[] = [];
 
     for (const page of book.pages) {
@@ -128,6 +147,8 @@ const mapBookPagesToEntries = (book: BookData, options: MapBookPagesToEntriesOpt
             ...(page.page && { pp: page.page }),
             volume: page.part!,
         };
+
+        let nextMarkerId = 0;
 
         for (const line of lines) {
             if (line.id) {
@@ -156,23 +177,42 @@ const mapBookPagesToEntries = (book: BookData, options: MapBookPagesToEntriesOpt
                 continue;
             }
 
-            const lastEntry = entries.at(-1)!;
+            const arabic = line.text.trim();
 
-            if (options.indexLoosePages && lastEntry.from !== page.id) {
+            if (options.markerPattern) {
+                const [, matchedText] = arabic.match(options.markerPattern) || [];
+
+                if (matchedText) {
+                    entries.push({
+                        ...entry,
+                        arabic: matchedText,
+                        index: parseInt(`${page.id}${++nextMarkerId}`),
+                        type: TYPE_MARKER,
+                    });
+                    continue;
+                }
+            }
+
+            if (!entries.length) {
+                continue;
+            }
+
+            const lastEntry = entries.at(-1)!;
+            const diff = page.id - lastEntry.from!;
+
+            if (diff > options.max) {
                 entries.push({
                     ...entry,
-                    arabic: line.text.trim(),
+                    arabic,
                 });
 
                 continue;
             }
 
-            if (entries.length > 0) {
-                lastEntry.arabic += '\n' + line.text.trim();
+            lastEntry.arabic += '\n' + arabic;
 
-                if (lastEntry.from !== page.id) {
-                    lastEntry.to = page.id;
-                }
+            if (diff) {
+                lastEntry.to = page.id;
             }
         }
     }
@@ -184,6 +224,10 @@ const mapEntriesToPrompt = (entries: Partial<Entry>[]) => {
     const lines = entries.map((e) => {
         if (e.type === TYPE_CHAPTER) {
             return `C${e.index} - ${e.arabic}`;
+        }
+
+        if (e.type === TYPE_MARKER) {
+            return `M${e.index} - ${e.arabic}`;
         }
 
         if (!e.index) {
@@ -208,12 +252,15 @@ const getTranslationFile = async (dir: string, names: string[]) => {
 
 type Translation = Pick<Entry, 'index' | 'translation' | 'translator' | 'type'> & Pick<Partial<Entry>, 'from'>;
 
-const loadTranslations = async (dir: string) => {
-    const file = await getTranslationFile(dir, ['873', '879']);
+const loadTranslations = async (dir: string): Promise<Translation[]> => {
+    const file = await getTranslationFile(dir, ['873', '879', '153']);
 
     if (!file) {
+        logger.warn(`No translation files found.`);
         return [];
     }
+
+    logger.info(`Using ${file.name}`);
 
     const translations: Translation[] = [];
     const lines = (await file.text())
@@ -225,7 +272,22 @@ const loadTranslations = async (dir: string) => {
         let [, index, text] = line.match(/^C(\d+)\s?[-–—ـ](.*)/) || [];
 
         if (index && text) {
-            translations.push({ index: parseInt(index), translation: text, type: TYPE_CHAPTER });
+            translations.push({
+                index: parseInt(index),
+                translation: isAllUppercase(text) ? toTitleCase(text) : text,
+                type: TYPE_CHAPTER,
+            });
+            continue;
+        }
+
+        [, index, text] = line.match(/^M(\d+)\s?[-–—ـ](.*)/) || [];
+
+        if (index && text) {
+            translations.push({
+                index: parseInt(index),
+                translation: text,
+                type: TYPE_MARKER,
+            });
             continue;
         }
 
@@ -239,7 +301,7 @@ const loadTranslations = async (dir: string) => {
         [, index, text] = line.match(PATTERNS.MatchNumericListItem) || [];
 
         if (index && text) {
-            translations.push({ index: parseInt(index), translation: isAllUppercase(text) ? toTitleCase(text) : text });
+            translations.push({ index: parseInt(index), translation: text });
             continue;
         }
 
@@ -258,6 +320,12 @@ const generatePrompt = async (dir: string, title: string, entries: Partial<Entry
 
         const stringifiedEntries = mapEntriesToPrompt(entries);
 
+        const errors = stringifiedEntries.filter((s) => s.includes('span'));
+
+        if (errors.length) {
+            logger.warn(`Errors found: ${errors.join('\n')}`);
+        }
+
         await promptFile.write(
             [TRANSLATE_PROMPT.join('\n').replace('{{book}}', title), '\n\n', stringifiedEntries.join('\n\n')].join(
                 '\n',
@@ -273,27 +341,44 @@ const filterCoveredPagesFromBook = (book: BookData, coveredPages: number[]) => {
     return uncoveredPages;
 };
 
-const filterLongEntry = (e: Entry) => {
-    return !e.to || e.to! - e.from < 2;
+const removeDuplicateTranslations = (translations: Translation[]) => {
+    const result: Translation[] = [];
+    const keyToTranslation: Record<string, Translation> = {};
+
+    for (const translation of translations) {
+        const key = getEntryKey(translation);
+
+        if (keyToTranslation[key]) {
+            keyToTranslation[key].translation += '\n\n' + translation.translation;
+        } else {
+            result.push(translation);
+            keyToTranslation[key] = translation;
+        }
+    }
+
+    return result;
 };
 
 const applyTranslationsToEntries = (entries: Entry[], translations: Translation[]) => {
     const updatedEntries: Entry[] = [];
     const { indexToEntries, pageToEntries } = indexEntriesByNumber(entries);
 
+    const missing: string[] = [];
+
     for (const t of translations) {
         if (t.index) {
             const key = getEntryKey(t);
 
             if (!indexToEntries[key] || indexToEntries[key].length === 0) {
-                console.error(`${t.type ? 'Chapter' : 'Narration'} #${t.index} not found in Arabic pages`);
-                return [];
+                missing.push(`${t.type ? 'Chapter' : 'Narration'} #${t.index} not found in Arabic pages`);
+                continue;
             }
 
-            const { index, ...entry } = indexToEntries[key].shift()!;
+            const { index, type, ...entry } = indexToEntries[key].shift()!;
 
             updatedEntries.push({
                 ...entry,
+                ...((!type || type > 0) && { type }),
                 translation: t.translation,
                 translator: t.translator,
                 ...(!t.type && index && { index }),
@@ -317,15 +402,26 @@ const applyTranslationsToEntries = (entries: Entry[], translations: Translation[
         }
     }
 
+    if (missing.length) {
+        console.error(missing);
+        return [];
+    }
+
     return updatedEntries;
 };
 
-const saveEntries = async (entries: Entry[], isPreview: boolean) => {
+export const saveEntries = async (entries: Entry[], isPreview: boolean) => {
     for (const entry of entries.toSorted((a, b) => a.from - b.from)) {
-        if (!entry.type) {
-            logger.info(`Add new entry at page: ${magentaBright(entry.from)} with index ${yellow(entry.index)}`);
-        } else {
+        if (entry.id) {
+            logger.info(`Update ${JSON.stringify(entry, null, 2)}`);
+        } else if (!entry.type) {
+            logger.info(
+                `Add new entry at page: ${magentaBright(entry.from)}${entry.to ? `-${magentaBright(entry.to)}` : ''} with index ${yellow(entry.index)}`,
+            );
+        } else if (entry.type === TYPE_CHAPTER) {
             logger.info(`Add new chapter at page: ${magentaBright(entry.from)}`);
+        } else {
+            logger.info(`Unknown entry type being added at: ${magentaBright(entry.from)}`);
         }
 
         if (isPreview) {
@@ -334,92 +430,55 @@ const saveEntries = async (entries: Entry[], isPreview: boolean) => {
             await addOrUpdateEntry(entry);
         }
     }
+
+    if (entries[0]?.url) {
+        logger.info(`Using url: ${entries[0].url}`);
+    }
 };
 
 export const processShamela = async () => {
-    const { book, collection, dir, pageToEntries } = await loadData();
-    book.pages = filterCoveredPagesFromBook(book, Object.keys(pageToEntries).map(Number));
+    const { book, collection, dir, entriesToFilter, indexToEntries, max, pageToEntries, unused, url } =
+        await loadData();
 
-    const arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book).filter(filterLongEntry as any);
+    if (unused === 'pages') {
+        book.pages = filterCoveredPagesFromBook(book, Object.keys(pageToEntries).map(Number));
+    }
+
+    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book, {
+        markerPattern: /^\[\] (.*)/,
+        max,
+    }).filter((e) => {
+        return !e.to || e.to! - e.from! <= max;
+    });
+
+    if (unused === 'index') {
+        const indexKeys = new Set(Object.keys(indexToEntries));
+
+        arabicOnlyEntries = arabicOnlyEntries.filter((e) => {
+            return !indexKeys.has(getEntryKey(e));
+        });
+    }
 
     await generatePrompt(dir, collection.title, arabicOnlyEntries);
 
-    const translations = await loadTranslations(dir);
+    let translations = await loadTranslations(dir);
+    translations = removeDuplicateTranslations(translations);
+
+    if (entriesToFilter) {
+        translations = translations.filter((t) => t.index && entriesToFilter.includes(t.index));
+    }
+
     const finalEntries = applyTranslationsToEntries(arabicOnlyEntries as Entry[], translations);
 
     for (const entry of finalEntries) {
         entry.collection = Number(collection.id);
         entry.flags = FLAGS_PENDING_REVIEW;
+        entry.volume = entry.volume || 1;
+
+        if (url) {
+            entry.url = url;
+        }
     }
 
     await saveEntries(finalEntries, logger.level === 'debug');
-};
-
-const createPatch = (originalEntry: Entry, newPage: Entry) => {
-    return {
-        from: newPage.from,
-        id: originalEntry.id,
-        pp: newPage.pp,
-        ...(newPage.volume && { volume: newPage.volume }),
-        ...(originalEntry.to && { to: newPage.from + 1 }),
-    };
-};
-
-export const migrateEntries = async () => {
-    const { book, entries } = await loadData({ loadFullEntries: true });
-    const arabicEntries = mapBookPagesToEntries(book, { indexLoosePages: true }).map(
-        (e) => ({ ...e, arabic: normalizeArabicText(e.arabic!) }) as Entry,
-    );
-
-    const { indexToEntries, pageToEntries } = indexEntriesByNumber(arabicEntries);
-
-    const updatedEntries: Partial<Entry>[] = entries.flatMap((e) => {
-        const normalizedArabic = normalizeArabicText(e.arabic!);
-
-        if (e.index) {
-            const [entry] = indexToEntries[getEntryKey(e)];
-
-            if (entry.from === e.from) {
-                //console.log('Unchanged!');
-                // page has not changed in this new version, no-op
-                return [];
-            }
-
-            if (calculateSimilarity(normalizedArabic, entry.arabic!) >= 0.6) {
-                // page has shifted but kept the same index
-                return [createPatch(e, entry)];
-            }
-
-            // page has shifted, but the texts don't match
-            console.warn(
-                `Index no longer matches text for id: ${e.id}, #${e.index} at page ${e.from} vs. ${entry.from}`,
-            );
-
-            return [];
-        }
-
-        const [entry] = pageToEntries[e.from];
-
-        if (calculateSimilarity(normalizedArabic, entry.arabic!) >= 0.6) {
-            // non-numeric page but the page number is intact
-            return [];
-        }
-
-        // page text does not match, we need to find the correct page
-        const [similar, another] = arabicEntries.filter((a) => calculateSimilarity(normalizedArabic, a.arabic!) >= 0.6);
-
-        if (!similar) {
-            throw new Error(`Similar text not found for ${e.id}`);
-        }
-
-        if (another) {
-            throw new Error(
-                `Multiple similar entries found: ${JSON.stringify(e, null, 2)} with ${JSON.stringify([similar, another], null, 2)}`,
-            );
-        }
-
-        return [createPatch(e, similar)];
-    });
-
-    await saveEntries(updatedEntries as Entry[], logger.level === 'debug');
 };

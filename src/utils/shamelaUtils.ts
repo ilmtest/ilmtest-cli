@@ -1,3 +1,5 @@
+import { parseHTML } from 'linkedom';
+
 interface ParsedContent {
     id?: string;
     text: string;
@@ -11,39 +13,41 @@ export function parseContentRobust(content: string): ParsedContent[] {
         return parseContentWithoutSpans(content);
     }
 
-    // Span + trailing punctuation (no CR/LF)
-    const titleRegex =
-        /<span[^>]*data-type=["']?title["']?[^>]*id=toc-([^>"'\s]+)[^>]*>([^<]*)<\/span>([^\S\r\n]*[.?!:;،؛\u060C\u061B\u061F\u06D4\u2026"“”'’»«)\]]+)?/g;
+    // Parse HTML using linkedom
+    const { document } = parseHTML(`<div>${content}</div>`);
+    const container = document.querySelector('div')!;
 
-    let lastIndex = 0;
-    let match: null | RegExpExecArray;
+    // Process each child node in order
+    for (const node of container.childNodes) {
+        if (node.nodeType === 3) {
+            // Text node
+            const text = node.textContent?.trim();
+            if (text) {
+                result.push(...processTextContent(text));
+            }
+        } else if (node.nodeType === 1) {
+            // Element node
+            const element = node as Element;
 
-    while ((match = titleRegex.exec(content)) !== null) {
-        const matchIndex = match.index;
+            if (element.tagName.toLowerCase() === 'span' && element.getAttribute('data-type') === 'title') {
+                // Extract ID (remove 'toc-' prefix if present)
+                const id = element.getAttribute('id')?.replace(/^toc-/, '') || '';
 
-        if (matchIndex > lastIndex) {
-            const beforeSpan = content.substring(lastIndex, matchIndex);
-            const cleanedBeforeSpan = beforeSpan.replace(/\s*\*\s*$/, '').trim();
-            if (cleanedBeforeSpan) {
-                result.push(...processTextContent(cleanedBeforeSpan));
+                // Get all text content (automatically handles nested spans)
+                const text = element.textContent?.trim() || '';
+
+                result.push({
+                    id,
+                    text,
+                });
+            } else {
+                // Handle other elements as text content
+                const text = element.textContent?.trim();
+                if (text) {
+                    result.push(...processTextContent(text));
+                }
             }
         }
-
-        const id = (match[1] || '').replace(/['"]/g, '');
-        const spanText = match[2] || '';
-        const trailing = (match[3] || '').replace(/^\s+/, '');
-
-        result.push({
-            id,
-            text: (spanText + trailing).trim(),
-        });
-
-        lastIndex = titleRegex.lastIndex;
-    }
-
-    if (lastIndex < content.length) {
-        const remainingContent = content.substring(lastIndex);
-        result.push(...processTextContent(remainingContent));
     }
 
     return result;
