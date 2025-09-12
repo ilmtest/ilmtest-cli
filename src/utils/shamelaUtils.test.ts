@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { parseContentRobust } from './shamelaUtils';
+import {
+    parseContentRobust,
+    removeFootnoteReferencesSimple,
+    removeSingleDigitFootnoteReferences,
+} from './shamelaUtils';
 
 describe('shamelaUtils', () => {
     describe('parseContentRobust', () => {
@@ -37,6 +41,15 @@ describe('shamelaUtils', () => {
                     text: '[أ]',
                 },
             ]);
+        });
+    });
+
+    describe('removeFootnoteReferencesSimple', () => {
+        it('should remove the footnotes', () => {
+            const actual = removeSingleDigitFootnoteReferences(
+                'مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين (١) .',
+            );
+            expect(actual).toBe(`مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين .`);
         });
     });
 });

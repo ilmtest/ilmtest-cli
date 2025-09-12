@@ -4,9 +4,11 @@ import { calculateSimilarity, normalizeArabicText } from 'baburchi';
 import type { Entry } from '@/api/entries.js';
 
 import logger from '@/utils/logger.js';
+import { mapBookPagesToEntries } from '@/utils/mapping.js';
 
-import { loadData, mapBookPagesToEntries, saveEntries } from './shamela.js';
-import { getEntryKey, indexEntriesByNumber } from './translate/utils.js';
+import { getEntryKey, indexEntriesByNumber } from '../utils/entryUtils.js';
+import { loadData } from './shamela.js';
+import { saveEntries } from './uploadTranslations.js';
 
 const createPatch = (originalEntry: Entry, newPage: Entry) => {
     return {
@@ -21,7 +23,7 @@ const createPatch = (originalEntry: Entry, newPage: Entry) => {
 export const migrateEntries = async () => {
     process.argv = process.argv.filter((s) => s !== '--migrate');
     const { book, entries, max } = await loadData({ loadFullEntries: true });
-    const arabicEntries = mapBookPagesToEntries(book, { markerPattern: /^\[\] (.*)/, max }).map(
+    const arabicEntries = mapBookPagesToEntries(book, { /*markerPattern: /^\[\] (.*)/, */ max }).map(
         (e) => ({ ...e, arabic: normalizeArabicText(e.arabic!) }) as Entry,
     );
 
@@ -32,6 +34,7 @@ export const migrateEntries = async () => {
         const normalizedArabic = normalizeArabicText(e.arabic!);
 
         if (e.index) {
+            console.log('e.index', e.index, 'e.id', e.id);
             const [entry] = indexToEntries[getEntryKey(e)];
 
             if (entry.from === e.from) {
@@ -41,6 +44,7 @@ export const migrateEntries = async () => {
 
             if (calculateSimilarity(normalizedArabic, entry.arabic!) >= 0.6) {
                 // page has shifted but kept the same index
+                console.log('Matched by index');
                 return [createPatch(e, entry)];
             } else {
                 entriesWithUnmatchedTexts.push(createPatch(e, entry));
@@ -57,7 +61,11 @@ export const migrateEntries = async () => {
         }
 
         // page text does not match, we need to find the correct page
-        const [similar, another] = arabicEntries.filter((a) => calculateSimilarity(normalizedArabic, a.arabic!) >= 0.6);
+        let [similar, another] = arabicEntries.filter((a) => calculateSimilarity(normalizedArabic, a.arabic!) >= 0.6);
+
+        if (!similar) {
+            [similar, another] = arabicEntries.filter((a) => a.arabic?.includes(normalizedArabic)); // might be an excerpt of a page
+        }
 
         if (!similar) {
             throw new Error(`Similar text not found for ${e.id}`);
@@ -69,6 +77,7 @@ export const migrateEntries = async () => {
             );
         }
 
+        console.log('Matched');
         return [createPatch(e, similar)];
     });
 
@@ -82,8 +91,6 @@ export const migrateEntries = async () => {
             updatedEntries.push(...entriesWithUnmatchedTexts);
         }
     }
-
-    logger.debug(JSON.stringify(updatedEntries, null, 2));
 
     await saveEntries(updatedEntries as Entry[], logger.level === 'debug');
 };

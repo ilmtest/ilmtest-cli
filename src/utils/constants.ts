@@ -10,3 +10,5 @@ export const TRANSLATE_PROMPT = [
     'Respond only in plain-text, no markdown or formatting. Keep each narration in a single line without any line breaks within it.',
     'Revise your translation 3 times before sending it to verify its accuracy.',
 ];
+
+export const TYPE_MARKER = -1;

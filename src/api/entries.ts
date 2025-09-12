@@ -1,11 +1,20 @@
 import config from '../utils/config.js';
 import { changeEndpointName, doGet, doPut, type PagingParams } from './index.js';
 
+export enum EntryFlags {
+    PendingReview = 3,
+}
+
+export enum EntryType {
+    Book = 2,
+    Chapter = 3,
+}
+
 export type Entry = {
     arabic?: string;
     collection: number;
     explains?: string[];
-    flags?: number;
+    flags?: EntryFlags;
     from: number;
     id: number;
     index?: number;
@@ -13,7 +22,7 @@ export type Entry = {
     to?: number;
     translation?: string;
     translator?: number;
-    type?: number;
+    type?: EntryType;
     url?: string;
     volume: number;
 };

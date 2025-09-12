@@ -84,3 +84,23 @@ export const removeFootnoteReferencesSimple = (text: string): string => {
     // This version removes footnotes and normalizes spaces
     return text.replace(/\s*\(\u00AC[\u0660-\u0669]+\)\s*/g, ' ').replace(/ +/g, ' '); // Normalize multiple spaces to single space
 };
+
+export const removeSingleDigitFootnoteReferences = (text: string): string => {
+    // This version removes footnotes and normalizes spaces
+    return text.replace(/\s*\([٠-٩]{1}\)\s*/g, ' ').replace(/ +/g, ' '); // Normalize multiple spaces to single space
+};
+
+export const sanitizePageContent = (text: string) => {
+    let content =
+        /*removeSingleDigitFootnoteReferences(text)*/
+        removeFootnoteReferencesSimple(text)
+            .replace(/舄/g, '')
+            .replace(/<img[^>]*>>/, '');
+    const indexOfFootnote = content.lastIndexOf('_________');
+
+    if (indexOfFootnote >= 0) {
+        content = content.slice(0, indexOfFootnote);
+    }
+
+    return content;
+};
