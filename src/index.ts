@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
+import { parseArgs } from 'node:util';
 import { select } from '@inquirer/prompts';
 import welcome from 'cli-welcome';
-import { parseArgs } from 'node:util';
 
 import packageJson from '../package.json' with { type: 'json' };
 import { loadConfiguration } from './utils/config.js';
@@ -34,17 +34,11 @@ const main = async () => {
             migrate: {
                 type: 'boolean',
             },
-            rearrange: {
-                type: 'boolean',
-            },
             shamela: {
                 type: 'boolean',
             },
             transcribe: {
                 short: 't',
-                type: 'boolean',
-            },
-            translate: {
                 type: 'boolean',
             },
         },
@@ -88,14 +82,6 @@ const main = async () => {
         action = 'extract';
     }
 
-    if (values.translate) {
-        action = 'translate';
-    }
-
-    if (values.rearrange) {
-        action = 'rearrange';
-    }
-
     if (action === 'transcribe') {
         await (await import('./actions/transcribe.js')).transcribeWithAI(positionals[0], positionals[1]);
     } else if (action === 'deleteAsl') {
@@ -108,10 +94,6 @@ const main = async () => {
         await (await import('./actions/extractor.js')).extractor();
     } else if (action === 'uploadAsl') {
         await (await import('./actions/uploadAsl.js')).uploadAsl();
-    } else if (action === 'translate') {
-        await (await import('./actions/translate/index.js')).translateWithAI();
-    } else if (action === 'rearrange') {
-        await (await import('./actions/rearrange.js')).rearrangeEntries(positionals[0]);
     } else if (values.shamela) {
         await (await import('./actions/shamela.js')).processShamela();
     } else if (values.migrate) {

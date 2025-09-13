@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import {
-    parseContentRobust,
-    removeFootnoteReferencesSimple,
-    removeSingleDigitFootnoteReferences,
-} from './shamelaUtils';
+import { parseContentRobust, removeSingleDigitFootnoteReferences } from './shamelaUtils';
 
 describe('shamelaUtils', () => {
     describe('parseContentRobust', () => {
@@ -42,13 +38,40 @@ describe('shamelaUtils', () => {
                 },
             ]);
         });
+
+        it('should merge the quote', () => {
+            const actual = parseContentRobust(
+                `<span data-type='title' id=toc-5004>سَلْمَى بِنْتُ عُمَيْسِ بْنِ مَعْبَدٍ الْخَثْعَمِيَّةُ أُخْتُ أَسْمَاءَ </span>"`,
+            );
+
+            expect(actual).toEqual([
+                {
+                    id: '5004',
+                    text: 'سَلْمَى بِنْتُ عُمَيْسِ بْنِ مَعْبَدٍ الْخَثْعَمِيَّةُ أُخْتُ أَسْمَاءَ "',
+                },
+            ]);
+        });
+
+        it('should merge the period', () => {
+            const actual = parseContentRobust(
+                `\r<span data-type="title" id=toc-5>٤ - أبان بن حاتم الأملوكي من مشيخة أبي التقى اليزي</span>.\rروى عن عمر ابن المغيرة مجهول`,
+            );
+
+            expect(actual).toEqual([
+                {
+                    id: '5',
+                    text: '٤ - أبان بن حاتم الأملوكي من مشيخة أبي التقى اليزي.',
+                },
+                {
+                    text: 'روى عن عمر ابن المغيرة مجهول',
+                },
+            ]);
+        });
     });
 
     describe('removeFootnoteReferencesSimple', () => {
         it('should remove the footnotes', () => {
-            const actual = removeSingleDigitFootnoteReferences(
-                'مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين (١) .',
-            );
+            const actual = removeSingleDigitFootnoteReferences('مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين (١) .');
             expect(actual).toBe(`مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين .`);
         });
     });

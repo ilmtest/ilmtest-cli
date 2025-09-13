@@ -1,6 +1,7 @@
-import { Page } from '@/api/maktabah.js';
+import type { Page } from '@/api/maktabah.js';
 
 import type { Entry } from '../api/entries.js';
+import logger from './logger.js';
 
 export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e.type || 0}`;
 

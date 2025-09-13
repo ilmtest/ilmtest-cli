@@ -1,20 +1,29 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { type BookData, getBook, getBookMetadata, GetBookMetadataResponsePayload, setLogger } from 'shamela';
-
-import type { Collection } from '@/types.js';
-
+import {
+    type BookData,
+    type GetBookMetadataResponsePayload,
+    getBook,
+    getBookMetadata,
+    type Page,
+    setLogger,
+} from 'shamela';
 import { getCollection } from '@/api/collections.js';
-import { Entry, getEntries } from '@/api/entries.js';
+import { type Entry, EntryFlags, getEntries } from '@/api/entries.js';
+import type { Collection } from '@/types.js';
 import { patchArray } from '@/utils/common.js';
-import { FLAGS_PENDING_REVIEW, OUTPUT_DIR } from '@/utils/constants.js';
+import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
-import { applyTranslationsToEntries, mapBookPagesToEntries } from '@/utils/mapping.js';
+import {
+    applyTranslationsToEntries,
+    mapBookPagesToEntries,
+    mapLinesToTranslations,
+    type Translation,
+} from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
 import { sanitizePageContent } from '@/utils/shamelaUtils.js';
-import { loadTranslations, removeDuplicateTranslations } from '@/utils/translationFileParser.js';
 
 import { getEntryKey, indexEntriesByNumber } from '../utils/entryUtils.js';
 
@@ -33,6 +42,9 @@ const parseInputArgs = () => {
             max: {
                 type: 'string',
             },
+            span: {
+                type: 'string',
+            },
             pages: {
                 type: 'string',
             },
@@ -40,9 +52,6 @@ const parseInputArgs = () => {
                 type: 'boolean',
             },
             unused: {
-                type: 'string',
-            },
-            url: {
                 type: 'string',
             },
         },
@@ -63,15 +72,25 @@ const parseInputArgs = () => {
         collectionId: values.collection,
         entriesToFilter: values.entries?.split(',').map(Number),
         from,
-        max: Number(values.max || Number.MAX_SAFE_INTEGER),
+        max: Number(values.max) || Number.MAX_SAFE_INTEGER,
+        span: Number(values.span) || Number.MAX_SAFE_INTEGER,
         to,
         unused: values.unused,
-        url: values.url,
     };
 };
 
+type ShamelaPage = Page & {
+    footer?: string;
+};
+
+export type ShamelaBook = Pick<BookData, 'titles'> &
+    Partial<GetBookMetadataResponsePayload> & {
+        shamelaId: number;
+        pages: ShamelaPage[];
+    };
+
 const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
-    const book = await loadOrDownload<BookData & Partial<GetBookMetadataResponsePayload> & { shamelaId: number }>(
+    const book = await loadOrDownload<ShamelaBook>(
         'book',
         async () => {
             const [metadata, bookData] = await Promise.all([getBookMetadata(bookId), getBook(bookId)]);
@@ -87,7 +106,8 @@ const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
 
     book.pages = book.pages.filter((p) => p.id >= from && p.id <= to);
     book.pages = book.pages.map((p) => {
-        return { ...p, content: sanitizePageContent(p.content) };
+        const [content, footer] = sanitizePageContent(p.content);
+        return { ...p, content, ...(footer && { footer }) };
     });
 
     return book;
@@ -115,7 +135,14 @@ export const loadData = async (options: LoadDataOptions = {}) => {
         dir,
     );
 
-    return { book, collection, dir, ...indexEntriesByNumber(entries), entries, ...rest };
+    return {
+        book,
+        collection,
+        dir,
+        ...indexEntriesByNumber(entries),
+        entries,
+        ...rest,
+    };
 };
 
 const filterCoveredPagesFromBook = (book: BookData, coveredPages: number[]) => {
@@ -125,24 +152,76 @@ const filterCoveredPagesFromBook = (book: BookData, coveredPages: number[]) => {
     return uncoveredPages;
 };
 
+const removeDuplicateTranslations = (translations: Translation[]) => {
+    const result: Translation[] = [];
+    const keyToTranslation: Record<string, Translation> = {};
+
+    for (const translation of translations) {
+        const key = getEntryKey(translation);
+
+        if (keyToTranslation[key]) {
+            keyToTranslation[key].translation += '\n\n' + translation.translation;
+        } else {
+            result.push(translation);
+            keyToTranslation[key] = translation;
+        }
+    }
+
+    return result;
+};
+
+const getTranslationFile = async (dir: string, names: string[]) => {
+    for (const name of names) {
+        const translationFile = Bun.file(path.format({ dir, ext: '.txt', name }));
+
+        if (await translationFile.exists()) {
+            return translationFile;
+        }
+    }
+};
+
+const loadTranslations = async (dir: string): Promise<Translation[]> => {
+    const file = await getTranslationFile(dir, ['873', '879', '153']);
+
+    if (!file) {
+        logger.warn(`No translation files found.`);
+        return [];
+    }
+
+    logger.info(`Using ${file.name}`);
+
+    const lines = (await file.text())
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    const translations = mapLinesToTranslations(lines);
+
+    const [translator] = file.name!.split('/').at(-1)!.split('.').map(Number);
+    return translations.map(({ translation, ...t }) => ({
+        ...t,
+        translation: (translation ?? '').trim(),
+        translator,
+    }));
+};
+
 export const processShamela = async () => {
-    const { book, collection, dir, entriesToFilter, indexToEntries, max, pageToEntries, unused, url } = await loadData({
-        loadFullEntries: true,
-    });
+    const { book, collection, dir, entriesToFilter, indexToEntries, max, pageToEntries, unused, span } = await loadData(
+        {
+            loadFullEntries: true,
+        },
+    );
 
     if (unused === 'pages') {
         book.pages = filterCoveredPagesFromBook(book, Object.keys(pageToEntries).map(Number));
     }
 
-    console.log('book.pages', book.pages);
-
     let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book, {
         //markerPattern: /^\[\] (.*)/,
-        max,
+        maxPagesPerEntry: max,
     }).filter((e) => {
-        return !e.to || e.to! - e.from! <= max;
+        return !e.to || e.to! - e.from! <= span;
     });
-    console.log('arabicOnlyEntries', arabicOnlyEntries);
 
     if (unused === 'index') {
         const indexKeys = new Set(Object.keys(indexToEntries));
@@ -165,9 +244,8 @@ export const processShamela = async () => {
     finalEntries = patchArray(finalEntries, (e) => {
         return {
             collection: Number(collection.id),
-            flags: FLAGS_PENDING_REVIEW,
+            flags: EntryFlags.PendingReview,
             volume: e.volume || 1,
-            ...(url && { url }),
         };
     });
 

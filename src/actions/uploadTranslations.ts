@@ -1,9 +1,7 @@
 import { magentaBright, yellow } from 'ansis';
 
-import { addOrUpdateEntry, type Entry } from '@/api/entries.js';
+import { addOrUpdateEntry, type Entry, EntryType } from '@/api/entries.js';
 import logger from '@/utils/logger.js';
-
-import { TYPE_CHAPTER } from './translate/mapping.js';
 
 export const saveEntries = async (entries: Entry[], isPreview: boolean) => {
     for (const entry of entries.toSorted((a, b) => a.from - b.from)) {
@@ -13,7 +11,7 @@ export const saveEntries = async (entries: Entry[], isPreview: boolean) => {
             logger.info(
                 `Add new entry at page: ${magentaBright(entry.from)}${entry.to ? `-${magentaBright(entry.to)}` : ''} with index ${yellow(entry.index)}`,
             );
-        } else if (entry.type === TYPE_CHAPTER) {
+        } else if (entry.type === EntryType.Chapter) {
             logger.info(`Add new chapter at page: ${magentaBright(entry.from)}`);
         } else {
             logger.info(`Unknown entry type being added at: ${magentaBright(entry.from)}`);

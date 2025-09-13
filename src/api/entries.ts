@@ -74,14 +74,14 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
 const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
     return {
         ...(entry.translation && { body: entry.translation }),
-        ...(entry.from && { from_page: String(entry.from) }),
+        ...(entry.from !== undefined && { from_page: String(entry.from) }),
         ...(entry.to && { to_page: entry.to }),
         ...(entry.arabic && { ar_body: entry.arabic }),
         ...(entry.id && { id: entry.id }),
         ...(entry.collection && { collection: String(entry.collection) }),
-        ...(entry.volume && { part_number: entry.volume }),
+        ...(entry.volume !== undefined && { part_number: entry.volume }),
         ...(entry.explains && { explains: entry.explains.join(',') }),
-        ...(entry.pp && { part_page: entry.pp }),
+        ...(entry.pp !== undefined && { part_page: entry.pp }),
         ...(entry.flags && { flags: String(entry.flags) }),
         ...(entry.index && { index_number: entry.index }),
         ...(entry.type && { type: String(entry.type) }),
