@@ -1,3 +1,4 @@
+import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences } from 'baburchi';
 import { parseHTML } from 'linkedom';
 
 export type Line = {
@@ -44,7 +45,6 @@ const splitIntoLines = (text: string) => {
         .filter(Boolean);
 };
 
-// Main parsing function - handles spans that appear mid-line
 export function parseContentRobust(content: string) {
     const result: Line[] = [];
 
@@ -52,13 +52,42 @@ export function parseContentRobust(content: string) {
         return processTextContent(content);
     }
 
+    // Opening tokens that imply the next text fragment continues the same line
+    const OPENER_AT_END = /[[({«“‘]$/;
+
     const { document } = parseHTML(`<div>${content}</div>`);
     const container = document.querySelector('div')!;
 
+    const maybeAppendToPrevTitle = (raw: string) => {
+        const last = result[result.length - 1];
+        if (!raw) {
+            return false;
+        }
+        if (!last || !(last as any).id) {
+            return false;
+        }
+        if (!OPENER_AT_END.test((last as any).text)) {
+            return false;
+        }
+        if (/\n/.test(raw)) {
+            return false; // don't append across hard breaks
+        }
+        // append, preserving trailing space in the title and removing only leading space in the fragment
+        (last as any).text += raw.replace(/^\s+/, '');
+        return true;
+    };
+
     for (const node of container.childNodes) {
         if (node.nodeType === 3) {
-            const text = (node.textContent ?? '').trim();
+            // Text node just outside the span
+            const raw = node.textContent ?? '';
 
+            // If the previous item is a title ending with an opener, glue this fragment onto it.
+            if (maybeAppendToPrevTitle(raw)) {
+                continue;
+            }
+
+            const text = raw.trim();
             if (text) {
                 result.push(...processTextContent(text));
             }
@@ -68,14 +97,21 @@ export function parseContentRobust(content: string) {
             if (element.tagName.toLowerCase() === 'span' && element.getAttribute('data-type') === 'title') {
                 const id = element.getAttribute('id')?.replace(/^toc-/, '') || '';
 
-                // IMPORTANT: keep trailing spaces so punctuation outside the span
-                // can attach with that space preserved.
+                // Keep trailing spaces so punctuation outside the span can attach.
                 const rawTitle = element.textContent ?? '';
                 const text = rawTitle.replace(/^\s+/, ''); // drop only leading, not trailing
 
                 result.push({ id, text });
             } else {
-                const text = element.textContent?.trim();
+                const raw = element.textContent ?? '';
+
+                // Same "append to previous title" behavior if this is a non-title element
+                // that continues right after an opener (e.g., <span>ق: ٣٥]</span>)
+                if (maybeAppendToPrevTitle(raw)) {
+                    continue;
+                }
+
+                const text = raw.trim();
                 if (text) {
                     result.push(...processTextContent(text));
                 }
@@ -86,20 +122,13 @@ export function parseContentRobust(content: string) {
     return mergeDanglingPunctuation(result);
 }
 
-export const removeFootnoteReferencesSimple = (text: string): string => {
-    // This version removes footnotes and normalizes spaces
-    return text.replace(/\s*\(\u00AC[\u0660-\u0669]+\)\s*/g, ' ').replace(/ +/g, ' '); // Normalize multiple spaces to single space
-};
-
-export const removeSingleDigitFootnoteReferences = (text: string): string => {
-    // This version removes footnotes and normalizes spaces
-    return text.replace(/\s*\([٠-٩]{1}\)\s*/g, ' ').replace(/ +/g, ' '); // Normalize multiple spaces to single space
-};
-
 const FOOTNOTE_MARKER = '_________';
 
 export const sanitizePageContent = (text: string) => {
-    let content = text.replace(/舄/g, '').replace(/<img[^>]*>>/, '');
+    let content = text
+        .replace(/舄/g, '')
+        .replace(/<img[^>]*>>/, '')
+        .replace(/﵌/g, 'صلى الله عليه وآله وسلم');
     let footnote = '';
     const indexOfFootnote = content.lastIndexOf(FOOTNOTE_MARKER);
 

@@ -1,9 +1,15 @@
 {
     "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
-    "vcs": {
-        "enabled": true,
-        "clientKind": "git",
-        "useIgnoreFile": true
+    "assist": {
+        "actions": {
+            "source": {
+                "organizeImports": "on",
+                "useSortedKeys": {
+                    "level": "on",
+                    "options": { "sortOrder": "natural" }
+                }
+            }
+        }
     },
     "files": {
         "ignoreUnknown": true,
@@ -15,46 +21,48 @@
         "indentWidth": 4,
         "lineWidth": 120
     },
+    "javascript": {
+        "formatter": {
+            "arrowParentheses": "always",
+            "bracketSameLine": false,
+            "bracketSpacing": true,
+            "quoteStyle": "single",
+            "semicolons": "always",
+            "trailingCommas": "all"
+        }
+    },
     "linter": {
+        "domains": {
+            "project": "recommended"
+        },
         "enabled": true,
         "rules": {
-            "recommended": true,
-            "suspicious": {
-                "noExplicitAny": "off",
-                "useIterableCallbackReturn": "off"
-            },
-            "style": {
-                "noNonNullAssertion": "off",
-                "useBlockStatements": {
-                    "level": "error",
-                    "fix": "safe",
-                    "options": {}
-                }
-            },
             "complexity": {
                 "noExcessiveCognitiveComplexity": "warn",
                 "useWhile": "error"
+            },
+            "recommended": true,
+            "style": {
+                "noNonNullAssertion": "off",
+                "useBlockStatements": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                },
+                "useTemplate": {
+                    "fix": "safe",
+                    "level": "warn",
+                    "options": {}
+                }
+            },
+            "suspicious": {
+                "noExplicitAny": "off"
             }
-        },
-        "domains": {
-            "project": "recommended"
         }
     },
-    "assist": {
-        "actions": {
-            "source": {
-                "organizeImports": "on"
-            }
-        }
-    },
-    "javascript": {
-        "formatter": {
-            "semicolons": "always",
-            "quoteStyle": "single",
-            "trailingCommas": "all",
-            "bracketSpacing": true,
-            "bracketSameLine": false,
-            "arrowParentheses": "always"
-        }
+    "vcs": {
+        "clientKind": "git",
+        "enabled": true,
+        "useIgnoreFile": true
     }
 }

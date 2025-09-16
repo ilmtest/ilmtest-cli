@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { parseContentRobust, removeSingleDigitFootnoteReferences } from './shamelaUtils';
+import { parseContentRobust } from './shamelaUtils';
 
 describe('shamelaUtils', () => {
     describe('parseContentRobust', () => {
@@ -39,6 +39,19 @@ describe('shamelaUtils', () => {
             ]);
         });
 
+        it('should not add a line break', () => {
+            const actual = parseContentRobust(
+                `<span data-type="title" id=toc-179>فِي تَفْسِيرِ قَوْلِهِ عَزَّ وَجَلَّ: {وَلَدَيْنَا مَزِيدٌ} [</span>ق: ٣٥]`,
+            );
+
+            expect(actual).toEqual([
+                {
+                    id: '179',
+                    text: `فِي تَفْسِيرِ قَوْلِهِ عَزَّ وَجَلَّ: {وَلَدَيْنَا مَزِيدٌ} [ق: ٣٥]`,
+                },
+            ]);
+        });
+
         it('should merge the quote', () => {
             const actual = parseContentRobust(
                 `<span data-type='title' id=toc-5004>سَلْمَى بِنْتُ عُمَيْسِ بْنِ مَعْبَدٍ الْخَثْعَمِيَّةُ أُخْتُ أَسْمَاءَ </span>"`,
@@ -66,13 +79,6 @@ describe('shamelaUtils', () => {
                     text: 'روى عن عمر ابن المغيرة مجهول',
                 },
             ]);
-        });
-    });
-
-    describe('removeFootnoteReferencesSimple', () => {
-        it('should remove the footnotes', () => {
-            const actual = removeSingleDigitFootnoteReferences('مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين (١) .');
-            expect(actual).toBe(`مُحَمَّد بْن راشد اليمامي، مرسل، ويقَالَ لَهُ أَبُو الحصين .`);
         });
     });
 });

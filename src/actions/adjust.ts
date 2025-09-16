@@ -35,10 +35,10 @@ export const adjustIndices = async () => {
     // eslint-disable-next-line prefer-const
     let { data, translationFile } = await loadTranslation(positionals);
 
-    const diff = parseInt(values.diff);
+    const diff = Number(values.diff);
 
     if (diff) {
-        data = data.replace(/^(\d+)/gm, (_match, num) => (parseInt(num) + diff).toString());
+        data = data.replace(/^(\d+)/gm, (_match, num) => (Number(num) + diff).toString());
     } else {
         data = data.replace(/ (\d+) -/gm, '\n$1 -');
         data = data.replace(/\\\[/gm, '[');

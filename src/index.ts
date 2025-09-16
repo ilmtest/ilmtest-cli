@@ -24,6 +24,9 @@ const main = async () => {
             diff: {
                 type: 'string',
             },
+            compile: {
+                type: 'boolean',
+            },
             downloadAsl: {
                 short: 'd',
                 type: 'string',
@@ -100,6 +103,8 @@ const main = async () => {
         await (await import('./actions/migrate.js')).migrateEntries();
     } else if (values.diff) {
         await (await import('./actions/adjust.js')).adjustIndices();
+    } else if (values.compile) {
+        await (await import('./actions/compile.js')).compileTranslation(positionals[0]);
     }
 };
 

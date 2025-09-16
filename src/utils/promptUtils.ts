@@ -1,29 +1,9 @@
 import path from 'node:path';
 
-import { type Entry, EntryType } from '@/api/entries.js';
+import type { Entry } from '@/api/entries.js';
 
-import { TRANSLATE_PROMPT, TYPE_MARKER } from './constants.js';
+import { TRANSLATE_PROMPT } from './constants.js';
 import logger from './logger.js';
-
-const mapEntriesToPrompt = (entries: Partial<Entry>[]) => {
-    const lines = entries.map((e) => {
-        if (e.type === EntryType.Chapter) {
-            return `C${e.index} - ${e.arabic}`;
-        }
-
-        if (Number(e.type) === TYPE_MARKER) {
-            return `M${e.index} - ${e.arabic}`;
-        }
-
-        if (!e.index) {
-            return `P${e.from} - ${e.arabic}`;
-        }
-
-        return `${e.index} - ${e.arabic}`;
-    });
-
-    return lines;
-};
 
 export const generatePrompt = async (dir: string, title: string, entries: Partial<Entry>[]) => {
     const promptFile = Bun.file(path.format({ dir, ext: '.txt', name: 'prompt' }));
@@ -31,8 +11,7 @@ export const generatePrompt = async (dir: string, title: string, entries: Partia
     if (!(await promptFile.exists())) {
         logger.info(`Writing ${promptFile.name}...`);
 
-        const stringifiedEntries = mapEntriesToPrompt(entries);
-
+        const stringifiedEntries = entries.map((e) => `${e.id} - ${e.arabic}`);
         const errors = stringifiedEntries.filter((s) => s.includes('span'));
 
         if (errors.length) {

@@ -3,6 +3,27 @@ import { magentaBright, yellow } from 'ansis';
 import { addOrUpdateEntry, type Entry, EntryType } from '@/api/entries.js';
 import logger from '@/utils/logger.js';
 
+const loadTranslations = async (dir: string): Promise<Translation[]> => {
+    /*
+    let translations = await loadTranslations(dir);
+    translations = removeDuplicateTranslations(translations);
+
+    if (entriesToFilter) {
+        translations = translations.filter((t) => t.index && entriesToFilter.includes(t.index));
+    }
+
+    let finalEntries = applyTranslationsToEntries(arabicOnlyEntries as Entry[], translations);
+    finalEntries = patchArray(finalEntries, (e) => {
+        return {
+            collection: Number(collection.id),
+            flags: EntryFlags.PendingReview,
+            volume: e.volume || 1,
+        };
+    });
+
+    console.log(finalEntries); */
+};
+
 export const saveEntries = async (entries: Entry[], isPreview: boolean) => {
     for (const entry of entries.toSorted((a, b) => a.from - b.from)) {
         if (entry.id) {

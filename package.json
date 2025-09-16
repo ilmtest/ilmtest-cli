@@ -5,10 +5,11 @@
     },
     "dependencies": {
         "@distube/ytdl-core": "4.16.8",
-        "@inquirer/prompts": "^7.8.4",
+        "@inquirer/prompts": "^7.8.6",
         "ansis": "^4.1.0",
+        "baburchi": "^1.7.0",
         "baheth-sdk": "^1.2.2",
-        "bitaboom": "^1.5.0",
+        "bitaboom": "^2.0.0",
         "cli-progress": "^3.12.0",
         "cli-welcome": "^3.0.1",
         "conf": "^14.0.0",
@@ -25,9 +26,9 @@
     "description": "CLI for IlmTest API.",
     "devDependencies": {
         "@biomejs/biome": "^2.2.4",
-        "@types/bun": "^1.2.21",
+        "@types/bun": "^1.2.22",
         "@types/cli-progress": "^3.11.6",
-        "@types/node": "^24.3.3",
+        "@types/node": "^24.5.0",
         "semantic-release": "^24.2.8"
     },
     "homepage": "https://github.com/ilmtest/bitaboom",

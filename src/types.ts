@@ -1,4 +1,5 @@
 import type { Segment } from 'tafrigh';
+import type { Entry } from './api/entries.js';
 
 export type Collection = { fid?: ForeignId[]; id: string; library?: number; title: string };
 
@@ -26,4 +27,9 @@ export type TranscriptSeries = {
     createdAt: Date;
     lastUpdatedAt: Date;
     transcripts: Transcript[];
+};
+
+export type Translation = {
+    id: string;
+    text: string;
 };

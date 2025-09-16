@@ -16,7 +16,7 @@ export type Entry = {
     explains?: string[];
     flags?: EntryFlags;
     from: number;
-    id: number;
+    id: string;
     index?: number;
     pp: number;
     to?: number;
@@ -53,7 +53,7 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
         arabic: rawEntry.ar_body,
         collection: Number(rawEntry.collection),
         from: Number(rawEntry.from_page),
-        id: rawEntry.id,
+        id: String(rawEntry.id),
         pp: rawEntry.part_page,
         translation: rawEntry.body,
         volume: rawEntry.part_number,
@@ -77,7 +77,7 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
         ...(entry.from !== undefined && { from_page: String(entry.from) }),
         ...(entry.to && { to_page: entry.to }),
         ...(entry.arabic && { ar_body: entry.arabic }),
-        ...(entry.id && { id: entry.id }),
+        ...(entry.id && { id: Number(entry.id) }),
         ...(entry.collection && { collection: String(entry.collection) }),
         ...(entry.volume !== undefined && { part_number: entry.volume }),
         ...(entry.explains && { explains: entry.explains.join(',') }),
