@@ -31,7 +31,8 @@
         "@types/bun": "^1.2.22",
         "@types/cli-progress": "^3.11.6",
         "@types/node": "^24.5.2",
-        "semantic-release": "^24.2.9"
+        "semantic-release": "^24.2.9",
+        "tsup": "^8.5.0"
     },
     "engines": {
         "bun": ">=1.2.22"
@@ -51,8 +52,7 @@
         "url": "git+https://github.com/ilmtest/ilmtest-cli.git"
     },
     "scripts": {
-        "build": "NODE_ENV=production bun build src/index.ts --outdir dist --target node --packages=external",
-        "compile": "NODE_ENV=production bun build src/index.ts --target node --compile --outfile dist/ilmtest-cli --packages=external",
+        "build": "tsup",
         "format": "biome format --write .",
         "lint": "biome check --write .",
         "lint:ci": "biome ci",
