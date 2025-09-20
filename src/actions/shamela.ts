@@ -1,0 +1,152 @@
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { parseArgs } from 'node:util';
+import { getBook, getBookMetadata, setLogger } from 'shamela';
+import { getCollection } from '@/api/collections.js';
+import { type Entry, getEntries } from '@/api/entries.js';
+import type { Collection, ShamelaBook } from '@/types.js';
+
+import { OUTPUT_DIR } from '@/utils/constants.js';
+import logger from '@/utils/logger.js';
+import { mapBookPagesToEntries } from '@/utils/mapping.js';
+import { loadOrDownload } from '@/utils/network.js';
+import { generatePrompt } from '@/utils/promptUtils.js';
+import { sanitizePageContent } from '@/utils/shamelaUtils.js';
+
+import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
+
+/**
+ * Parses command line arguments for Shamela operations
+ * @returns Parsed configuration object with collection ID, page range, and options
+ * @throws Error if no collection is specified
+ */
+const parseInputArgs = () => {
+    const { values } = parseArgs({
+        options: {
+            collection: {
+                type: 'string',
+            },
+            entries: {
+                type: 'string',
+            },
+            multi: {
+                type: 'boolean',
+            },
+            pages: {
+                type: 'string',
+            },
+            shamela: {
+                type: 'boolean',
+            },
+            unused: {
+                type: 'string',
+            },
+        },
+        strict: true,
+    });
+
+    if (!values.collection) {
+        throw new Error('No collection specified');
+    }
+
+    const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
+
+    return {
+        collectionId: values.collection,
+        entriesToFilter: values.entries?.split(','),
+        from,
+        isMulti: Boolean(values.multi),
+        to,
+        unused: values.unused,
+    };
+};
+
+/**
+ * Loads a Shamela book with specified page range and processes content
+ * @param bookId - The Shamela book identifier
+ * @param param1 - Tuple containing from and to page numbers
+ * @param dir - Directory to cache the book data
+ * @returns Promise resolving to processed ShamelaBook object
+ */
+const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
+    const book = await loadOrDownload<ShamelaBook>(
+        'book',
+        async () => {
+            const [metadata, bookData] = await Promise.all([getBookMetadata(bookId), getBook(bookId)]);
+            return {
+                majorRelease: metadata.majorRelease,
+                minorRelease: metadata.minorRelease,
+                shamelaId: bookId,
+                ...bookData,
+            };
+        },
+        dir,
+    );
+
+    book.pages = book.pages.filter((p) => p.id >= from && p.id <= to);
+    book.pages = book.pages.map((p) => {
+        const [content, footer] = sanitizePageContent(p.content);
+        return { ...p, content, ...(footer && { footer }) };
+    });
+
+    return book;
+};
+
+/**
+ * Loads and prepares all necessary data for Shamela processing
+ * Includes collection data, book content, and entry information
+ * @returns Promise resolving to comprehensive data object for processing
+ */
+export const loadData = async () => {
+    const { collectionId, from, to, entriesToFilter, ...rest } = parseInputArgs();
+
+    const dir = path.join(OUTPUT_DIR, collectionId);
+    await fs.mkdir(dir, { recursive: true });
+
+    const collection = await loadOrDownload<Collection>('collection', async () => getCollection(collectionId), dir);
+    const [bookId] = collection.fid!.map((fid) => fid.id).map(Number);
+
+    setLogger(logger);
+    const book = await loadBook(bookId, [from, to], dir);
+
+    const entries = await loadOrDownload<Entry[]>(
+        'entries',
+        async () => getEntries(collectionId, { full: 1, limit: -1 }),
+        dir,
+    );
+
+    const indexed = indexEntriesForLookup(entries);
+
+    return {
+        book,
+        collection,
+        coveredIndices: new Set(Object.keys(indexed.indexToEntries)),
+        coveredPages: new Set(Object.keys(indexed.pageToEntries).map(Number)),
+        dir,
+        entries: entriesToFilter ? entries.filter((e) => entriesToFilter.includes(e.id)) : entries,
+        ...rest,
+    };
+};
+
+/**
+ * Main function to process Shamela content and generate translation prompts
+ * Processes book pages, filters content based on options, and generates output files
+ * @returns Promise that resolves when processing is complete
+ */
+export const processShamela = async () => {
+    const { book, collection, dir, unused, isMulti, coveredIndices, coveredPages } = await loadData();
+
+    if (unused === 'pages') {
+        book.pages = book.pages.filter((p) => !coveredPages.has(p.id));
+    }
+
+    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, isMulti);
+
+    if (unused === 'index') {
+        arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
+    }
+
+    await generatePrompt(dir, collection.title, arabicOnlyEntries);
+
+    await Bun.file(path.join(dir, 'excerpts.json')).write(JSON.stringify(arabicOnlyEntries, null, 2));
+};

@@ -1,13 +1,19 @@
-import { input } from '@inquirer/prompts';
-import { S3Client } from 'bun';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
+import type { Readable } from 'node:stream';
+import { input } from '@inquirer/prompts';
+import { S3Client } from 'bun';
 
 import config from '../utils/config.js';
 import { decompressFromStream } from '../utils/io.js';
 import logger from '../utils/logger.js';
 
+/**
+ * Downloads an ASL collection from S3 storage, handling both compressed and uncompressed files
+ * @param selectedCollection - Optional pre-selected collection ID to download
+ * @returns Promise that resolves when the download completes
+ * @throws Will throw an error if the download or file save operation fails
+ */
 export const downloadAsl = async (selectedCollection?: string) => {
     const collectionId =
         selectedCollection ||

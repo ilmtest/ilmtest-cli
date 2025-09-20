@@ -4,6 +4,10 @@ import { S3Client } from 'bun';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 
+/**
+ * Deletes an ASL collection file from S3 storage after user confirmation
+ * @returns Promise that resolves when the deletion operation completes
+ */
 export const deleteAsl = async () => {
     const collectionId = await input({
         message: 'Enter collection ID to check:',
