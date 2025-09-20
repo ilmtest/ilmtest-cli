@@ -3,7 +3,7 @@ import type { Page } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
 import type { Line } from './shamelaUtils.js';
-import { PATTERNS } from './textUtils.js';
+import { findLastPunctuation, PATTERNS } from './textUtils.js';
 
 export const trimLine = (ln: Line) => {
     ln.text = ln.text.trim();
@@ -67,27 +67,61 @@ export const processNumericListItem = (ln: Line, entries: Partial<Entry>[], page
     }
 };
 
-export const captureTrailingEntry = (ln: Line, entries: Partial<Entry>[], page: Page, maxPagesPerEntry: number) => {
-    const diff = page.id - entries.at(-1)!.from!;
+export const captureEntirePage = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const lastEntry = entries.at(-1);
 
-    if (diff >= maxPagesPerEntry) {
+    if (!lastEntry || page.id - lastEntry.from! >= 1) {
         entries.push({ arabic: ln.text, from: page.id });
-
         return true;
     }
 };
 
-export const appendToLastEntry = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    const last = entries.at(-1)!;
-    const diff = page.id - last.from!;
+export const captureFirstLooseLeaf = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const lastEntry = entries.at(-1);
 
-    last.arabic = [last.arabic, ln.text].filter(Boolean).join('\n');
-
-    if (diff > 0) {
-        last.to = page.id;
+    if (!lastEntry) {
+        // first item is a loose leaf page
+        entries.push({ arabic: ln.text, from: page.id });
+        return true;
     }
+};
 
-    return true;
+export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[]) => {
+    const last = entries.at(-1)!;
+    last.arabic = [last.arabic, text].filter(Boolean).join('\n');
+};
+
+export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const lastEntry = entries.at(-1)!;
+    const diff = page.id - lastEntry.from!;
+
+    if (diff >= 1) {
+        const arabic = lastEntry.arabic!;
+
+        if (PATTERNS.EndsWithPunctuation.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
+            // last page ended with a punctuation no need to continue here, just make this page separate
+            return captureEntirePage(ln, entries, page);
+        }
+
+        let lastPeriodIndex = findLastPunctuation(ln.text);
+
+        if (lastPeriodIndex === -1) {
+            lastPeriodIndex = ln.text.length - 1;
+        }
+
+        const beforePunctuation = ln.text.slice(0, lastPeriodIndex + 1).trim();
+        appendLineToLastEntry({ text: beforePunctuation }, entries);
+
+        lastEntry.to = page.id;
+
+        const afterPunctuation = ln.text.slice(lastPeriodIndex + 1).trim();
+
+        if (afterPunctuation) {
+            entries.push({ arabic: afterPunctuation, from: page.id });
+        }
+
+        return true;
+    }
 };
 
 export const processTranslation = (line: string, translations: Translation[]) => {

@@ -3,8 +3,10 @@
     "bin": {
         "ilmtest-cli": "./dist/index.js"
     },
+    "bugs": {
+        "url": "https://github.com/ragaeeb/bitaboom/issues"
+    },
     "dependencies": {
-        "@distube/ytdl-core": "4.16.8",
         "@inquirer/prompts": "^7.8.6",
         "ansis": "^4.1.0",
         "baburchi": "^1.7.0",
@@ -15,49 +17,46 @@
         "conf": "^14.0.0",
         "kokokor": "^2.0.4",
         "linkedom": "^0.18.12",
-        "pino": "^9.9.5",
+        "pino": "^9.10.0",
         "pino-pretty": "^13.1.1",
         "rabbito": "^1.0.0",
         "remove-markdown": "^0.6.2",
-        "shamela": "^1.1.0",
+        "shamela": "^1.2.0",
         "string-strip-html": "^13.4.13",
-        "tafrigh": "^4.0.2"
+        "tafrigh": "^4.1.0"
     },
     "description": "CLI for IlmTest API.",
     "devDependencies": {
         "@biomejs/biome": "^2.2.4",
         "@types/bun": "^1.2.22",
         "@types/cli-progress": "^3.11.6",
-        "@types/node": "^24.5.0",
-        "semantic-release": "^24.2.8"
-    },
-    "homepage": "https://github.com/ilmtest/bitaboom",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/ragaeeb/bitaboom.git"
-    },
-    "bugs": {
-        "url": "https://github.com/ragaeeb/bitaboom/issues"
+        "@types/node": "^24.5.2",
+        "semantic-release": "^24.2.9"
     },
     "engines": {
-        "bun": ">=1.2.21"
+        "bun": ">=1.2.22"
     },
     "files": [
         "dist/index.js"
     ],
+    "homepage": "https://github.com/ilmtest/ilmtest-cli",
     "keywords": [
         "ilmtest"
     ],
     "license": "MIT",
     "main": "dist/index.js",
     "name": "ilmtest-cli",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ilmtest/ilmtest-cli.git"
+    },
     "scripts": {
         "build": "NODE_ENV=production bun build src/index.ts --outdir dist --target node --packages=external",
         "compile": "NODE_ENV=production bun build src/index.ts --target node --compile --outfile dist/ilmtest-cli",
-        "start": "bun run src/index.ts",
-        "lint": "biome check --write .",
         "format": "biome format --write .",
-        "lint:ci": "biome ci"
+        "lint": "biome check --write .",
+        "lint:ci": "biome ci",
+        "start": "bun run src/index.ts"
     },
     "source": "src/index.ts",
     "type": "module",

@@ -5,7 +5,7 @@ import logger from './logger.js';
 
 export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e.type || 0}`;
 
-export const indexEntriesByNumber = (entries: Entry[]) => {
+export const indexEntriesForLookup = (entries: Entry[]) => {
     const indexToEntries: Record<string, Entry[]> = {};
     const pageToEntries: Record<number, Entry[]> = {};
 
@@ -15,10 +15,10 @@ export const indexEntriesByNumber = (entries: Entry[]) => {
             indexToEntries[key] = (indexToEntries[key] || []).concat(entry);
         }
 
-        pageToEntries[entry.from] = (pageToEntries[entry.from] || []).concat(entry);
+        const length = entry.to && entry.to !== entry.from ? entry.to : entry.from;
 
-        if (entry.to && entry.to !== entry.from) {
-            pageToEntries[entry.to] = (pageToEntries[entry.to] || []).concat(entry);
+        for (let i = entry.from; i <= length; i++) {
+            pageToEntries[i] = (pageToEntries[i] || []).concat(entry);
         }
     }
 

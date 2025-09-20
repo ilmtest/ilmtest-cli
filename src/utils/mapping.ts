@@ -4,10 +4,12 @@ import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
 import { runFlow } from './flow.js';
 import {
-    appendToLastEntry,
+    appendLineToLastEntry,
+    appendNewPageToLastEntry,
     appendToLastTranslation,
+    captureEntirePage,
+    captureFirstLooseLeaf,
     capturePlainTextChapters,
-    captureTrailingEntry,
     extractNumericChapters,
     extractRoundNumericChapters,
     processArabicNumericListItem,
@@ -18,35 +20,27 @@ import {
 } from './flowHandlers.js';
 import { parseContentRobust } from './shamelaUtils.js';
 
-export const mapBookPagesToEntries = (
-    pages: Page[],
-    options: {
-        maxPagesPerEntry: number;
-    },
-) => {
+export const mapBookPagesToEntries = (pages: Page[], isMulti?: boolean) => {
     const entries: Partial<Entry>[] = [];
+
+    const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
+    const continuousHandlers = [captureFirstLooseLeaf, appendNewPageToLastEntry, appendLineToLastEntry];
+
+    const handlers = [
+        trimLine,
+        capturePlainTextChapters,
+        extractRoundNumericChapters,
+        extractNumericChapters,
+        processChapter,
+        processArabicNumericListItem,
+        processNumericListItem,
+        ...(!isMulti ? discreteHandlers : []),
+        ...(isMulti ? continuousHandlers : []),
+    ];
 
     for (const page of pages) {
         const rawLines = parseContentRobust(page.content);
-
-        runFlow(
-            rawLines,
-            [
-                trimLine,
-                capturePlainTextChapters,
-                extractRoundNumericChapters,
-                extractNumericChapters,
-                processChapter,
-                processArabicNumericListItem,
-                processNumericListItem,
-                () => entries.length === 0,
-                captureTrailingEntry,
-                appendToLastEntry,
-            ],
-            entries,
-            page,
-            options.maxPagesPerEntry,
-        );
+        runFlow(rawLines, handlers, entries, page);
     }
 
     const idToPages = Object.groupBy(pages, (p) => p.id);
@@ -58,7 +52,7 @@ export const mapBookPagesToEntries = (
             const [page] = idToPages[e.from!]!;
 
             if (e.type === EntryType.Chapter) {
-                e.id = `C${Number(e.id) || page.id /*++nextIdCounter*/}`;
+                e.id = `C${Number(e.id) || page.id}`;
             } else {
                 e.id = e.index ? e.index.toString() : `P${page.id}${++nextIdCounter}`;
             }

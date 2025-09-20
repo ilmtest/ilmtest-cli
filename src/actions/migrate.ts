@@ -2,7 +2,7 @@ import { confirm } from '@inquirer/prompts';
 import { findMatches } from 'baburchi';
 import { stripHtml } from 'string-strip-html';
 import type { Entry } from '@/api/entries.js';
-import { getEntryKey, indexEntriesByNumber } from '@/utils/entryUtils.js';
+import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadData, type ShamelaBook } from './shamela.js';
@@ -18,10 +18,10 @@ const createPatch = (originalEntry: Entry, newPage: Pick<Entry, 'from' | 'pp' | 
     };
 };
 
-const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[]) => {
+const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], isMulti: boolean) => {
     const patches: Partial<Entry>[] = [];
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, { maxPagesPerEntry: 1 });
+    const arabicEntries = mapBookPagesToEntries(book.pages, isMulti);
 
     const unlinked = findMatches(
         arabicEntries.map((a) => a.arabic!),
@@ -44,7 +44,7 @@ const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[]) => {
         })
         .filter(Boolean) as Entry[];
 
-    return { ...indexEntriesByNumber(arabicEntries as Entry[]), patches, unlinked };
+    return { ...indexEntriesForLookup(arabicEntries as Entry[]), patches, unlinked };
 };
 
 const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
@@ -76,11 +76,11 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
 export const migrateEntries = async () => {
     process.argv = process.argv.filter((s) => s !== '--migrate');
 
-    const { book, entries } = await loadData();
+    const { book, entries, isMulti } = await loadData();
 
     logger.info(`${entries.length} entries to link...`);
 
-    let { patches, unlinked, indexToEntries, pageToEntries } = matchEntriesBySegments(book, entries);
+    let { patches, unlinked, indexToEntries } = matchEntriesBySegments(book, entries, isMulti);
 
     logger.info(`${patches.length} entries linked, ${unlinked.length} could not be linked...`);
 
@@ -126,7 +126,7 @@ export const migrateEntries = async () => {
 
     confirmed = await confirm({
         message: `Do you want to commit these changes ${JSON.stringify(
-            patches.filter((p) => !p.from),
+            patches.filter((p) => p.from),
             null,
             2,
         )}?`,

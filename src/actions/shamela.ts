@@ -20,7 +20,7 @@ import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
 import { sanitizePageContent } from '@/utils/shamelaUtils.js';
 
-import { getEntryKey, indexEntriesByNumber } from '../utils/entryUtils.js';
+import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 
 const parseInputArgs = () => {
     const { values } = parseArgs({
@@ -34,17 +34,14 @@ const parseInputArgs = () => {
             log: {
                 type: 'string',
             },
-            max: {
-                type: 'string',
+            multi: {
+                type: 'boolean',
             },
             pages: {
                 type: 'string',
             },
             shamela: {
                 type: 'boolean',
-            },
-            span: {
-                type: 'string',
             },
             unused: {
                 type: 'string',
@@ -67,8 +64,7 @@ const parseInputArgs = () => {
         collectionId: values.collection,
         entriesToFilter: values.entries?.split(','),
         from,
-        max: Number(values.max) || Number.MAX_SAFE_INTEGER,
-        span: Number(values.span) || Number.MAX_SAFE_INTEGER,
+        isMulti: Boolean(values.multi),
         to,
         unused: values.unused,
     };
@@ -126,7 +122,7 @@ export const loadData = async () => {
         dir,
     );
 
-    const indexed = indexEntriesByNumber(entries);
+    const indexed = indexEntriesForLookup(entries);
 
     return {
         book,
@@ -140,17 +136,13 @@ export const loadData = async () => {
 };
 
 export const processShamela = async () => {
-    const { book, collection, dir, max, unused, span, coveredIndices, coveredPages } = await loadData();
+    const { book, collection, dir, unused, isMulti, coveredIndices, coveredPages } = await loadData();
 
     if (unused === 'pages') {
         book.pages = book.pages.filter((p) => !coveredPages.has(p.id));
     }
 
-    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, {
-        maxPagesPerEntry: max,
-    }).filter((e) => {
-        return !e.to || e.to! - e.from! <= span;
-    });
+    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, isMulti);
 
     if (unused === 'index') {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
