@@ -31,9 +31,6 @@ const parseInputArgs = () => {
             entries: {
                 type: 'string',
             },
-            log: {
-                type: 'string',
-            },
             multi: {
                 type: 'boolean',
             },
@@ -52,10 +49,6 @@ const parseInputArgs = () => {
 
     if (!values.collection) {
         throw new Error('No collection specified');
-    }
-
-    if (values.log) {
-        logger.level = values.log;
     }
 
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
