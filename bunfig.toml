@@ -1,0 +1,5 @@
+[build]
+# Resolve path aliases during build
+resolve = {
+  "@" = "./src"
+}

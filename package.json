@@ -17,7 +17,7 @@
         "conf": "^14.0.0",
         "kokokor": "^2.0.4",
         "linkedom": "^0.18.12",
-        "pino": "^9.10.0",
+        "pino": "^9.11.0",
         "pino-pretty": "^13.1.1",
         "rabbito": "^1.0.0",
         "remove-markdown": "^0.6.2",
