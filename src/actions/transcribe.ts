@@ -1,12 +1,10 @@
-import { confirm, select } from '@inquirer/prompts';
-import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { confirm, select } from '@inquirer/prompts';
+import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { transcribe } from 'tafrigh';
-
-import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
-
 import { getCollection, getCollections } from '../api/collections.js';
+import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
 import { downloadYouTubeVideo } from '../utils/downloader.js';
 import {
     getMediasAlreadyDownloaded,
@@ -18,6 +16,12 @@ import { waitForKeyPress } from '../utils/io.js';
 import logger from '../utils/logger.js';
 import { uploadAslToS3 } from './uploadAsl.js';
 
+/**
+ * Downloads transcripts from the Baheth service for specified foreign IDs
+ * @param transcribed - Array of foreign IDs that have been transcribed
+ * @param outputDirectory - Directory to save the transcript files
+ * @returns Promise resolving to array of foreign IDs with local file paths
+ */
 const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: string): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
 
@@ -41,6 +45,11 @@ const downloadTranscripts = async (transcribed: ForeignId[], outputDirectory: st
     return result;
 };
 
+/**
+ * Checks which foreign IDs already have transcripts available in the Baheth service
+ * @param fids - Array of foreign IDs to check
+ * @returns Promise resolving to array of foreign IDs that have transcripts available
+ */
 const getTranscribedVolumes = async (fids: ForeignId[]): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
 
@@ -57,6 +66,12 @@ const getTranscribedVolumes = async (fids: ForeignId[]): Promise<ForeignId[]> =>
     return result;
 };
 
+/**
+ * Downloads YouTube videos for the specified foreign IDs
+ * @param fids - Array of foreign IDs representing YouTube video IDs
+ * @param outputDirectory - Directory to save the downloaded videos
+ * @returns Promise resolving to array of foreign IDs with local video file paths
+ */
 const downloadYouTubeVideos = async (fids: ForeignId[], outputDirectory: string): Promise<ForeignId[]> => {
     const result: ForeignId[] = [];
 
@@ -72,6 +87,13 @@ const downloadYouTubeVideos = async (fids: ForeignId[], outputDirectory: string)
     return result;
 };
 
+/**
+ * Transcribes downloaded video files using AI transcription service
+ * @param downloadedVideos - Array of foreign IDs with local video file paths
+ * @param outputDirectory - Directory to save the transcript files
+ * @param targetCollection - Optional target collection ID for specific processing options
+ * @returns Promise resolving to array of foreign IDs with transcript file paths
+ */
 const transcribeDownloadedVideos = async (
     downloadedVideos: ForeignId[],
     outputDirectory: string,
@@ -124,11 +146,23 @@ const transcribeDownloadedVideos = async (
     return transcribed;
 };
 
+/**
+ * Gets foreign IDs that don't have corresponding transcript files in the output directory
+ * @param fids - Array of foreign IDs to check
+ * @param outputDirectory - Directory to check for existing transcript files
+ * @returns Promise resolving to array of foreign IDs that need processing
+ */
 const getRemainingFids = async (fids: ForeignId[], outputDirectory: string) => {
     const filesInOutputDirectory = await fs.readdir(outputDirectory);
     return getUnprocessedVolumes(fids, filesInOutputDirectory);
 };
 
+/**
+ * Downloads transcripts that are already available in the Baheth service
+ * @param fids - Array of foreign IDs to check and download
+ * @param outputDirectory - Directory to save the transcript files
+ * @returns Promise resolving to array of foreign IDs with downloaded transcript files
+ */
 const downloadTranscriptsAlreadyTranscribed = async (fids: ForeignId[], outputDirectory: string) => {
     const fidsNotTranscribed = await getRemainingFids(fids, outputDirectory);
     const fidTranscriptsAvailable = await getTranscribedVolumes(fidsNotTranscribed);
@@ -137,6 +171,12 @@ const downloadTranscriptsAlreadyTranscribed = async (fids: ForeignId[], outputDi
     return downloadTranscripts(fidTranscriptsAvailable, outputDirectory);
 };
 
+/**
+ * Integrates multiple transcript files into a single TranscriptSeries object
+ * @param fids - Array of foreign IDs with transcript file paths
+ * @param outputDirectory - Directory containing the transcript files
+ * @returns Promise resolving to integrated TranscriptSeries object
+ */
 const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: string): Promise<TranscriptSeries> => {
     const result: TranscriptSeries = {
         contractVersion: 'v1.0',
@@ -154,6 +194,12 @@ const integrateTranscriptions = async (fids: ForeignId[], outputDirectory: strin
     return result;
 };
 
+/**
+ * Prompts user to select a collection and prepares for transcription
+ * @param targetCollection - Optional pre-selected collection ID
+ * @param selectedVolume - Optional specific volume number to process
+ * @returns Promise resolving to collection ID, foreign IDs, and output directory
+ */
 const getSelectedCollection = async (targetCollection?: string, selectedVolume?: number) => {
     const collections = await getCollections({
         before: '9999',
@@ -184,6 +230,12 @@ const getSelectedCollection = async (targetCollection?: string, selectedVolume?:
     return { collection: selectedCollection, fids, outputDirectory: selectedCollection };
 };
 
+/**
+ * Downloads videos and transcribes them using AI
+ * @param fids - Array of foreign IDs to download and transcribe
+ * @param outputDirectory - Directory to save files
+ * @param targetCollection - Optional target collection for specific processing
+ */
 const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string, targetCollection?: string) => {
     let remainingFids = await getRemainingFids(fids, outputDirectory);
 
@@ -212,6 +264,12 @@ const downloadAndTranscribe = async (fids: ForeignId[], outputDirectory: string,
     }
 };
 
+/**
+ * Saves transcript data and handles cleanup operations
+ * @param collection - Collection ID
+ * @param data - TranscriptSeries data to save
+ * @param outputDirectory - Directory containing temporary files
+ */
 const saveAndCleanup = async (collection: string, data: TranscriptSeries, outputDirectory: string) => {
     const outputFile = path.format({ ext: '.json', name: outputDirectory });
     logger.info(`Writing to ${outputFile}`);
@@ -233,10 +291,17 @@ const saveAndCleanup = async (collection: string, data: TranscriptSeries, output
     }
 };
 
+/**
+ * Main function to transcribe audio/video content using AI
+ * Handles the complete workflow from collection selection to final cleanup
+ * @param targetCollection - Optional pre-selected collection ID
+ * @param selectedVolume - Optional specific volume number to process
+ * @returns Promise that resolves when transcription and cleanup are complete
+ */
 export const transcribeWithAI = async (targetCollection?: string, selectedVolume?: string) => {
     const { collection, fids, outputDirectory } = await getSelectedCollection(
         targetCollection,
-        selectedVolume ? parseInt(selectedVolume) : undefined,
+        selectedVolume ? parseInt(selectedVolume, 10) : undefined,
     );
 
     await downloadAndTranscribe(fids, outputDirectory, targetCollection);

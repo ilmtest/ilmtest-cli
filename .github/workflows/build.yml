@@ -11,7 +11,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
               with:
                   fetch-depth: 0
 
@@ -27,4 +27,9 @@ jobs:
               run: bun run build
 
             - name: Run tests
-              run: bun test
+              run: bun test --coverage --coverage-reporter=lcov
+
+            - name: Upload results to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}

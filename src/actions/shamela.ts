@@ -1,17 +1,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import {
-    type BookData,
-    type GetBookMetadataResponsePayload,
-    getBook,
-    getBookMetadata,
-    type Page,
-    setLogger,
-} from 'shamela';
+import { getBook, getBookMetadata, setLogger } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
-import type { Collection } from '@/types.js';
+import type { Collection, ShamelaBook } from '@/types.js';
 
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
@@ -22,6 +15,11 @@ import { sanitizePageContent } from '@/utils/shamelaUtils.js';
 
 import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 
+/**
+ * Parses command line arguments for Shamela operations
+ * @returns Parsed configuration object with collection ID, page range, and options
+ * @throws Error if no collection is specified
+ */
 const parseInputArgs = () => {
     const { values } = parseArgs({
         options: {
@@ -63,16 +61,13 @@ const parseInputArgs = () => {
     };
 };
 
-type ShamelaPage = Page & {
-    footer?: string;
-};
-
-export type ShamelaBook = Pick<BookData, 'titles'> &
-    Partial<GetBookMetadataResponsePayload> & {
-        shamelaId: number;
-        pages: ShamelaPage[];
-    };
-
+/**
+ * Loads a Shamela book with specified page range and processes content
+ * @param bookId - The Shamela book identifier
+ * @param param1 - Tuple containing from and to page numbers
+ * @param dir - Directory to cache the book data
+ * @returns Promise resolving to processed ShamelaBook object
+ */
 const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
     const book = await loadOrDownload<ShamelaBook>(
         'book',
@@ -97,6 +92,11 @@ const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
     return book;
 };
 
+/**
+ * Loads and prepares all necessary data for Shamela processing
+ * Includes collection data, book content, and entry information
+ * @returns Promise resolving to comprehensive data object for processing
+ */
 export const loadData = async () => {
     const { collectionId, from, to, entriesToFilter, ...rest } = parseInputArgs();
 
@@ -128,6 +128,11 @@ export const loadData = async () => {
     };
 };
 
+/**
+ * Main function to process Shamela content and generate translation prompts
+ * Processes book pages, filters content based on options, and generates output files
+ * @returns Promise that resolves when processing is complete
+ */
 export const processShamela = async () => {
     const { book, collection, dir, unused, isMulti, coveredIndices, coveredPages } = await loadData();
 
