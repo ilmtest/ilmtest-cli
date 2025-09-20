@@ -3,8 +3,18 @@ import type { Page } from '@/api/maktabah.js';
 import type { Entry } from '../api/entries.js';
 import logger from './logger.js';
 
+/**
+ * Generates a unique key for an entry based on its index and type
+ * @param e - Entry object with index and type properties
+ * @returns String key in format "index t type"
+ */
 export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e.type || 0}`;
 
+/**
+ * Indexes entries for efficient lookup by both entry key and page number
+ * @param entries - Array of entries to index
+ * @returns Object containing indexed entries by key and by page number
+ */
 export const indexEntriesForLookup = (entries: Entry[]) => {
     const indexToEntries: Record<string, Entry[]> = {};
     const pageToEntries: Record<number, Entry[]> = {};
@@ -25,6 +35,11 @@ export const indexEntriesForLookup = (entries: Entry[]) => {
     return { indexToEntries, pageToEntries };
 };
 
+/**
+ * Validates that entry indices are sequential without gaps
+ * Logs warnings for any gaps found in the sequence
+ * @param entries - Array of entries to validate
+ */
 export const validateGaplessEntryIndices = (entries: Entry[]) => {
     entries
         .filter((e) => e.index)
@@ -38,11 +53,23 @@ export const validateGaplessEntryIndices = (entries: Entry[]) => {
         });
 };
 
+/**
+ * Validates translation indices against Arabic indices to find mismatches
+ * @param arabicIndices - Array of Arabic text indices
+ * @param translationIndices - Array of translation indices to validate
+ * @returns Array of translation indices that don't have corresponding Arabic indices
+ */
 export const validateIndices = (arabicIndices: string[], translationIndices: string[]) => {
     const arabicKeys = new Set(arabicIndices);
     return translationIndices.filter((index) => !arabicKeys.has(index));
 };
 
+/**
+ * Attempts to fix gaps in entry index sequences by correcting middle elements
+ * Only fixes if the correction would create a perfect sequential pattern
+ * @param entries - Array of entries to fix gaps in
+ * @returns New array with corrected entries (does not mutate original)
+ */
 export const fixGaps = (entries: Entry[]) => {
     if (entries.length < 3) {
         return entries; // Can't fix gaps with less than 3 elements
@@ -71,10 +98,11 @@ export const fixGaps = (entries: Entry[]) => {
     return result;
 };
 
-export const filterEntriesFromCoveredPages = (entries: Entry[], coveredPages: Set<number>) => {
-    return entries.filter((e) => !coveredPages.has(e.from));
-};
-
+/**
+ * Corrects numbering gaps in an array of strings by adding missing sequential numbers
+ * @param arr - Array of strings that may have numbered items with gaps
+ * @returns New array with missing numbers filled in between existing numbered items
+ */
 export function correctNumbering(arr: string[]): string[] {
     const result = [...arr];
 
@@ -129,6 +157,11 @@ export function correctNumbering(arr: string[]): string[] {
     return result;
 }
 
+/**
+ * Corrects missing indices in page bodies by filling gaps in numbered sequences
+ * @param arr - Array of pages that may have numbered content with gaps
+ * @returns New array with missing numbers filled in the page bodies
+ */
 export const correctMissingIndices = (arr: Page[]) => {
     const result = [...arr];
 

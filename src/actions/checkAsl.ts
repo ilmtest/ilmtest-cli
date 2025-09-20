@@ -4,6 +4,11 @@ import { S3Client } from 'bun';
 import config from '../utils/config.js';
 import logger from '../utils/logger.js';
 
+/**
+ * Checks if an ASL (Arabic Sign Language) collection exists in S3 storage
+ * Prompts user for collection ID and verifies file existence
+ * @returns Promise that resolves when the check completes
+ */
 export const checkAsl = async () => {
     const collectionId = await input({
         message: 'Enter collection ID to check:',

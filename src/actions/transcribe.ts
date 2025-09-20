@@ -104,8 +104,9 @@ const transcribeDownloadedVideos = async (
     logger.info(`Medias to transcribe ${JSON.stringify(downloadedVideos)}`);
 
     for (const video of downloadedVideos) {
+        const mediaPath = path.isAbsolute(video.id) ? video.id : path.join(outputDirectory, video.id);
         const tokens = (
-            await transcribe(path.join(outputDirectory, video.id), {
+            await transcribe(mediaPath, {
                 callbacks: {
                     onPreprocessingFinished: async (filePath) => logger.info(`Pre-formatted ${filePath}`),
                     onPreprocessingStarted: async (filePath) => logger.info(`Pre-formatting ${filePath}`),

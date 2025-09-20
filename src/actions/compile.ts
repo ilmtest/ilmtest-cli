@@ -1,11 +1,15 @@
 import path from 'node:path';
 import type { Entry } from '@/api/entries.js';
-import { Translation } from '@/types.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
-import { getEntryKey } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
 
+/**
+ * Finds a translation file from a list of possible names in a directory
+ * @param dir - Directory path to search in
+ * @param names - Array of possible file names (without extension)
+ * @returns Promise that resolves to the first existing translation file, or undefined if none found
+ */
 const getTranslationFile = async (dir: string, names: string[]) => {
     for (const name of names) {
         const translationFile = Bun.file(path.format({ dir, ext: '.txt', name }));
@@ -16,6 +20,11 @@ const getTranslationFile = async (dir: string, names: string[]) => {
     }
 };
 
+/**
+ * Compiles translation data for a collection by matching entries with translation files
+ * @param collectionId - The ID of the collection to compile translations for
+ * @returns Promise that resolves to an array of compiled translations
+ */
 export const compileTranslation = async (collectionId: string) => {
     const dir = path.join(OUTPUT_DIR, collectionId);
     const entries: Entry[] = await Bun.file(path.join(dir, 'excerpts.json')).json();

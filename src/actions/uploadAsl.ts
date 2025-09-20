@@ -1,11 +1,17 @@
-import { confirm, input } from '@inquirer/prompts';
-import { gzipSync, S3Client } from 'bun';
 import path from 'node:path';
+import { confirm } from '@inquirer/prompts';
+import { gzipSync, S3Client } from 'bun';
 
 import config from '../utils/config.js';
 import { getFileSystemInput, getNumericInput } from '../utils/io.js';
 import logger from '../utils/logger.js';
 
+/**
+ * Uploads an ASL collection file to S3 storage with compression
+ * @param collectionId - The ID of the collection to upload
+ * @param filePath - Path to the local file to upload
+ * @returns Promise that resolves to the uploaded file handle
+ */
 export const uploadAslToS3 = async (collectionId: string, filePath: string) => {
     const s3Client = new S3Client({
         accessKeyId: config.awsAccessKey,
@@ -40,6 +46,11 @@ export const uploadAslToS3 = async (collectionId: string, filePath: string) => {
     return collectionFile;
 };
 
+/**
+ * Interactive function to upload an ASL collection to S3 storage
+ * Prompts user for file path and collection ID, then uploads with compression
+ * @returns Promise that resolves when upload completes
+ */
 export const uploadAsl = async () => {
     const filePath = await getFileSystemInput();
 

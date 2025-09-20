@@ -3,11 +3,17 @@ import { type BoundingBox, mapObservationsToTextLines, type Observation, type Si
 
 import { getFileSystemInput, validateJsonFile } from '@/utils/io.js';
 
+/**
+ * 2D coordinate representation
+ */
 type Coordinate = {
     x: number;
     y: number;
 };
 
+/**
+ * OCR data structure containing DPI information and page observations
+ */
 type OCRData = {
     dpi: Coordinate;
     pages: {
@@ -18,24 +24,31 @@ type OCRData = {
     }[];
 };
 
+/**
+ * Structured page data with optional layout elements
+ */
 type StructPage = Size & {
     horizontal_lines?: BoundingBox[];
     page: number;
     rectangles?: BoundingBox[];
 };
 
+/**
+ * Document structure data containing page layouts and DPI information
+ */
 type Structures = {
     dpi: Coordinate;
     pages: StructPage[];
 };
 
+/**
+ * Extracts and processes text from OCR and structure data files
+ * Filters Arabic text, maps observations to text lines, and generates translation output
+ * @returns Promise that resolves when extraction and file writing completes
+ */
 export const extractor = async () => {
-    const ocrFile =
-        '/Users/rhaq/Downloads/ocr.json' ||
-        (await getFileSystemInput({ message: 'OCR path:', validate: validateJsonFile }));
-    const structuresFile =
-        '/Users/rhaq/Downloads/structures.json' ||
-        (await getFileSystemInput({ message: 'Structures path:', validate: validateJsonFile }));
+    const ocrFile = await getFileSystemInput({ message: 'OCR path:', validate: validateJsonFile });
+    const structuresFile = await getFileSystemInput({ message: 'Structures path:', validate: validateJsonFile });
     const ocrData = (await Bun.file(ocrFile).json()) as OCRData;
     const structures = (await Bun.file(structuresFile).json()) as Structures;
 
@@ -78,7 +91,7 @@ export const extractor = async () => {
         } else if (l.includes('Comments')) {
             capture = false;
         } else if (capture) {
-            result[result.length - 1] = result[result.length - 1] + ' ' + l;
+            result[result.length - 1] = `${result[result.length - 1]} ${l}`;
         }
     });
 

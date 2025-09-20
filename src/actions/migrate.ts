@@ -2,12 +2,19 @@ import { confirm } from '@inquirer/prompts';
 import { findMatches } from 'baburchi';
 import { stripHtml } from 'string-strip-html';
 import type { Entry } from '@/api/entries.js';
+import type { ShamelaBook } from '@/types.js';
 import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
-import { loadData, type ShamelaBook } from './shamela.js';
+import { loadData } from './shamela.js';
 import { saveEntries } from './uploadTranslations.js';
 
+/**
+ * Creates a patch object for updating entry page information
+ * @param originalEntry - The original entry to be updated
+ * @param newPage - New page information containing from, pp, and volume data
+ * @returns Partial entry object with updated page information
+ */
 const createPatch = (originalEntry: Entry, newPage: Pick<Entry, 'from' | 'pp' | 'volume'>) => {
     return {
         from: newPage.from,
@@ -18,6 +25,13 @@ const createPatch = (originalEntry: Entry, newPage: Pick<Entry, 'from' | 'pp' | 
     };
 };
 
+/**
+ * Matches entries with book segments using fuzzy matching algorithms
+ * @param book - The Shamela book data to match against
+ * @param entries - Array of entries to be matched
+ * @param isMulti - Whether the book has multiple segments per page
+ * @returns Object containing matched entries, patches, and unlinked entries
+ */
 const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], isMulti: boolean) => {
     const patches: Partial<Entry>[] = [];
 
@@ -47,6 +61,12 @@ const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], isMulti: bo
     return { ...indexEntriesForLookup(arabicEntries as Entry[]), patches, unlinked };
 };
 
+/**
+ * Matches entries with book pages using fuzzy matching on full page content
+ * @param book - The Shamela book data to match against
+ * @param entries - Array of entries to be matched
+ * @returns Object containing patches and unlinked entries
+ */
 const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
     const patches: Partial<Entry>[] = [];
     const pages = book.pages.map((p) => [stripHtml(p.content).result, p.footer].filter(Boolean).join('\n'));
@@ -73,6 +93,11 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
     return { patches, unlinked };
 };
 
+/**
+ * Migrates entries by matching them with Shamela book data and updating page references
+ * Uses multiple matching strategies and prompts user for confirmation before saving changes
+ * @returns Promise that resolves when migration completes
+ */
 export const migrateEntries = async () => {
     process.argv = process.argv.filter((s) => s !== '--migrate');
 

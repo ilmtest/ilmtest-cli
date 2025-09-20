@@ -1,10 +1,16 @@
 import config from '../utils/config.js';
 import { changeEndpointName, doGet, doPut, type PagingParams } from './index.js';
 
+/**
+ * Flags that can be applied to entries
+ */
 export enum EntryFlags {
     PendingReview = 3,
 }
 
+/**
+ * Types of entries in the system
+ */
 export enum EntryType {
     Book = 2,
     Chapter = 3,
@@ -27,6 +33,9 @@ export type Entry = {
     volume: number;
 };
 
+/**
+ * Raw entry data structure as received from the API
+ */
 type RawEntry = {
     ar_body: string;
     body: string;
@@ -90,6 +99,9 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
     };
 };
 
+/**
+ * Parameters for getting entries with optional type filtering
+ */
 interface GetEntriesParams extends PagingParams {
     type?: number;
 }
