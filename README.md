@@ -1,6 +1,6 @@
 # ilmtest-cli
 
-[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/3ab8ca50-a24a-46b4-af93-e8a6a55f670a.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/3ab8ca50-a24a-46b4-af93-e8a6a55f670a)
+[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383228df6d4b/project/3ab8ca50-a24a-46b4-af93-e8a6a55f670a.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/3ab8ca50-a24a-46b4-af93-e8a6a55f670a)
 [![Node.js CI](https://github.com/ilmtest/ilmtest-cli/actions/workflows/build.yml/badge.svg)](https://github.com/ilmtest/ilmtest-cli/actions/workflows/build.yml)
 ![GitHub License](https://img.shields.io/github/license/ilmtest/ilmtest-cli)
 ![GitHub Release](https://img.shields.io/github/v/release/ilmtest/ilmtest-cli)
@@ -33,7 +33,7 @@
 
 ## Installation
 
-To install the `IlmTest CLI`, ensure you have Node.js version 23.0.0 or later.
+To install the `IlmTest CLI`, ensure you have Node.js version 22.0.0 or later.
 
 ### Global Installation
 
@@ -187,7 +187,7 @@ Configuration is stored securely using the `conf` package.
 
 ## Requirements
 
-- **Node.js v23.0.0+** or **Bun v1.2.22+**
+- **Node.js v22.0.0+** or **Bun v1.2.22+**
 - AWS credentials (for S3 operations)
 - API keys for transcription services
 

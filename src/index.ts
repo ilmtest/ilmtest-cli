@@ -21,11 +21,11 @@ const main = async () => {
     const { positionals, values } = parseArgs({
         allowPositionals: true,
         options: {
-            diff: {
-                type: 'string',
-            },
             compile: {
                 type: 'boolean',
+            },
+            diff: {
+                type: 'string',
             },
             downloadAsl: {
                 short: 'd',
