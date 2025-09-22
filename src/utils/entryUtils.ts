@@ -92,6 +92,7 @@ export const fixGaps = (entries: Entry[]) => {
         if (current !== expectedValue && expectedValue === next - 1) {
             logger.warn(`Autocorrected #${current} to #${expectedValue} on page ${result[i].from}`);
             result[i].index = expectedValue;
+            result[i].id = expectedValue.toString();
         }
     }
 

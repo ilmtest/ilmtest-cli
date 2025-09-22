@@ -34,6 +34,9 @@ const main = async () => {
             extract: {
                 type: 'boolean',
             },
+            fix: {
+                type: 'string',
+            },
             migrate: {
                 type: 'boolean',
             },
@@ -89,13 +92,13 @@ const main = async () => {
     }
 
     if (action === 'transcribe') {
-        await (await import('./actions/transcribe.js')).transcribeWithAI(positionals[0], positionals[1]);
+        await (await import('./actions/transcribe.js')).transcribeWithAI(...positionals);
     } else if (action === 'deleteAsl') {
         await (await import('./actions/deleteAsl.js')).deleteAsl();
     } else if (action === 'checkAsl') {
         await (await import('./actions/checkAsl.js')).checkAsl();
     } else if (action === 'downloadAsl') {
-        await (await import('./actions/downloadAsl.js')).downloadAsl(positionals[0]);
+        await (await import('./actions/downloadAsl.js')).downloadAsl(...positionals);
     } else if (action === 'extract') {
         await (await import('./actions/extractor.js')).extractor();
     } else if (action === 'uploadAsl') {
@@ -110,6 +113,8 @@ const main = async () => {
         await (await import('./actions/compile.js')).compileTranslation(positionals[0]);
     } else if (values.save) {
         await (await import('./actions/uploadTranslations.js')).uploadTranslations(values.save as string);
+    } else if (values.fix) {
+        await (await import('./actions/fix.js')).fixExcerpts(positionals[0], values.fix as string);
     }
 };
 

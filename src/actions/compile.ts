@@ -21,7 +21,7 @@ const getTranslationFile = async (dir: string, names: string[]) => {
 };
 
 const loadTranslationFile = async (dir: string) => {
-    const file = await getTranslationFile(dir, ['873', '879', '153', '879.tr']);
+    const file = await getTranslationFile(dir, ['873', '879']);
 
     if (!file) {
         logger.warn(`No translation files found.`);
@@ -32,13 +32,50 @@ const loadTranslationFile = async (dir: string) => {
 
     let text = await file.text();
 
-    text = text.replace(/ (\d+) -/gm, '\n$1 -');
+    text = text.replace(/ ([CP]?\d+) -/gm, '\n$1 -');
     text = text.replace(/\\\[/gm, '[');
 
     const translations = mapLinesToTranslations(text);
     const [translator] = file.name!.split('/').at(-1)!.split('.').map(Number);
 
     return { translations, translator };
+};
+
+const mergeLoosePages = (entries: Entry[], prefix = 'P') => {
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+
+        if (entry.translation && entry.index) {
+            // find every P id that doesn't have a translation and merge
+            for (let j = i + 1; j < entries.length; j++) {
+                const page = entries[j];
+
+                if (page.id.startsWith(prefix) && !page.translation && !page.index) {
+                    entry.arabic += ` ${page.arabic}`;
+
+                    if (entry.from !== page.from) {
+                        entry.to = page.from;
+                    }
+
+                    logger.info(`Adding to: ${entry.id}`);
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    const leftover: Entry[] = [];
+
+    for (const entry of entries) {
+        if (entry.id.startsWith(prefix) && !entry.translation) {
+            // skip
+        } else {
+            leftover.push(entry);
+        }
+    }
+
+    return leftover;
 };
 
 /**
@@ -54,35 +91,7 @@ export const compileTranslation = async (collectionId: string) => {
     const idToEntries = Object.groupBy(entries, (e) => e.id);
 
     if (1 !== Number(1)) {
-        for (let i = 0; i < entries.length; i++) {
-            const entry = entries[i];
-
-            if (entry.translation && entry.index) {
-                // find every P id that doesn't have a translation and merge
-                for (let j = i + 1; j < entries.length; j++) {
-                    const page = entries[j];
-
-                    if (page.id.startsWith('P') && !page.translation && !page.index) {
-                        entry.arabic += ` ${page.arabic}`;
-                        entry.to = page.from;
-                        console.log('adding', page.arabic, 'to', entry.id);
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-
-        const leftover: Entry[] = [];
-
-        for (const entry of entries) {
-            if (entry.id.startsWith('P') && !entry.translation) {
-                // skip
-            } else {
-                leftover.push(entry);
-            }
-        }
-
+        const leftover = mergeLoosePages(entries);
         await excerptFile.write(JSON.stringify(leftover, null, 2));
 
         return;

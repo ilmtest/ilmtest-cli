@@ -25,9 +25,10 @@ export const mapBookPagesToEntries = (
     pages: Page[],
     isMulti?: boolean,
     {
-        captureRoundNumericChapters = false,
+        captureRoundNumericChapters = true,
         newEntryOnBulletPoints = false,
         flattenAllChapters = false,
+        parseNumericChapters = false,
         lineSeparator = '\n',
     } = {},
 ) => {
@@ -41,7 +42,7 @@ export const mapBookPagesToEntries = (
         capturePlainTextChapters,
         ...(captureRoundNumericChapters ? [extractRoundNumericChapters] : []),
         ...(flattenAllChapters ? [flattenChapters] : []),
-        extractNumericChapters,
+        ...(parseNumericChapters ? [extractNumericChapters] : []),
         processChapter,
         processArabicNumericListItem,
         processNumericListItem,
