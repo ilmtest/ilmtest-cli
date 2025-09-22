@@ -12,14 +12,15 @@ export enum EntryFlags {
  * Types of entries in the system
  */
 export enum EntryType {
-    Book = 2,
-    Chapter = 3,
+    Book = 1,
+    Chapter = 2,
 }
 
 export type Entry = {
     arabic?: string;
     collection: number;
     explains?: string[];
+    commentary?: string;
     flags?: EntryFlags;
     from: number;
     id: string;
@@ -40,6 +41,7 @@ type RawEntry = {
     ar_body: string;
     body: string;
     collection: string;
+    commentary?: string;
     flags?: string;
     from_page: string;
     id: number;
@@ -68,6 +70,7 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
         volume: rawEntry.part_number,
         ...(rawEntry.flags && { flags: Number(rawEntry.flags) }),
         ...(rawEntry.index_number && { index: rawEntry.index_number }),
+        ...(rawEntry.commentary && { commentary: rawEntry.commentary }),
         ...(rawEntry.to_page && { to: rawEntry.to_page }),
         ...(rawEntry.translator && { translator: rawEntry.translator }),
         ...(rawEntry.type && { type: Number(rawEntry.type) }),
@@ -86,6 +89,7 @@ const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
         ...(entry.from !== undefined && { from_page: String(entry.from) }),
         ...(entry.to && { to_page: entry.to }),
         ...(entry.arabic && { ar_body: entry.arabic }),
+        ...(entry.commentary && { commentary: entry.commentary }),
         ...(entry.id && { id: Number(entry.id) }),
         ...(entry.collection && { collection: String(entry.collection) }),
         ...(entry.volume !== undefined && { part_number: entry.volume }),

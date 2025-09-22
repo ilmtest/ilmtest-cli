@@ -22,6 +22,11 @@ export const extractNumericChapters = (ln: Line) => {
         ln.id = undefined;
     }
 };
+export const flattenChapters = (ln: Line) => {
+    if (ln.id) {
+        ln.id = undefined;
+    }
+};
 
 /**
  * Extracts round numeric chapters (numbers in parentheses) and creates entries
@@ -107,6 +112,15 @@ export const processNumericListItem = (ln: Line, entries: Partial<Entry>[], page
     }
 };
 
+export const processBulletPoint = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const [, txt] = ln.text.match(/^•\s?(.*)/) || [];
+
+    if (txt) {
+        entries.push({ arabic: txt.trim(), from: page.id });
+        return true;
+    }
+};
+
 /**
  * Captures an entire page as a single entry when no recent entries exist
  * @param ln - Line object to process
@@ -145,9 +159,9 @@ export const captureFirstLooseLeaf = (ln: Line, entries: Partial<Entry>[], page:
  * @param param0 - Destructured line object containing text
  * @param entries - Array of entries to modify
  */
-export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[]) => {
+export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[], _page: Page, separator: string) => {
     const last = entries.at(-1)!;
-    last.arabic = [last.arabic, text].filter(Boolean).join('\n');
+    last.arabic = [last.arabic, text].filter(Boolean).join(separator);
 };
 
 /**
@@ -157,7 +171,7 @@ export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[])
  * @param page - Current page being processed
  * @returns True if the content was appended or processed, undefined otherwise
  */
-export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], page: Page, separator: string) => {
     const lastEntry = entries.at(-1)!;
     const diff = page.id - lastEntry.from!;
 
@@ -176,7 +190,7 @@ export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], pa
         }
 
         const beforePunctuation = ln.text.slice(0, lastPeriodIndex + 1).trim();
-        appendLineToLastEntry({ text: beforePunctuation }, entries);
+        appendLineToLastEntry({ text: beforePunctuation }, entries, page, separator);
 
         lastEntry.to = page.id;
 
@@ -202,7 +216,7 @@ export const processTranslation = (line: string, translations: Translation[]) =>
     if (text) {
         translations.push({
             id,
-            text: isAllUppercase(text) ? toTitleCase(text) : text,
+            text: isAllUppercase(text) ? toTitleCase(text.trim()) : text.trim(),
         });
 
         return true;
@@ -217,7 +231,7 @@ export const processTranslation = (line: string, translations: Translation[]) =>
  */
 export const appendToLastTranslation = (line: string, translations: Translation[]) => {
     const last = translations.at(-1)!;
-    last.text = [last.text, line].join('\n');
+    last.text = [last.text, line.trim()].join('\n');
 
     return true;
 };

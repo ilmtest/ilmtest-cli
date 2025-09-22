@@ -1,3 +1,7 @@
+import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences } from 'baburchi';
+import { normalizeSpaces } from 'bitaboom';
+import { sanitizePageContent, splitPageBodyFromFooter } from 'shamela';
+
 /**
  * Regular expression patterns for text processing, particularly for Arabic and numeric content
  */
@@ -41,4 +45,20 @@ export const findLastPunctuation = (text: string) => {
     }
 
     return -1;
+};
+
+export const removeArabicNumericPageMarkers = (text: string) => {
+    return text.replace(/\s?⦗[\u0660-\u0669]+⦘\s?/, ' ');
+};
+
+export const getPageBodyAndFootnotes = (text: string) => {
+    const [body, footnote] = splitPageBodyFromFooter(text);
+
+    let content = removeSingleDigitFootnoteReferences(body);
+    content = removeFootnoteReferencesSimple(content);
+    content = removeArabicNumericPageMarkers(content);
+    content = sanitizePageContent(content);
+    content = normalizeSpaces(content);
+
+    return [content, footnote];
 };

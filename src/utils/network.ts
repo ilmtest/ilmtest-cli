@@ -115,7 +115,7 @@ export const loadOrDownload = async <T>(
 
         if (!forceRefresh) {
             logger.info(`Saving ${fileName}`);
-            await file.write(JSON.stringify(data));
+            await file.write(JSON.stringify(data, null, 2));
         }
 
         return data;

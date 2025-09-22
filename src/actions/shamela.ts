@@ -11,8 +11,7 @@ import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
-import { sanitizePageContent } from '@/utils/shamelaUtils.js';
-
+import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
 import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 
 /**
@@ -85,7 +84,7 @@ const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
 
     book.pages = book.pages.filter((p) => p.id >= from && p.id <= to);
     book.pages = book.pages.map((p) => {
-        const [content, footer] = sanitizePageContent(p.content);
+        const [content, footer] = getPageBodyAndFootnotes(p.content);
         return { ...p, content, ...(footer && { footer }) };
     });
 
@@ -146,7 +145,16 @@ export const processShamela = async () => {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
     }
 
+    const excerptsFile = Bun.file(path.join(dir, 'excerpts.json'));
+    const fileExists = await excerptsFile.exists();
+
+    if (fileExists) {
+        arabicOnlyEntries = ((await excerptsFile.json()) as Entry[]).filter((e) => !e.translation);
+    }
+
     await generatePrompt(dir, collection.title, arabicOnlyEntries);
 
-    await Bun.file(path.join(dir, 'excerpts.json')).write(JSON.stringify(arabicOnlyEntries, null, 2));
+    if (!fileExists) {
+        await excerptsFile.write(JSON.stringify(arabicOnlyEntries, null, 2));
+    }
 };

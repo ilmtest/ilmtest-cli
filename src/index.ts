@@ -37,6 +37,9 @@ const main = async () => {
             migrate: {
                 type: 'boolean',
             },
+            save: {
+                type: 'string',
+            },
             shamela: {
                 type: 'boolean',
             },
@@ -105,6 +108,8 @@ const main = async () => {
         await (await import('./actions/adjust.js')).adjustIndices();
     } else if (values.compile) {
         await (await import('./actions/compile.js')).compileTranslation(positionals[0]);
+    } else if (values.save) {
+        await (await import('./actions/uploadTranslations.js')).uploadTranslations(values.save as string);
     }
 };
 

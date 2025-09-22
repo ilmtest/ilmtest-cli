@@ -1,4 +1,4 @@
-import type { Page } from 'shamela';
+import { type Page, parseContentRobust } from 'shamela';
 
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
@@ -12,15 +12,25 @@ import {
     capturePlainTextChapters,
     extractNumericChapters,
     extractRoundNumericChapters,
+    flattenChapters,
     processArabicNumericListItem,
+    processBulletPoint,
     processChapter,
     processNumericListItem,
     processTranslation,
     trimLine,
 } from './flowHandlers.js';
-import { parseContentRobust } from './shamelaUtils.js';
 
-export const mapBookPagesToEntries = (pages: Page[], isMulti?: boolean) => {
+export const mapBookPagesToEntries = (
+    pages: Page[],
+    isMulti?: boolean,
+    {
+        captureRoundNumericChapters = false,
+        newEntryOnBulletPoints = false,
+        flattenAllChapters = false,
+        lineSeparator = '\n',
+    } = {},
+) => {
     const entries: Partial<Entry>[] = [];
 
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
@@ -29,18 +39,20 @@ export const mapBookPagesToEntries = (pages: Page[], isMulti?: boolean) => {
     const handlers = [
         trimLine,
         capturePlainTextChapters,
-        extractRoundNumericChapters,
+        ...(captureRoundNumericChapters ? [extractRoundNumericChapters] : []),
+        ...(flattenAllChapters ? [flattenChapters] : []),
         extractNumericChapters,
         processChapter,
         processArabicNumericListItem,
         processNumericListItem,
+        ...(newEntryOnBulletPoints ? [processBulletPoint] : []),
         ...(!isMulti ? discreteHandlers : []),
         ...(isMulti ? continuousHandlers : []),
     ];
 
     for (const page of pages) {
         const rawLines = parseContentRobust(page.content);
-        runFlow(rawLines, handlers, entries, page);
+        runFlow(rawLines, handlers, entries, page, lineSeparator);
     }
 
     const idToPages = Object.groupBy(pages, (p) => p.id);
@@ -57,7 +69,12 @@ export const mapBookPagesToEntries = (pages: Page[], isMulti?: boolean) => {
                 e.id = e.index ? e.index.toString() : `P${page.id}${++nextIdCounter}`;
             }
 
-            e.volume = page.part;
+            if (page.part) {
+                e.volume = Number(page.part) || -1; // may be a text value like muqaddimah
+            } else {
+                e.volume = 1;
+            }
+
             e.pp = page.page;
         });
     });
