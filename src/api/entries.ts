@@ -6,6 +6,7 @@ import { changeEndpointName, doGet, doPut, type PagingParams } from './index.js'
  */
 export enum EntryFlags {
     PendingReview = 3,
+    VerifyTranslation = 4,
 }
 
 /**

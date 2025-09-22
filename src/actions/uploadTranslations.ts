@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { magentaBright, yellow } from 'ansis';
-import { addOrUpdateEntry, type Entry, EntryType } from '@/api/entries.js';
+import { addOrUpdateEntry, type Entry, EntryFlags, EntryType } from '@/api/entries.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import { getEntryKey } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
@@ -54,7 +54,7 @@ export const uploadTranslations = async (collectionId: string) => {
 
         if (e.translation || e.commentary) {
             if (entry) {
-                updatedEntries.push({ commentary: e.translation, id: entry.id });
+                updatedEntries.push({ commentary: e.translation, flags: EntryFlags.VerifyTranslation, id: entry.id });
             } else {
                 newEntries.push({ ...e, id: '', volume: e.volume || 1 });
             }
