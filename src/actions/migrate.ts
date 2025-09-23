@@ -82,8 +82,8 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
 
             const { page: pp, id: from, part: volume } = book.pages[m];
 
-            if (from !== entry.from || volume !== entry.volume || pp !== entry.pp) {
-                patches.push(createPatch(entry, { from, pp: pp!, volume: volume! }));
+            if (from !== entry.from || Number(volume) !== entry.volume || pp !== entry.pp) {
+                patches.push(createPatch(entry, { from, pp: pp!, volume: Number(volume) }));
             }
 
             return false;

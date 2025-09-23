@@ -1,4 +1,4 @@
-import { type Page, parseContentRobust } from 'shamela';
+import { type Line, type Page, parseContentRobust } from 'shamela';
 
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
@@ -21,14 +21,46 @@ import {
     trimLine,
 } from './flowHandlers.js';
 
+const splitTextOnCarriageReturns = (items: Line[]) => {
+    const result: Line[] = [];
+
+    for (const item of items) {
+        // Check if the text contains carriage returns
+        if (item.text.includes('\r')) {
+            // Split on carriage returns and filter out empty strings
+            const parts = item.text.split('\r').filter((part) => part.trim() !== '');
+
+            if (parts.length > 0) {
+                // First part keeps the id (if it exists)
+                result.push({
+                    ...(item.id && { id: item.id }),
+                    text: parts[0].trim(),
+                });
+
+                // Remaining parts become separate text-only elements
+                for (let i = 1; i < parts.length; i++) {
+                    result.push({
+                        text: parts[i].trim(),
+                    });
+                }
+            }
+        } else {
+            // No carriage returns, keep the item as is
+            result.push(item);
+        }
+    }
+
+    return result;
+};
+
 export const mapBookPagesToEntries = (
     pages: Page[],
     isMulti?: boolean,
     {
-        captureRoundNumericChapters = true,
+        captureRoundNumericChapters = false,
         newEntryOnBulletPoints = false,
         flattenAllChapters = false,
-        parseNumericChapters = false,
+        parseNumericChapters = true,
         lineSeparator = '\n',
     } = {},
 ) => {
@@ -52,7 +84,8 @@ export const mapBookPagesToEntries = (
     ];
 
     for (const page of pages) {
-        const rawLines = parseContentRobust(page.content);
+        let rawLines = parseContentRobust(page.content);
+        rawLines = splitTextOnCarriageReturns(rawLines);
         runFlow(rawLines, handlers, entries, page, lineSeparator);
     }
 

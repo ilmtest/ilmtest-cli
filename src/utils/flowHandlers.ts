@@ -1,8 +1,7 @@
 import { arabicNumeralToNumber, isAllUppercase, toTitleCase } from 'bitaboom';
-import type { Page } from 'shamela';
+import type { Line, Page } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
-import type { Line } from './shamelaUtils.js';
 import { findLastPunctuation, PATTERNS } from './textUtils.js';
 
 /**

@@ -41,71 +41,38 @@ const loadTranslationFile = async (dir: string) => {
     return { translations, translator };
 };
 
-const mergeLoosePages = (entries: Entry[], prefix = 'P') => {
-    for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-
-        if (entry.translation && entry.index) {
-            // find every P id that doesn't have a translation and merge
-            for (let j = i + 1; j < entries.length; j++) {
-                const page = entries[j];
-
-                if (page.id.startsWith(prefix) && !page.translation && !page.index) {
-                    entry.arabic += ` ${page.arabic}`;
-
-                    if (entry.from !== page.from) {
-                        entry.to = page.from;
-                    }
-
-                    logger.info(`Adding to: ${entry.id}`);
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-
-    const leftover: Entry[] = [];
-
-    for (const entry of entries) {
-        if (entry.id.startsWith(prefix) && !entry.translation) {
-            // skip
-        } else {
-            leftover.push(entry);
-        }
-    }
-
-    return leftover;
-};
-
 /**
  * Compiles translation data for a collection by matching entries with translation files
  * @param collectionId - The ID of the collection to compile translations for
  * @returns Promise that resolves to an array of compiled translations
  */
-export const compileTranslation = async (collectionId: string) => {
+export const compileTranslation = async (collectionId: string, pageRange: string) => {
+    const [from = 1, to = Number.MAX_SAFE_INTEGER] = (pageRange?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
     const entries: Entry[] = await excerptFile.json();
     const { translations, translator } = await loadTranslationFile(dir);
-    const idToEntries = Object.groupBy(entries, (e) => e.id);
+    const idToEntries = Object.groupBy(
+        entries.filter((e) => e.from >= from && e.from <= to),
+        (e) => e.id,
+    );
 
-    if (1 !== Number(1)) {
-        const leftover = mergeLoosePages(entries);
-        await excerptFile.write(JSON.stringify(leftover, null, 2));
-
-        return;
-    }
+    let hasError = false;
 
     for (const t of translations) {
         if (!idToEntries[t.id]) {
             logger.error(`${t.id} not found`);
+            console.error(t);
+            hasError = true;
+            continue;
         }
 
         const e = idToEntries[t.id]!.shift()!;
 
         if (!e) {
-            logger.error(`${t.id} not found`);
+            logger.error(`No entries left for ${t.id}`);
+            hasError = true;
+            continue;
         }
 
         if (!e.translation) {
@@ -119,6 +86,8 @@ export const compileTranslation = async (collectionId: string) => {
         e.flags = EntryFlags.PendingReview;
     }
 
-    await excerptFile.write(JSON.stringify(entries, null, 2));
-    logger.info(`${entries.length} saved to ${excerptFile.name}`);
+    if (!hasError) {
+        await excerptFile.write(JSON.stringify(entries, null, 2));
+        logger.info(`${entries.length} saved to ${excerptFile.name}`);
+    }
 };
