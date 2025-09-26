@@ -60,14 +60,14 @@ export const mapBookPagesToEntries = (
         captureRoundNumericChapters = false,
         newEntryOnBulletPoints = false,
         flattenAllChapters = false,
-        parseNumericChapters = true,
+        parseNumericChapters = false,
         lineSeparator = '\n',
     } = {},
 ) => {
     const entries: Partial<Entry>[] = [];
 
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
-    const continuousHandlers = [captureFirstLooseLeaf, appendNewPageToLastEntry, appendLineToLastEntry];
+    const continuousHandlers = [captureFirstLooseLeaf, /*appendNewPageToLastEntry, */ appendLineToLastEntry];
 
     const handlers = [
         trimLine,

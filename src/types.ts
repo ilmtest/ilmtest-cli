@@ -1,5 +1,6 @@
 import type { BookData, GetBookMetadataResponsePayload, Page } from 'shamela';
 import type { Segment } from 'tafrigh';
+import type { Entry } from './api/entries.js';
 
 /**
  * Represents a collection with metadata and foreign ID references
@@ -86,7 +87,10 @@ export type Translation = {
 /**
  * Represents a Shamela page with optional footer content
  */
-type ShamelaPage = Page & {
+export type ShamelaPage = Pick<Page, 'number' | 'id' | 'content'> & {
+    volume: number;
+
+    pp: number;
     /** Optional footer content for the page */
     footer?: string;
 };
@@ -101,3 +105,5 @@ export type ShamelaBook = Pick<BookData, 'titles'> &
         /** Array of book pages with content */
         pages: ShamelaPage[];
     };
+
+export type ArabicEntry = Required<Pick<Entry, 'arabic' | 'commentary' | 'from' | 'index' | 'pp' | 'type' | 'volume'>>;

@@ -1,7 +1,9 @@
+import { arabicNumeralToNumber } from 'bitaboom';
 import type { Page } from '@/api/maktabah.js';
-
-import type { Entry } from '../api/entries.js';
+import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
+import { type Entry, EntryType } from '../api/entries.js';
 import logger from './logger.js';
+import { removeAllTags, sanitizeChapter } from './textUtils.js';
 
 /**
  * Generates a unique key for an entry based on its index and type
@@ -15,7 +17,7 @@ export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e
  * @param entries - Array of entries to index
  * @returns Object containing indexed entries by key and by page number
  */
-export const indexEntriesForLookup = (entries: Entry[]) => {
+export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {}) => {
     const indexToEntries: Record<string, Entry[]> = {};
     const pageToEntries: Record<number, Entry[]> = {};
 
@@ -29,6 +31,14 @@ export const indexEntriesForLookup = (entries: Entry[]) => {
 
         for (let i = entry.from; i <= length; i++) {
             pageToEntries[i] = (pageToEntries[i] || []).concat(entry);
+        }
+
+        if (scanMatn && !entry.type) {
+            Array.from(entry.arabic!.matchAll(/([\u0660-\u0669]+) -/g)).forEach(([arabicNumber]) => {
+                const index = arabicNumeralToNumber(arabicNumber);
+                const key = getEntryKey({ index });
+                indexToEntries[key] = (indexToEntries[key] || []).concat(entry);
+            });
         }
     }
 
@@ -228,4 +238,48 @@ export const correctMissingIndices = (arr: Page[]) => {
     }
 
     return result;
+};
+
+const NUMERIC_CHAPTER_REGEX = /\(([\u0660-\u0669]+)(?:\s+[^)]*)?[)] (.+)/;
+
+const mapPageToChapter = (p: ShamelaPage): ArabicEntry | undefined => {
+    const [, arabicNumber, text] = p.content.match(NUMERIC_CHAPTER_REGEX) || [];
+
+    if (arabicNumber) {
+        const arabic = sanitizeChapter(text);
+
+        return {
+            arabic,
+            commentary: [arabic, p.footer ? sanitizeChapter(p.footer) : ''].join(' '),
+            from: p.id,
+            index: arabicNumeralToNumber(arabicNumber),
+            pp: p.pp,
+            type: EntryType.Chapter,
+            volume: p.volume,
+        };
+    }
+};
+
+export const indexChaptersForLookup = (book: ShamelaBook) => {
+    const chapterPageIds = new Set(book.titles.map((t) => t.page));
+
+    const indexToChapters = book.pages
+        .filter((p) => chapterPageIds.has(p.id))
+        .map(({ content, ...p }) => ({
+            ...p,
+            content: removeAllTags(content).replace(/\r/g, ' '),
+        }))
+        .map(mapPageToChapter)
+        .filter(Boolean)
+        .reduce(
+            (acc, e) => {
+                const key = getEntryKey(e!);
+                acc[key] = (acc[key] || []).concat(e!);
+
+                return acc;
+            },
+            {} as Record<string, ArabicEntry[]>,
+        );
+
+    return indexToChapters;
 };

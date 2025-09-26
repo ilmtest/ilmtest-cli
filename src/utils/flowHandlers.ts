@@ -1,4 +1,4 @@
-import { arabicNumeralToNumber, isAllUppercase, toTitleCase } from 'bitaboom';
+import { arabicNumeralToNumber, isAllUppercase, makeDiacriticInsensitiveRegex, toTitleCase } from 'bitaboom';
 import type { Line, Page } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
@@ -49,12 +49,14 @@ export const extractRoundNumericChapters = (ln: Line, entries: Partial<Entry>[],
     }
 };
 
+const CHAPTER_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('باب').source} `);
+
 /**
  * Captures lines that start with "باب " (chapter) and assigns them an ID
  * @param ln - Line object to process
  */
 export const capturePlainTextChapters = (ln: Line) => {
-    if (!ln.id && /^باب /.test(ln.text)) {
+    if (!ln.id && CHAPTER_REGEX.test(ln.text)) {
         ln.id = '0';
     }
 };
@@ -158,9 +160,13 @@ export const captureFirstLooseLeaf = (ln: Line, entries: Partial<Entry>[], page:
  * @param param0 - Destructured line object containing text
  * @param entries - Array of entries to modify
  */
-export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[], _page: Page, separator: string) => {
+export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[], page: Page, separator: string) => {
     const last = entries.at(-1)!;
     last.arabic = [last.arabic, text].filter(Boolean).join(separator);
+
+    if (last.from !== page.id) {
+        last.to = page.id;
+    }
 };
 
 /**

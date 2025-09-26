@@ -1,4 +1,4 @@
-import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences } from 'baburchi';
+import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
 import { normalizeSpaces } from 'bitaboom';
 import { sanitizePageContent, splitPageBodyFromFooter } from 'shamela';
 
@@ -51,14 +51,40 @@ export const removeArabicNumericPageMarkers = (text: string) => {
     return text.replace(/\s?⦗[\u0660-\u0669]+⦘\s?/, ' ');
 };
 
+const removeTagsExceptSpan = (content: string) => {
+    // Remove <a> tags and their content, keeping only the text inside
+    content = content.replace(/<a[^>]*>(.*?)<\/a>/g, '$1');
+
+    // Remove <hadeeth> tags (both self-closing, with content, and numbered)
+    content = content.replace(/<hadeeth[^>]*>|<\/hadeeth>|<hadeeth-\d+>/g, '');
+
+    return content;
+};
+
+export const removeAllTags = (content: string) => content.replace(/<[^>]*>/g, '');
+
 export const getPageBodyAndFootnotes = (text: string) => {
     const [body, footnote] = splitPageBodyFromFooter(text);
 
-    let content = removeSingleDigitFootnoteReferences(body);
+    let content = body;
+    content = removeSingleDigitFootnoteReferences(content);
+    //content = removeTagsExceptSpan(content);
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);
     content = sanitizePageContent(content);
     content = normalizeSpaces(content);
 
     return [content, footnote];
+};
+
+const blacklistRegex = new RegExp(
+    ['صلي الله عليه وسلم', 'رضي الله عنهما', 'رضي الله عنه'].sort((a, b) => b.length - a.length).join('|'),
+);
+
+export const sanitizeChapter = (title: string) => {
+    return sanitizeArabic(title, 'aggressive')
+        .replace(blacklistRegex, '')
+        .replace(/^باب/, '')
+        .replace(/^كتاب/, '')
+        .trim();
 };

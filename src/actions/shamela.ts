@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { getBook, getBookMetadata, setLogger } from 'shamela';
+import { type BookData, getBook, getBookMetadata, setLogger } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, ShamelaBook } from '@/types.js';
@@ -68,27 +68,28 @@ const parseInputArgs = () => {
  * @returns Promise resolving to processed ShamelaBook object
  */
 const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
-    const book = await loadOrDownload<ShamelaBook>(
+    const book = await loadOrDownload<BookData>(
         'book',
         async () => {
-            const [metadata, bookData] = await Promise.all([getBookMetadata(bookId), getBook(bookId)]);
+            const [metadata, shamelaBook] = await Promise.all([getBookMetadata(bookId), getBook(bookId)]);
+
             return {
                 majorRelease: metadata.majorRelease,
                 minorRelease: metadata.minorRelease,
                 shamelaId: bookId,
-                ...bookData,
+                ...shamelaBook,
             };
         },
         dir,
     );
 
     book.pages = book.pages.filter((p) => p.id >= from && p.id <= to);
-    book.pages = book.pages.map((p) => {
+    book.pages = book.pages.map(({ part, page, ...p }) => {
         const [content, footer] = getPageBodyAndFootnotes(p.content);
-        return { ...p, content, ...(footer && { footer }) };
+        return { ...p, content, ...(footer && { footer }), pp: page || 0, volume: Number(part) || 1 };
     });
 
-    return book;
+    return book as ShamelaBook;
 };
 
 /**
