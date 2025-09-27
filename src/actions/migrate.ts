@@ -3,6 +3,7 @@ import { findMatches } from 'baburchi';
 import { stripHtml } from 'string-strip-html';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { ShamelaBook, ShamelaPage } from '@/types.js';
+import { CAPTURE_CONTINUOUS_PAGES } from '@/utils/constants.js';
 import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
@@ -18,10 +19,13 @@ import { saveEntries } from './uploadTranslations.js';
  * @param isMulti - Whether the book has multiple segments per page
  * @returns Object containing matched entries, patches, and unlinked entries
  */
-const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], isMulti: boolean) => {
+const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], multi?: string) => {
     const patches: Partial<Entry>[] = [];
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, isMulti);
+    const arabicEntries = mapBookPagesToEntries(book.pages, {
+        captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
+        isContinuous: Boolean(multi),
+    });
 
     const unlinked = findMatches(
         arabicEntries.map((a) => a.arabic!),
@@ -87,10 +91,10 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
 export const migrateEntries = async (strategy?: string) => {
     process.argv = process.argv.filter((s) => !s.includes('--migrate'));
 
-    const { book, entries, isMulti } = await loadData();
+    const { book, entries, multi } = await loadData();
 
     if (strategy === 'index') {
-        const patches = patchEntriesByIndex(book, entries, isMulti);
+        const patches = patchEntriesByIndex(book, entries, multi);
         await saveEntries(patches as Entry[], logger.level === 'debug');
 
         return;
@@ -136,7 +140,7 @@ export const migrateEntries = async (strategy?: string) => {
 
     logger.info(`${entries.length} entries to link...`);
 
-    let { patches, unlinked, indexToEntries } = matchEntriesBySegments(book, entries, isMulti);
+    let { patches, unlinked, indexToEntries } = matchEntriesBySegments(book, entries, multi);
 
     logger.info(`${patches.length} entries linked, ${unlinked.length} could not be linked...`);
 

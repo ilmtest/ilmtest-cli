@@ -27,8 +27,7 @@ const main = async () => {
             diff: {
                 type: 'string',
             },
-            downloadAsl: {
-                short: 'd',
+            download: {
                 type: 'string',
             },
             extract: {
@@ -44,7 +43,7 @@ const main = async () => {
                 type: 'string',
             },
             shamela: {
-                type: 'boolean',
+                type: 'string',
             },
             transcribe: {
                 short: 't',
@@ -62,7 +61,6 @@ const main = async () => {
                 { name: 'AI Translate', value: 'translate' },
                 { name: 'Check Asl', value: 'checkAsl' },
                 { name: 'Delete Asl', value: 'deleteAsl' },
-                { name: 'Download Asl', value: 'downloadAsl' },
                 { name: 'Extract', value: 'extract' },
                 { name: 'Upload Asl', value: 'uploadAsl' },
             ],
@@ -83,10 +81,6 @@ const main = async () => {
         action = 'transcribe';
     }
 
-    if (values.downloadAsl) {
-        action = 'downloadAsl';
-    }
-
     if (values.extract) {
         action = 'extract';
     }
@@ -97,8 +91,8 @@ const main = async () => {
         await (await import('./actions/deleteAsl.js')).deleteAsl();
     } else if (action === 'checkAsl') {
         await (await import('./actions/checkAsl.js')).checkAsl();
-    } else if (action === 'downloadAsl') {
-        await (await import('./actions/downloadAsl.js')).downloadAsl(...positionals);
+    } else if (values.download) {
+        await (await import('./actions/downloadAsl.js')).downloadAsl(values.download as string);
     } else if (action === 'extract') {
         await (await import('./actions/extractor.js')).extractor();
     } else if (action === 'uploadAsl') {

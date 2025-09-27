@@ -1,6 +1,7 @@
 import { findMatches } from 'baburchi';
 import type { Entry } from '@/api/entries.js';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
+import { CAPTURE_CONTINUOUS_PAGES } from './constants.js';
 import { getEntryKey, indexChaptersForLookup, indexEntriesForLookup } from './entryUtils.js';
 import { mapBookPagesToEntries } from './mapping.js';
 
@@ -64,17 +65,18 @@ export const createPatch = (
     };
 };
 
-export const patchEntriesByIndex = (book: ShamelaBook, unlinked: Entry[], isMulti: boolean) => {
+export const patchEntriesByIndex = (book: ShamelaBook, unlinked: Entry[], multi?: string) => {
     const patches: Partial<Entry>[] = [];
 
     const numberToPages = Object.groupBy(
-        book.pages
-            .filter((p) => p.number)
-            .map((p) => ({ from: p.id, number: p.number!, pp: p.page!, volume: Number(p.part) })),
+        book.pages.filter((p) => p.number).map((p) => ({ from: p.id, number: p.number!, pp: p.pp, volume: p.volume })),
         (page) => page.number,
     );
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, isMulti);
+    const arabicEntries = mapBookPagesToEntries(book.pages, {
+        captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
+        isContinuous: Boolean(multi),
+    });
     const { indexToEntries } = indexEntriesForLookup(arabicEntries as Entry[], { scanMatn: true });
 
     const indexedNarrations = unlinked.filter((a) => a.index && a.type).sort((a, b) => a.index! - b.index!);

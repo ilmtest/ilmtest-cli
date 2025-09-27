@@ -1,9 +1,10 @@
 import { promises as fs } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 import { input } from '@inquirer/prompts';
 import { S3Client } from 'bun';
-
+import { OUTPUT_DIR } from '@/utils/constants.js';
 import config from '../utils/config.js';
 import { decompressFromStream } from '../utils/io.js';
 import logger from '../utils/logger.js';
@@ -30,7 +31,10 @@ export const downloadAsl = async (selectedCollection?: string) => {
         secretAccessKey: config.awsSecretKey,
     });
 
-    const outputFile = path.format({ ext: '.json', name: collectionId });
+    const dir = path.join(OUTPUT_DIR, collectionId);
+
+    await mkdir(dir, { recursive: true });
+    const outputFile = path.format({ dir, ext: '.json', name: 'book' });
 
     try {
         if (await s3Client.exists(`${collectionId}.json.gz`)) {

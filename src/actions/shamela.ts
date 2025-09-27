@@ -6,7 +6,7 @@ import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, ShamelaBook } from '@/types.js';
 
-import { OUTPUT_DIR } from '@/utils/constants.js';
+import { CAPTURE_CONTINUOUS_PAGES, OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
@@ -22,20 +22,17 @@ import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 const parseInputArgs = () => {
     const { values } = parseArgs({
         options: {
-            collection: {
-                type: 'string',
-            },
             entries: {
                 type: 'string',
             },
             multi: {
-                type: 'boolean',
+                type: 'string',
             },
             pages: {
                 type: 'string',
             },
             shamela: {
-                type: 'boolean',
+                type: 'string',
             },
             unused: {
                 type: 'string',
@@ -44,17 +41,13 @@ const parseInputArgs = () => {
         strict: true,
     });
 
-    if (!values.collection) {
-        throw new Error('No collection specified');
-    }
-
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
 
     return {
-        collectionId: values.collection,
+        collectionId: String(values.shamela),
         entriesToFilter: values.entries?.split(','),
         from,
-        isMulti: Boolean(values.multi),
+        multi: values.multi,
         to,
         unused: values.unused,
     };
@@ -82,6 +75,31 @@ const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
         },
         dir,
     );
+
+    if ((book as any).contractVersion) {
+        const { pages } = book as any;
+        return {
+            pages: pages.map((p: any) => ({
+                content: p.text.replace(/\n/g, '\r').replace(/\([\u0660-\u0669]+\)/g, ''),
+                footer: p.footnotes,
+                id: p.page,
+                pp: p.volumePage,
+                volume: p.volume,
+            })),
+        } as ShamelaBook;
+    }
+
+    if ((book as any).ocrEngine) {
+        const { pages } = book as any;
+        return {
+            pages: pages.map((p: any) => ({
+                content: p.body.replace(/\n/g, '\r').replace(/\([\u0660-\u0669]+\)/g, ''),
+                id: p.page,
+                pp: p.pp,
+                volume: p.part,
+            })),
+        } as ShamelaBook;
+    }
 
     book.pages = book.pages.filter((p) => p.id >= from && p.id <= to);
     book.pages = book.pages.map(({ part, page, ...p }) => {
@@ -134,13 +152,16 @@ export const loadData = async () => {
  * @returns Promise that resolves when processing is complete
  */
 export const processShamela = async () => {
-    const { book, collection, dir, unused, isMulti, coveredIndices, coveredPages } = await loadData();
+    const { book, collection, dir, unused, multi, coveredIndices, coveredPages } = await loadData();
 
     if (unused === 'pages') {
         book.pages = book.pages.filter((p) => !coveredPages.has(p.id));
     }
 
-    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, isMulti);
+    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, {
+        captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
+        isContinuous: Boolean(multi),
+    });
 
     if (unused === 'index') {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));

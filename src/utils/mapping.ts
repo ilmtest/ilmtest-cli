@@ -55,19 +55,25 @@ const splitTextOnCarriageReturns = (items: Line[]) => {
 
 export const mapBookPagesToEntries = (
     pages: Page[],
-    isMulti?: boolean,
     {
         captureRoundNumericChapters = false,
+        captureNumbered = false,
         newEntryOnBulletPoints = false,
         flattenAllChapters = false,
         parseNumericChapters = false,
+        isContinuous = false,
+        captureTrailing = false,
         lineSeparator = '\n',
     } = {},
 ) => {
     const entries: Partial<Entry>[] = [];
 
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
-    const continuousHandlers = [captureFirstLooseLeaf, /*appendNewPageToLastEntry, */ appendLineToLastEntry];
+    const continuousHandlers = [
+        captureFirstLooseLeaf,
+        ...(captureTrailing ? [appendNewPageToLastEntry] : []),
+        appendLineToLastEntry,
+    ];
 
     const handlers = [
         trimLine,
@@ -76,11 +82,11 @@ export const mapBookPagesToEntries = (
         ...(flattenAllChapters ? [flattenChapters] : []),
         ...(parseNumericChapters ? [extractNumericChapters] : []),
         processChapter,
-        processArabicNumericListItem,
+        ...(captureNumbered ? [processArabicNumericListItem] : []),
         processNumericListItem,
         ...(newEntryOnBulletPoints ? [processBulletPoint] : []),
-        ...(!isMulti ? discreteHandlers : []),
-        ...(isMulti ? continuousHandlers : []),
+        ...(!isContinuous ? discreteHandlers : []),
+        ...(isContinuous ? continuousHandlers : []),
     ];
 
     for (const page of pages) {
