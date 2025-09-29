@@ -4,6 +4,9 @@ import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
 import { findLastPunctuation, PATTERNS } from './textUtils.js';
 
+const CHAPTER_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('باب').source} `);
+const KITAB_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('كتاب').source} `);
+
 /**
  * Trims whitespace from the beginning and end of a line's text
  * @param ln - Line object to trim
@@ -16,11 +19,36 @@ export const trimLine = (ln: Line) => {
  * Removes ID from lines that match Arabic numeric list item pattern
  * @param ln - Line object to process
  */
-export const extractNumericChapters = (ln: Line) => {
+export const flattenNumericChapters = (ln: Line) => {
     if (ln.id && PATTERNS.MatchArabicNumericListItem.test(ln.text)) {
         ln.id = undefined;
     }
 };
+
+const getEntryType = (text: string) => (KITAB_REGEX.test(text.trim()) ? EntryType.Book : EntryType.Chapter);
+
+/**
+ * Removes ID from lines that match Arabic numeric list item pattern
+ * @param ln - Line object to process
+ */
+export const captureNumericChapters = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    if (ln.id) {
+        const [, idx, txt] = ln.text.match(PATTERNS.MatchArabicNumericListItem) || [];
+
+        if (txt) {
+            entries.push({
+                arabic: txt.trim(),
+                from: page.id,
+                id: ln.id,
+                index: arabicNumeralToNumber(idx),
+                type: getEntryType(txt),
+            });
+
+            return true;
+        }
+    }
+};
+
 export const flattenChapters = (ln: Line) => {
     if (ln.id) {
         ln.id = undefined;
@@ -49,15 +77,19 @@ export const extractRoundNumericChapters = (ln: Line, entries: Partial<Entry>[],
     }
 };
 
-const CHAPTER_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('باب').source} `);
-
 /**
  * Captures lines that start with "باب " (chapter) and assigns them an ID
  * @param ln - Line object to process
  */
 export const capturePlainTextChapters = (ln: Line) => {
-    if (!ln.id && CHAPTER_REGEX.test(ln.text)) {
+    if (!ln.id && (CHAPTER_REGEX.test(ln.text) || /^مسألة:?$/.test(ln.text))) {
         ln.id = '0';
+    }
+};
+
+export const removeSquareBracketsFromTitles = (ln: Line) => {
+    if (ln.id && /\[([^-]+?)\s*-\s*([^\]]+)\]/.test(ln.text)) {
+        ln.text = ln.text.slice(1, -1);
     }
 };
 
@@ -74,7 +106,7 @@ export const processChapter = (ln: Line, entries: Partial<Entry>[], page: Page) 
             arabic: ln.text,
             from: page.id,
             id: ln.id,
-            type: EntryType.Chapter,
+            type: getEntryType(ln.text),
         });
 
         return true;
@@ -90,6 +122,18 @@ export const processChapter = (ln: Line, entries: Partial<Entry>[], page: Page) 
  */
 export const processArabicNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
     const [, idx, txt] = ln.text.match(PATTERNS.MatchArabicNumericListItem) || [];
+
+    if (txt) {
+        entries.push({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
+        return true;
+    }
+};
+
+export const processArabicLetterNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    /*const regex =
+        /^(?:[\u0621-\u064A\u0660-\u0669]+\s+|\([\u0621-\u064A\u0660-\u0669]*\s*)([\u0660-\u0669]+)\)?\s*(?:[-–—ـ]\s*)?(.*)$/;
+    const [, idx, txt] = ln.text.match(regex) || []; */
+    const [, idx, txt] = ln.text.match(/^[\u0621-\u064A\u0660-\u0669]+\s+([\u0660-\u0669]+)\s?[-–—ـ]\s*(.*)/) || [];
 
     if (txt) {
         entries.push({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
@@ -216,7 +260,7 @@ export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], pa
  * @returns True if a translation was processed, undefined otherwise
  */
 export const processTranslation = (line: string, translations: Translation[]) => {
-    const [, id, text] = line.match(/^([CP]?\d+)\s?[-–—ـ](.*)$/) || [];
+    const [, id, text] = line.match(/^([BCNP]\d+)\s?[-–—ـ](.*)$/) || [];
 
     if (text) {
         translations.push({

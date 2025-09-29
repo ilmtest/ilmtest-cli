@@ -1,7 +1,7 @@
 import { type Line, type Page, parseContentRobust } from 'shamela';
 
 import { type Entry, EntryType } from '@/api/entries.js';
-import type { Translation } from '@/types.js';
+import type { ShamelaPage, Translation } from '@/types.js';
 import { runFlow } from './flow.js';
 import {
     appendLineToLastEntry,
@@ -9,15 +9,18 @@ import {
     appendToLastTranslation,
     captureEntirePage,
     captureFirstLooseLeaf,
+    captureNumericChapters,
     capturePlainTextChapters,
-    extractNumericChapters,
     extractRoundNumericChapters,
     flattenChapters,
+    flattenNumericChapters,
+    processArabicLetterNumericListItem,
     processArabicNumericListItem,
     processBulletPoint,
     processChapter,
     processNumericListItem,
     processTranslation,
+    removeSquareBracketsFromTitles,
     trimLine,
 } from './flowHandlers.js';
 
@@ -54,10 +57,10 @@ const splitTextOnCarriageReturns = (items: Line[]) => {
 };
 
 export const mapBookPagesToEntries = (
-    pages: Page[],
+    pages: ShamelaPage[],
     {
         captureRoundNumericChapters = false,
-        captureNumbered = false,
+        captureNumbered = true,
         newEntryOnBulletPoints = false,
         flattenAllChapters = false,
         parseNumericChapters = false,
@@ -77,10 +80,13 @@ export const mapBookPagesToEntries = (
 
     const handlers = [
         trimLine,
+        removeSquareBracketsFromTitles,
         capturePlainTextChapters,
         ...(captureRoundNumericChapters ? [extractRoundNumericChapters] : []),
         ...(flattenAllChapters ? [flattenChapters] : []),
-        ...(parseNumericChapters ? [extractNumericChapters] : []),
+        ...(parseNumericChapters ? [flattenNumericChapters] : []),
+        captureNumericChapters,
+        processArabicLetterNumericListItem,
         processChapter,
         ...(captureNumbered ? [processArabicNumericListItem] : []),
         processNumericListItem,
@@ -105,17 +111,14 @@ export const mapBookPagesToEntries = (
 
             if (e.type === EntryType.Chapter) {
                 e.id = `C${Number(e.id) || page.id}`;
+            } else if (e.type === EntryType.Book) {
+                e.id = `B${Number(e.id) || page.id}`;
             } else {
-                e.id = e.index ? e.index.toString() : `P${page.id}${++nextIdCounter}`;
+                e.id = e.index ? `N${e.index}` : `P${page.id}${++nextIdCounter}`;
             }
 
-            if (page.part) {
-                e.volume = Number(page.part) || -1; // may be a text value like muqaddimah
-            } else {
-                e.volume = 1;
-            }
-
-            e.pp = page.page;
+            e.volume = page.volume;
+            e.pp = page.pp;
         });
     });
 

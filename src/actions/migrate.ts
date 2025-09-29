@@ -89,8 +89,6 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
  * @returns Promise that resolves when migration completes
  */
 export const migrateEntries = async (strategy?: string) => {
-    process.argv = process.argv.filter((s) => !s.includes('--migrate'));
-
     const { book, entries, multi } = await loadData();
 
     if (strategy === 'index') {

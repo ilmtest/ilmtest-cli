@@ -25,6 +25,9 @@ const parseInputArgs = () => {
             entries: {
                 type: 'string',
             },
+            migrate: {
+                type: 'string',
+            },
             multi: {
                 type: 'string',
             },
@@ -44,7 +47,7 @@ const parseInputArgs = () => {
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
 
     return {
-        collectionId: String(values.shamela),
+        collectionId: String(values.shamela || values.migrate),
         entriesToFilter: values.entries?.split(','),
         from,
         multi: values.multi,

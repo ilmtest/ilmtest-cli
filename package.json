@@ -8,33 +8,33 @@
     },
     "dependencies": {
         "@inquirer/prompts": "^7.8.6",
-        "ansis": "^4.1.0",
-        "baburchi": "^1.7.0",
+        "ansis": "^4.2.0",
+        "baburchi": "^1.7.1",
         "baheth-sdk": "^1.2.2",
         "bitaboom": "^2.0.0",
         "cli-progress": "^3.12.0",
         "cli-welcome": "^3.0.1",
-        "conf": "^14.0.0",
+        "conf": "^15.0.0",
         "kokokor": "^2.0.4",
-        "pino": "^9.11.0",
+        "pino": "^9.12.0",
         "pino-pretty": "^13.1.1",
         "rabbito": "^1.0.0",
         "remove-markdown": "^0.6.2",
-        "shamela": "^1.2.2",
+        "shamela": "^1.2.3",
         "string-strip-html": "^13.4.13",
         "tafrigh": "^4.1.0"
     },
     "description": "CLI for IlmTest API.",
     "devDependencies": {
         "@biomejs/biome": "^2.2.4",
-        "@types/bun": "^1.2.22",
+        "@types/bun": "^1.2.23",
         "@types/cli-progress": "^3.11.6",
         "@types/node": "^24.5.2",
         "semantic-release": "^24.2.9",
         "tsup": "^8.5.0"
     },
     "engines": {
-        "bun": ">=1.2.22"
+        "bun": ">=1.2.23"
     },
     "files": [
         "dist/index.js"

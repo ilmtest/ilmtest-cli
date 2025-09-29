@@ -1,6 +1,6 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
 import { normalizeSpaces } from 'bitaboom';
-import { sanitizePageContent, splitPageBodyFromFooter } from 'shamela';
+import { removeArabicNumericPageMarkers, sanitizePageContent, splitPageBodyFromFooter } from 'shamela';
 
 /**
  * Regular expression patterns for text processing, particularly for Arabic and numeric content
@@ -45,20 +45,6 @@ export const findLastPunctuation = (text: string) => {
     }
 
     return -1;
-};
-
-export const removeArabicNumericPageMarkers = (text: string) => {
-    return text.replace(/\s?⦗[\u0660-\u0669]+⦘\s?/, ' ');
-};
-
-const removeTagsExceptSpan = (content: string) => {
-    // Remove <a> tags and their content, keeping only the text inside
-    content = content.replace(/<a[^>]*>(.*?)<\/a>/g, '$1');
-
-    // Remove <hadeeth> tags (both self-closing, with content, and numbered)
-    content = content.replace(/<hadeeth[^>]*>|<\/hadeeth>|<hadeeth-\d+>/g, '');
-
-    return content;
 };
 
 export const removeAllTags = (content: string) => content.replace(/<[^>]*>/g, '');
