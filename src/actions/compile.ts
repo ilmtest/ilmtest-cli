@@ -32,7 +32,7 @@ const loadTranslationFile = async (dir: string) => {
 
     let text = await file.text();
 
-    text = text.replace(/ ([CP]?\d+) -/gm, '\n$1 -');
+    text = text.replace(/ ([CPN]?\d+) -/gm, '\n$1 -');
     text = text.replace(/\\\[/gm, '[');
 
     const translations = mapLinesToTranslations(text);

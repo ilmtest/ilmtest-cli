@@ -85,7 +85,7 @@ const main = async () => {
         action = 'extract';
     }
 
-    if (action === 'transcribe') {
+    if (values.transcribe) {
         await (await import('./actions/transcribe.js')).transcribeWithAI(...positionals);
     } else if (action === 'deleteAsl') {
         await (await import('./actions/deleteAsl.js')).deleteAsl();
