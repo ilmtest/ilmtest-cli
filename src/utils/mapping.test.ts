@@ -141,7 +141,7 @@ describe('mapping', () => {
                         { content: `Some text.`, id: 1, page: 1, part: 1 },
                         { content: `More text.`, id: 2, page: 2, part: 1 },
                     ],
-                    true,
+                    { isContinuous: true },
                 );
 
                 expect(actual).toEqual([
@@ -173,7 +173,7 @@ describe('mapping', () => {
                         },
                         { content: `Another sentence. Rest of sentence`, id: 2, page: 2, part: 1 },
                     ],
-                    true,
+                    { isContinuous: true },
                 );
 
                 console.log(actual);
@@ -197,15 +197,15 @@ describe('mapping', () => {
                 ]);
             });
 
-            it.only('should handle the three pages with punctuation', () => {
+            it('should handle the three pages with punctuation', () => {
                 const actual = mapBookPagesToEntries(
                     [
-                        { content: `A`, id: 1, page: 1, part: 1 },
-                        { content: `B. C`, id: 2, page: 2, part: 1 },
-                        { content: `D. E`, id: 3, page: 3, part: 1 },
-                        { content: `F`, id: 4, page: 4, part: 1 },
+                        { content: `A`, id: 1, pp: 1, volume: 1 },
+                        { content: `B. C`, id: 2, pp: 2, volume: 1 },
+                        { content: `D. E`, id: 3, pp: 3, volume: 1 },
+                        { content: `F`, id: 4, pp: 4, volume: 1 },
                     ],
-                    true,
+                    { captureTrailing: true, isContinuous: true },
                 );
 
                 expect(actual).toEqual([
