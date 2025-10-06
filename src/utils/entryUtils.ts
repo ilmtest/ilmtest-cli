@@ -34,7 +34,7 @@ export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {
         }
 
         if (scanMatn && !entry.type) {
-            Array.from(entry.arabic!.matchAll(/([\u0660-\u0669]+) -/g)).forEach(([arabicNumber]) => {
+            Array.from(entry.arabic!.matchAll(/([\u0660-\u0669]+) -?/g)).forEach(([arabicNumber]) => {
                 const index = arabicNumeralToNumber(arabicNumber);
                 const key = getEntryKey({ index });
                 indexToEntries[key] = (indexToEntries[key] || []).concat(entry);

@@ -22,6 +22,9 @@ import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 const parseInputArgs = () => {
     const { values } = parseArgs({
         options: {
+            commas: {
+                type: 'boolean',
+            },
             entries: {
                 type: 'string',
             },
@@ -47,6 +50,7 @@ const parseInputArgs = () => {
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
 
     return {
+        captureCommaSeparatedIndices: values.commas,
         collectionId: String(values.shamela || values.migrate),
         entriesToFilter: values.entries?.split(','),
         from,
@@ -155,13 +159,15 @@ export const loadData = async () => {
  * @returns Promise that resolves when processing is complete
  */
 export const processShamela = async () => {
-    const { book, collection, dir, unused, multi, coveredIndices, coveredPages } = await loadData();
+    const { book, collection, dir, unused, multi, coveredIndices, captureCommaSeparatedIndices, coveredPages } =
+        await loadData();
 
     if (unused === 'pages') {
         book.pages = book.pages.filter((p) => !coveredPages.has(p.id));
     }
 
     let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, {
+        captureCommaSeparatedIndices,
         captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
         isContinuous: Boolean(multi),
     });

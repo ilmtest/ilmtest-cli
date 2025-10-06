@@ -9,9 +9,9 @@ const TRANSLATE_PROMPT = [
     `You will be translating from the book: {{book}}.`,
     'Translate the following Arabic text into English with the highest level of accuracy preferring literal translations except when the context fits to translate by meaning.',
     'Carefully analyze the context to ensure the correct usage of Islamic technical terminology.',
-    'Preserve full chains of narration and use ALA-LC transliteration only on the names of the narrators in the chain but not the textual content nor words like "Ḥaddathanā". Translate chapter headings as well.',
+    'Preserve full chains of narration and use ALA-LC transliteration only on the names of the narrators in the chain but not the textual content. "حَدَّثَنَا مُحَمَّدُ" would translate to "Muḥammad narrated to us". Translate chapter headings as well.',
     'Translate "God" as Allah unless the Arabic is actually refering to an ilāh. Whenever صلى الله عليه وسلم is used translate it with ﷺ.',
-    'Respond only in plain-text, no markdown or formatting. Keep each narration in a single line without any line breaks within it except for poetry. Keep the numeric prefixes (P1, C1, 11, etc.) that appear in the beginning of each narration.',
+    'Respond only in plain-text, no markdown or formatting. Keep the numeric prefixes (B1, C2, N33, P44, etc.) that appear in the beginning of each narration.',
     'Revise your translation 3 times before sending it to verify its accuracy.',
 ];
 

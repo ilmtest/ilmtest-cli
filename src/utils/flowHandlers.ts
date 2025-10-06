@@ -113,6 +113,17 @@ export const processChapter = (ln: Line, entries: Partial<Entry>[], page: Page) 
     }
 };
 
+export const captureCommaSeparatedArabicNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const [, indexes, txt] = ln.text.match(/^((?:[\u0660-\u0669]+(?:، )?)+)\s?[-–—ـ](.*)/) || [];
+
+    if (txt) {
+        const numbers = indexes.split(/، ?/).filter(Boolean).map(arabicNumeralToNumber);
+
+        entries.push({ arabic: txt.trim(), from: page.id, id: numbers.join(',') });
+        return true;
+    }
+};
+
 /**
  * Processes Arabic numeric list items and creates corresponding entries
  * @param ln - Line object to process

@@ -1,6 +1,11 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
 import { normalizeSpaces } from 'bitaboom';
-import { removeArabicNumericPageMarkers, sanitizePageContent, splitPageBodyFromFooter } from 'shamela';
+import {
+    removeArabicNumericPageMarkers,
+    removeTagsExceptSpan,
+    sanitizePageContent,
+    splitPageBodyFromFooter,
+} from 'shamela';
 
 /**
  * Regular expression patterns for text processing, particularly for Arabic and numeric content
@@ -54,7 +59,9 @@ export const getPageBodyAndFootnotes = (text: string) => {
 
     let content = body;
     content = removeSingleDigitFootnoteReferences(content);
-    //content = removeTagsExceptSpan(content);
+    content = removeTagsExceptSpan(content);
+    //content = removeAllTags(content);
+    content = removeTagsExceptSpan(content);
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);
     content = sanitizePageContent(content);

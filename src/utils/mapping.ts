@@ -7,6 +7,7 @@ import {
     appendLineToLastEntry,
     appendNewPageToLastEntry,
     appendToLastTranslation,
+    captureCommaSeparatedArabicNumericListItem,
     captureEntirePage,
     captureFirstLooseLeaf,
     captureNumericChapters,
@@ -66,10 +67,11 @@ export const mapBookPagesToEntries = (
         parseNumericChapters = false,
         isContinuous = false,
         captureTrailing = false,
+        captureCommaSeparatedIndices = true,
         lineSeparator = '\n',
     } = {},
 ) => {
-    const entries: Partial<Entry>[] = [];
+    let entries: Partial<Entry>[] = [];
 
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
     const continuousHandlers = [
@@ -89,6 +91,7 @@ export const mapBookPagesToEntries = (
         processArabicLetterNumericListItem,
         processChapter,
         ...(captureNumbered ? [processArabicNumericListItem] : []),
+        ...(captureCommaSeparatedIndices ? [captureCommaSeparatedArabicNumericListItem] : []),
         processNumericListItem,
         ...(newEntryOnBulletPoints ? [processBulletPoint] : []),
         ...(!isContinuous ? discreteHandlers : []),
@@ -103,23 +106,47 @@ export const mapBookPagesToEntries = (
 
     const idToPages = Object.groupBy(pages, (p) => p.id);
 
-    Object.values(Object.groupBy(entries, (e) => e.from!)).forEach((partialEntries) => {
+    entries = Object.values(Object.groupBy(entries, (e) => e.from!)).flatMap((partialEntries) => {
         let nextIdCounter = 0;
 
-        partialEntries?.forEach((e) => {
+        const values = partialEntries?.flatMap((e) => {
             const [page] = idToPages[e.from!]!;
+            const next = [{ ...e, pp: page.pp, volume: page.volume }];
 
             if (e.type === EntryType.Chapter) {
-                e.id = `C${Number(e.id) || page.id}`;
-            } else if (e.type === EntryType.Book) {
-                e.id = `B${Number(e.id) || page.id}`;
-            } else {
-                e.id = e.index ? `N${e.index}` : `P${page.id}${++nextIdCounter}`;
+                next.forEach((n) => {
+                    n.id = `C${Number(n.id) || page.id}`;
+                });
+
+                return next;
             }
 
-            e.volume = page.volume;
-            e.pp = page.pp;
-        });
+            if (e.type === EntryType.Book) {
+                next.forEach((n) => {
+                    n.id = `B${Number(n.id) || page.id}`;
+                });
+
+                return next;
+            }
+
+            if (e.id?.includes(',')) {
+                // comma separated
+                const [index, ...indexes] = e.id.split(',');
+                next[0].index = Number(index);
+
+                for (const i of indexes) {
+                    next.push({ ...next[0], arabic: '', index: Number(i) });
+                }
+            }
+
+            next.forEach((n) => {
+                n.id = n.index ? `N${n.index}` : `P${page.id}${++nextIdCounter}`;
+            });
+
+            return next;
+        })!;
+
+        return values;
     });
 
     return entries;
