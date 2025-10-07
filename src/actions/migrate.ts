@@ -3,8 +3,7 @@ import { findMatches } from 'baburchi';
 import { stripHtml } from 'string-strip-html';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { ShamelaBook, ShamelaPage } from '@/types.js';
-import { CAPTURE_CONTINUOUS_PAGES } from '@/utils/constants.js';
-import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
+import { getEntryKey, getVolumePageKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { createPatch, patchChaptersByIndex, patchChaptersByMatn, patchEntriesByIndex } from '@/utils/patchUtils.js';
@@ -19,13 +18,10 @@ import { saveEntries } from './uploadTranslations.js';
  * @param isMulti - Whether the book has multiple segments per page
  * @returns Object containing matched entries, patches, and unlinked entries
  */
-const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], multi?: string) => {
+const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], options: any) => {
     const patches: Partial<Entry>[] = [];
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, {
-        captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
-        isContinuous: Boolean(multi),
-    });
+    const arabicEntries = mapBookPagesToEntries(book.pages, options);
 
     const unlinked = findMatches(
         arabicEntries.map((a) => a.arabic!),
@@ -89,10 +85,10 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
  * @returns Promise that resolves when migration completes
  */
 export const migrateEntries = async (strategy?: string) => {
-    const { book, entries, multi } = await loadData();
+    const { book, entries, options } = await loadData();
 
     if (strategy === 'index') {
-        const patches = patchEntriesByIndex(book, entries, multi);
+        const patches = patchEntriesByIndex(book, entries, options);
         await saveEntries(patches as Entry[], logger.level === 'debug');
 
         return;
@@ -138,7 +134,7 @@ export const migrateEntries = async (strategy?: string) => {
 
     logger.info(`${entries.length} entries to link...`);
 
-    let { patches, unlinked, indexToEntries } = matchEntriesBySegments(book, entries, multi);
+    let { patches, unlinked, indexToEntries, volumePageToEntries } = matchEntriesBySegments(book, entries, options);
 
     logger.info(`${patches.length} entries linked, ${unlinked.length} could not be linked...`);
 
@@ -161,16 +157,24 @@ export const migrateEntries = async (strategy?: string) => {
 
         const remaining: Entry[] = [];
 
-        unlinked.forEach((entry) => {
+        for (const entry of unlinked) {
             const key = getEntryKey(entry);
-            const page = indexToEntries[key]?.shift();
+            let page = indexToEntries[key]?.shift();
 
             if (page && (page.from !== entry.from || page.pp !== entry.pp || page.volume !== entry.volume)) {
                 patches.push(createPatch(entry, page as any));
-            } else {
-                remaining.push(entry);
+                continue;
             }
-        });
+
+            page = volumePageToEntries[getVolumePageKey(entry)]?.shift();
+
+            if (page && page.from !== entry.from) {
+                patches.push(createPatch(entry, page as any));
+                continue;
+            }
+
+            remaining.push(entry);
+        }
 
         unlinked = remaining;
 

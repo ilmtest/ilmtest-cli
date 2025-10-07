@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { captureCommaSeparatedArabicNumericListItem } from './flowHandlers';
+import { captureCommaSeparatedArabicNumericListItem, captureSquareBracketListItem } from './flowHandlers';
 
 describe('flowHandlers', () => {
     describe('captureCommaSeparatedArabicNumericListItem', () => {
@@ -32,6 +32,24 @@ describe('flowHandlers', () => {
                     arabic: 'قال أبو داود',
                     from: 1,
                     id: '1219,1220,1221,1222',
+                },
+            ]);
+        });
+    });
+
+    describe('captureSquareBracketListItem', () => {
+        it('should capture the square list item', () => {
+            const entries = [];
+            captureSquareBracketListItem({ text: '[٩٩] "إبراهيم" بن حرب' }, entries, {
+                content: 'C',
+                id: 1,
+            });
+
+            expect(entries).toMatchObject([
+                {
+                    arabic: '"إبراهيم" بن حرب',
+                    from: 1,
+                    index: 99,
                 },
             ]);
         });

@@ -65,7 +65,7 @@ export const createPatch = (
     };
 };
 
-export const patchEntriesByIndex = (book: ShamelaBook, unlinked: Entry[], multi?: string) => {
+export const patchEntriesByIndex = (book: ShamelaBook, unlinked: Entry[], options: any) => {
     const patches: Partial<Entry>[] = [];
 
     const numberToPages = Object.groupBy(
@@ -73,10 +73,7 @@ export const patchEntriesByIndex = (book: ShamelaBook, unlinked: Entry[], multi?
         (page) => page.number,
     );
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, {
-        captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
-        isContinuous: Boolean(multi),
-    });
+    const arabicEntries = mapBookPagesToEntries(book.pages, options);
     const { indexToEntries } = indexEntriesForLookup(arabicEntries as Entry[], { scanMatn: true });
 
     const indexedNarrations = unlinked.filter((a) => a.index && a.type).sort((a, b) => a.index! - b.index!);

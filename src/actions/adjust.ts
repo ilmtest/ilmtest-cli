@@ -48,13 +48,7 @@ export const adjustIndices = async () => {
     let { data, translationFile } = await loadTranslation(positionals);
 
     const diff = Number(values.diff);
-
-    if (diff) {
-        data = data.replace(/^(\d+)/gm, (_match, num) => (Number(num) + diff).toString());
-    } else {
-        data = data.replace(/ (\d+) -/gm, '\n$1 -');
-        data = data.replace(/\\\[/gm, '[');
-    }
+    data = data.replace(/^N(\d+)/gm, (_match, num) => `N${Number(num) + diff}`);
 
     if (values.preview) {
         return logger.info(data);

@@ -56,28 +56,6 @@ export const flattenChapters = (ln: Line) => {
 };
 
 /**
- * Extracts round numeric chapters (numbers in parentheses) and creates entries
- * @param ln - Line object to process
- * @param entries - Array to add new entries to
- * @param page - Current page being processed
- * @returns True if a round numeric chapter was processed, undefined otherwise
- */
-export const extractRoundNumericChapters = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    const [, idx] = ln.text.match(/^\(([\u0660-\u0669]+)\)$/) || [];
-
-    if (idx) {
-        entries.push({
-            arabic: '',
-            from: page.id,
-            id: ln.id,
-            index: arabicNumeralToNumber(idx),
-        });
-
-        return true;
-    }
-};
-
-/**
  * Captures lines that start with "باب " (chapter) and assigns them an ID
  * @param ln - Line object to process
  */
@@ -124,6 +102,20 @@ export const captureCommaSeparatedArabicNumericListItem = (ln: Line, entries: Pa
     }
 };
 
+export const captureSquareBracketListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const [, idx, arabic] = ln.text.match(/^\[([\u0660-\u0669]+)\]\s?(.*)/) || [];
+
+    if (arabic) {
+        entries.push({
+            arabic,
+            from: page.id,
+            index: arabicNumeralToNumber(idx),
+        });
+
+        return true;
+    }
+};
+
 /**
  * Processes Arabic numeric list items and creates corresponding entries
  * @param ln - Line object to process
@@ -141,9 +133,6 @@ export const processArabicNumericListItem = (ln: Line, entries: Partial<Entry>[]
 };
 
 export const processArabicLetterNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    /*const regex =
-        /^(?:[\u0621-\u064A\u0660-\u0669]+\s+|\([\u0621-\u064A\u0660-\u0669]*\s*)([\u0660-\u0669]+)\)?\s*(?:[-–—ـ]\s*)?(.*)$/;
-    const [, idx, txt] = ln.text.match(regex) || []; */
     const [, idx, txt] = ln.text.match(/^[\u0621-\u064A\u0660-\u0669]+\s+([\u0660-\u0669]+)\s?[-–—ـ]\s*(.*)/) || [];
 
     if (txt) {
@@ -168,8 +157,8 @@ export const processNumericListItem = (ln: Line, entries: Partial<Entry>[], page
     }
 };
 
-export const processBulletPoint = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    const [, txt] = ln.text.match(/^•\s?(.*)/) || [];
+export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    const [, txt] = ln.text.match(pattern) || [];
 
     if (txt) {
         entries.push({ arabic: txt.trim(), from: page.id });

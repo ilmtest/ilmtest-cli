@@ -6,13 +6,13 @@ import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, ShamelaBook } from '@/types.js';
 
-import { CAPTURE_CONTINUOUS_PAGES, OUTPUT_DIR } from '@/utils/constants.js';
+import { OUTPUT_DIR } from '@/utils/constants.js';
+import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
 import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
-import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 
 /**
  * Parses command line arguments for Shamela operations
@@ -22,16 +22,10 @@ import { getEntryKey, indexEntriesForLookup } from '../utils/entryUtils.js';
 const parseInputArgs = () => {
     const { values } = parseArgs({
         options: {
-            commas: {
-                type: 'boolean',
-            },
             entries: {
                 type: 'string',
             },
             migrate: {
-                type: 'string',
-            },
-            multi: {
                 type: 'string',
             },
             pages: {
@@ -50,11 +44,9 @@ const parseInputArgs = () => {
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (values.pages?.split('-') || []).map(Number);
 
     return {
-        captureCommaSeparatedIndices: values.commas,
         collectionId: String(values.shamela || values.migrate),
         entriesToFilter: values.entries?.split(','),
         from,
-        multi: values.multi,
         to,
         unused: values.unused,
     };
@@ -142,6 +134,8 @@ export const loadData = async () => {
 
     const indexed = indexEntriesForLookup(entries);
 
+    const optionsFile = Bun.file(path.join(dir, 'options.json'));
+
     return {
         book,
         collection,
@@ -149,6 +143,7 @@ export const loadData = async () => {
         coveredPages: new Set(Object.keys(indexed.pageToEntries).map(Number)),
         dir,
         entries: entriesToFilter ? entries.filter((e) => entriesToFilter.includes(e.id)) : entries,
+        options: (await optionsFile.exists()) ? await optionsFile.json() : {},
         ...rest,
     };
 };
@@ -159,18 +154,13 @@ export const loadData = async () => {
  * @returns Promise that resolves when processing is complete
  */
 export const processShamela = async () => {
-    const { book, collection, dir, unused, multi, coveredIndices, captureCommaSeparatedIndices, coveredPages } =
-        await loadData();
+    const { book, collection, dir, unused, coveredIndices, coveredPages, options } = await loadData();
 
     if (unused === 'pages') {
         book.pages = book.pages.filter((p) => !coveredPages.has(p.id));
     }
 
-    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, {
-        captureCommaSeparatedIndices,
-        captureTrailing: multi === CAPTURE_CONTINUOUS_PAGES,
-        isContinuous: Boolean(multi),
-    });
+    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, options);
 
     if (unused === 'index') {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));

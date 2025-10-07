@@ -1,7 +1,9 @@
-import { type Line, type Page, parseContentRobust } from 'shamela';
+import { type Line, parseContentRobust } from 'shamela';
 
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { ShamelaPage, Translation } from '@/types.js';
+import { CAPTURE_CONTINUOUS_PAGES } from './constants.js';
+import { fixGaps, validateGaplessEntryIndices } from './entryUtils.js';
 import { runFlow } from './flow.js';
 import {
     appendLineToLastEntry,
@@ -10,14 +12,14 @@ import {
     captureCommaSeparatedArabicNumericListItem,
     captureEntirePage,
     captureFirstLooseLeaf,
+    captureNewEntryByPattern,
     captureNumericChapters,
     capturePlainTextChapters,
-    extractRoundNumericChapters,
+    captureSquareBracketListItem,
     flattenChapters,
     flattenNumericChapters,
     processArabicLetterNumericListItem,
     processArabicNumericListItem,
-    processBulletPoint,
     processChapter,
     processNumericListItem,
     processTranslation,
@@ -57,56 +59,22 @@ const splitTextOnCarriageReturns = (items: Line[]) => {
     return result;
 };
 
-export const mapBookPagesToEntries = (
-    pages: ShamelaPage[],
-    {
-        captureRoundNumericChapters = false,
-        captureNumbered = true,
-        newEntryOnBulletPoints = false,
-        flattenAllChapters = false,
-        parseNumericChapters = false,
-        isContinuous = false,
-        captureTrailing = false,
-        captureCommaSeparatedIndices = true,
-        lineSeparator = '\n',
-    } = {},
+export type MapPagesToEntriesOptions = {
+    shouldCapturePlainTextChapters?: boolean;
+    numeralStrategy?: 'dashed' | 'square';
+    flattenChapters?: boolean;
+    newEntryMarkerPattern?: string;
+    pageSpanningStrategy?: 'trailing' | boolean;
+    captureCommaSeparatedIndices?: boolean;
+    lineSeparator?: string;
+};
+
+const assignIdsToEntries = (
+    entries: Partial<Entry>[],
+    idToPages: Partial<Record<number, ShamelaPage[]>>,
+    hasDuplicateNumerals?: boolean,
 ) => {
-    let entries: Partial<Entry>[] = [];
-
-    const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
-    const continuousHandlers = [
-        captureFirstLooseLeaf,
-        ...(captureTrailing ? [appendNewPageToLastEntry] : []),
-        appendLineToLastEntry,
-    ];
-
-    const handlers = [
-        trimLine,
-        removeSquareBracketsFromTitles,
-        capturePlainTextChapters,
-        ...(captureRoundNumericChapters ? [extractRoundNumericChapters] : []),
-        ...(flattenAllChapters ? [flattenChapters] : []),
-        ...(parseNumericChapters ? [flattenNumericChapters] : []),
-        captureNumericChapters,
-        processArabicLetterNumericListItem,
-        processChapter,
-        ...(captureNumbered ? [processArabicNumericListItem] : []),
-        ...(captureCommaSeparatedIndices ? [captureCommaSeparatedArabicNumericListItem] : []),
-        processNumericListItem,
-        ...(newEntryOnBulletPoints ? [processBulletPoint] : []),
-        ...(!isContinuous ? discreteHandlers : []),
-        ...(isContinuous ? continuousHandlers : []),
-    ];
-
-    for (const page of pages) {
-        let rawLines = parseContentRobust(page.content);
-        rawLines = splitTextOnCarriageReturns(rawLines);
-        runFlow(rawLines, handlers, entries, page, lineSeparator);
-    }
-
-    const idToPages = Object.groupBy(pages, (p) => p.id);
-
-    entries = Object.values(Object.groupBy(entries, (e) => e.from!)).flatMap((partialEntries) => {
+    const result = Object.values(Object.groupBy(entries, (e) => e.from!)).flatMap((partialEntries) => {
         let nextIdCounter = 0;
 
         const values = partialEntries?.flatMap((e) => {
@@ -139,9 +107,13 @@ export const mapBookPagesToEntries = (
                 }
             }
 
-            next.forEach((n) => {
-                n.id = n.index ? `N${n.index}` : `P${page.id}${++nextIdCounter}`;
-            });
+            for (const n of next) {
+                if (n.index) {
+                    n.id = hasDuplicateNumerals ? `N${n.volume}${n.index}` : `N${n.index}`;
+                } else {
+                    n.id = `P${page.id}${++nextIdCounter}`;
+                }
+            }
 
             return next;
         })!;
@@ -149,12 +121,75 @@ export const mapBookPagesToEntries = (
         return values;
     });
 
+    return result;
+};
+
+export const mapBookPagesToEntries = (
+    pages: ShamelaPage[],
+    {
+        numeralStrategy = 'dashed',
+        flattenAllChapters = false,
+        shouldCapturePlainTextChapters = false,
+        parseNumericChapters = false,
+        pageSpanning = '',
+        newEntryMarkerPattern = '',
+        autoFixGaps = false,
+        hasDuplicateNumerals = false,
+        captureCommaSeparatedIndices = true,
+        lineSeparator = '\n',
+    } = {},
+) => {
+    const isContinuous = Boolean(pageSpanning);
+
+    let entries: Partial<Entry>[] = [];
+
+    const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
+    const continuousHandlers = [
+        captureFirstLooseLeaf,
+        ...(pageSpanning === CAPTURE_CONTINUOUS_PAGES ? [appendNewPageToLastEntry] : []),
+        appendLineToLastEntry,
+    ];
+
+    const handlers = [
+        trimLine,
+        removeSquareBracketsFromTitles,
+        ...(shouldCapturePlainTextChapters ? [capturePlainTextChapters] : []),
+        ...(flattenAllChapters ? [flattenChapters] : []),
+        ...(parseNumericChapters ? [flattenNumericChapters] : []),
+        captureNumericChapters,
+        processChapter,
+        ...(numeralStrategy.includes('letter') ? [processArabicLetterNumericListItem] : []),
+        ...(numeralStrategy.includes('dashed') ? [processArabicNumericListItem, processNumericListItem] : []),
+        ...(numeralStrategy.includes('square') ? [captureSquareBracketListItem] : []),
+        ...(captureCommaSeparatedIndices ? [captureCommaSeparatedArabicNumericListItem] : []),
+        ...(newEntryMarkerPattern ? [captureNewEntryByPattern(new RegExp(newEntryMarkerPattern))] : []),
+        ...(!isContinuous ? discreteHandlers : []),
+        ...(isContinuous ? continuousHandlers : []),
+    ];
+
+    for (const page of pages) {
+        let rawLines = parseContentRobust(page.content);
+        rawLines = splitTextOnCarriageReturns(rawLines);
+        runFlow(rawLines, handlers, entries, page, lineSeparator);
+    }
+
+    if (autoFixGaps) {
+        entries = fixGaps(entries.filter((e) => e.index && !e.type && !e.id) as any);
+        validateGaplessEntryIndices(entries as any);
+    }
+
+    entries = assignIdsToEntries(
+        entries,
+        Object.groupBy(pages, (p) => p.id),
+        hasDuplicateNumerals,
+    );
+
     return entries;
 };
 
 export const mapLinesToTranslations = (content: string) => {
     const lines = content
-        .replace(/ (\d+) -/gm, '\n$1 -')
+        .replace(/ ([NBCP])(\d+) -/gm, '\n$1$2 -')
         .replace(/\\\[/gm, '[')
         .split('\n')
         .map((line) => line.trim())

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { CAPTURE_CONTINUOUS_PAGES } from './constants';
 import { mapBookPagesToEntries } from './mapping';
 
 describe('mapping', () => {
@@ -14,7 +15,7 @@ describe('mapping', () => {
 
             it('should capture plain-text chapters', () => {
                 const actual = mapBookPagesToEntries([{ content: 'باب التاء', id: 1, pp: 20, volume: 10 }], {
-                    parseNumericChapters: true,
+                    shouldCapturePlainTextChapters: true,
                 });
 
                 expect(actual).toEqual([{ arabic: 'باب التاء', from: 1, id: 'C1', pp: 20, type: 2, volume: 10 }]);
@@ -191,7 +192,7 @@ describe('mapping', () => {
                         { content: `Some text.`, id: 1, pp: 1, volume: 1 },
                         { content: `More text.`, id: 2, pp: 2, volume: 1 },
                     ],
-                    { captureTrailing: true, isContinuous: true },
+                    { pageSpanning: CAPTURE_CONTINUOUS_PAGES },
                 );
 
                 expect(actual).toEqual([
@@ -218,7 +219,7 @@ describe('mapping', () => {
                         { content: `Some text.`, id: 1, pp: 1, volume: 1 },
                         { content: `More text.`, id: 2, pp: 2, volume: 1 },
                     ],
-                    { isContinuous: true },
+                    { pageSpanning: 'true' },
                 );
 
                 expect(actual).toEqual([
@@ -244,7 +245,7 @@ describe('mapping', () => {
                         },
                         { content: `Another sentence. Rest of sentence`, id: 2, pp: 2, volume: 1 },
                     ],
-                    { captureTrailing: true, isContinuous: true },
+                    { pageSpanning: CAPTURE_CONTINUOUS_PAGES },
                 );
 
                 expect(actual).toEqual([
@@ -274,7 +275,7 @@ describe('mapping', () => {
                         { content: `D. E`, id: 3, pp: 3, volume: 1 },
                         { content: `F`, id: 4, pp: 4, volume: 1 },
                     ],
-                    { captureTrailing: true, isContinuous: true },
+                    { pageSpanning: CAPTURE_CONTINUOUS_PAGES },
                 );
 
                 expect(actual).toEqual([
@@ -300,6 +301,68 @@ describe('mapping', () => {
                         id: 'P31',
                         pp: 3,
                         to: 4,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('square', () => {
+            it('should capture the square brackets', () => {
+                const lines = ['فأخبره ويسألني', '[٦٥] "إبراهيم" بن إسماعيل', '[٦٦] "إبراهيم" بن إسماعيل'];
+
+                const actual = mapBookPagesToEntries([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                    numeralStrategy: 'square',
+                });
+
+                expect(actual).toMatchObject([
+                    {
+                        arabic: 'فأخبره ويسألني',
+                        from: 1,
+                        id: 'P11',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: '"إبراهيم" بن إسماعيل',
+                        from: 1,
+                        id: 'N65',
+                        index: 65,
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: '"إبراهيم" بن إسماعيل',
+                        from: 1,
+                        id: 'N66',
+                        index: 66,
+                        pp: 1,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('newEntryMarkerPattern', () => {
+            it('should capture an entry starting with bullet points', () => {
+                const lines = ['• A', '•B', 'C'];
+                const actual = mapBookPagesToEntries([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                    newEntryMarkerPattern: '^•\\s?(.*)',
+                });
+
+                expect(actual).toMatchObject([
+                    {
+                        arabic: 'A',
+                        from: 1,
+                        id: 'P11',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'B\nC',
+                        from: 1,
+                        id: 'P12',
+                        pp: 1,
                         volume: 1,
                     },
                 ]);

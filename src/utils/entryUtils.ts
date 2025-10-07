@@ -1,5 +1,4 @@
 import { arabicNumeralToNumber } from 'bitaboom';
-import type { Page } from '@/api/maktabah.js';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
 import { type Entry, EntryType } from '../api/entries.js';
 import logger from './logger.js';
@@ -12,6 +11,8 @@ import { removeAllTags, sanitizeChapter } from './textUtils.js';
  */
 export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e.type || 0}`;
 
+export const getVolumePageKey = (e: Pick<Entry, 'volume' | 'pp'>) => `${e.volume || 0}/${e.pp || 0}`;
+
 /**
  * Indexes entries for efficient lookup by both entry key and page number
  * @param entries - Array of entries to index
@@ -20,6 +21,7 @@ export const getEntryKey = (e: Pick<Entry, 'index' | 'type'>) => `${e.index}t${e
 export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {}) => {
     const indexToEntries: Record<string, Entry[]> = {};
     const pageToEntries: Record<number, Entry[]> = {};
+    const volumePageToEntries: Record<string, Entry[]> = {};
 
     for (const entry of entries) {
         if (entry.index) {
@@ -33,6 +35,11 @@ export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {
             pageToEntries[i] = (pageToEntries[i] || []).concat(entry);
         }
 
+        if (entry.volume && entry.pp) {
+            const key = getVolumePageKey(entry);
+            volumePageToEntries[key] = (volumePageToEntries[key] || []).concat(entry);
+        }
+
         if (scanMatn && !entry.type) {
             Array.from(entry.arabic!.matchAll(/([\u0660-\u0669]+) -?/g)).forEach(([arabicNumber]) => {
                 const index = arabicNumeralToNumber(arabicNumber);
@@ -42,7 +49,7 @@ export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {
         }
     }
 
-    return { indexToEntries, pageToEntries };
+    return { indexToEntries, pageToEntries, volumePageToEntries };
 };
 
 /**
@@ -50,28 +57,17 @@ export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {
  * Logs warnings for any gaps found in the sequence
  * @param entries - Array of entries to validate
  */
-export const validateGaplessEntryIndices = (entries: Entry[]) => {
+export const validateGaplessEntryIndices = (entries: Pick<Entry, 'index' | 'from'>[]) => {
     entries
-        .filter((e) => e.index)
-        .sort((a, b) => a.index! - b.index!)
+        //.filter((e) => e.index)
+        //.sort((a, b) => a.index! - b.index!)
         .forEach((e, i, arr) => {
             const diff = i > 0 && e.index! - arr[i - 1].index!;
 
             if (i > 0 && diff !== 1) {
-                logger.warn(`#Gap found in ${e.index}, see page ${e.from}`);
+                logger.warn(`#Gap found in ${e.index}, prev was ${arr[i - 1].index}, see page ${e.from}`);
             }
         });
-};
-
-/**
- * Validates translation indices against Arabic indices to find mismatches
- * @param arabicIndices - Array of Arabic text indices
- * @param translationIndices - Array of translation indices to validate
- * @returns Array of translation indices that don't have corresponding Arabic indices
- */
-export const validateIndices = (arabicIndices: string[], translationIndices: string[]) => {
-    const arabicKeys = new Set(arabicIndices);
-    return translationIndices.filter((index) => !arabicKeys.has(index));
 };
 
 /**
@@ -103,137 +99,6 @@ export const fixGaps = (entries: Entry[]) => {
             logger.warn(`Autocorrected #${current} to #${expectedValue} on page ${result[i].from}`);
             result[i].index = expectedValue;
             result[i].id = expectedValue.toString();
-        }
-    }
-
-    return result;
-};
-
-/**
- * Corrects numbering gaps in an array of strings by adding missing sequential numbers
- * @param arr - Array of strings that may have numbered items with gaps
- * @returns New array with missing numbers filled in between existing numbered items
- */
-export function correctNumbering(arr: string[]): string[] {
-    const result = [...arr];
-
-    // Find all items that start with a number followed by " - "
-    const numberedItems: { index: number; number: number }[] = [];
-
-    for (let i = 0; i < arr.length; i++) {
-        const match = arr[i].match(/^(\d+)\s*-\s*/);
-        if (match) {
-            numberedItems.push({
-                index: i,
-                number: parseInt(match[1]),
-            });
-        }
-    }
-
-    // If no numbered items found, return original array
-    if (numberedItems.length === 0) {
-        return result;
-    }
-
-    // For each pair of consecutive numbered items, check for gaps
-    for (let i = 0; i < numberedItems.length - 1; i++) {
-        const current = numberedItems[i];
-        const next = numberedItems[i + 1];
-
-        const expectedNext = current.number + 1;
-        const actualNext = next.number;
-        const gapSize = actualNext - expectedNext;
-
-        // If there's a gap, fill in the missing numbers
-        if (gapSize > 0) {
-            const itemsInBetween = next.index - current.index - 1;
-
-            // Only fill if we have enough items to fill the gap
-            if (itemsInBetween >= gapSize) {
-                let numberToAssign = expectedNext;
-
-                // Go through items between current and next numbered items
-                for (let j = current.index + 1; j < next.index && numberToAssign < actualNext; j++) {
-                    // Only add numbers to items that don't already have them
-                    const hasNumber = /^\d+\s*-\s*/.test(result[j]);
-                    if (!hasNumber) {
-                        result[j] = `${numberToAssign} - ${result[j]}`;
-                        numberToAssign++;
-                    }
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-/**
- * Corrects missing indices in page bodies by filling gaps in numbered sequences
- * @param arr - Array of pages that may have numbered content with gaps
- * @returns New array with missing numbers filled in the page bodies
- */
-export const correctMissingIndices = (arr: Page[]) => {
-    const result = [...arr];
-
-    // Find all numbered items, including those with multiple numbers per element
-    const numberedItems: { index: number; lineIndex?: number; number: number }[] = [];
-
-    for (let i = 0; i < arr.length; i++) {
-        const lines = arr[i].body.split(/\n/);
-
-        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-            const match = lines[lineIndex].match(/^(\d+)\s*-\s*/);
-            if (match) {
-                numberedItems.push({
-                    index: i,
-                    lineIndex: lines.length > 1 ? lineIndex : undefined,
-                    number: parseInt(match[1]),
-                });
-            }
-        }
-    }
-
-    // If no numbered items found, return original array
-    if (numberedItems.length === 0) {
-        return result;
-    }
-
-    // For each pair of consecutive numbered items, check for gaps
-    for (let i = 0; i < numberedItems.length - 1; i++) {
-        const current = numberedItems[i];
-        const next = numberedItems[i + 1];
-
-        const expectedNext = current.number + 1;
-        const actualNext = next.number;
-        const gapSize = actualNext - expectedNext;
-
-        // If there's a gap, fill in the missing numbers
-        if (gapSize > 0) {
-            // Calculate how many array elements are between the numbered items
-            let itemsInBetween: number;
-
-            if (current.index === next.index) {
-                // Both numbers are in the same array element, no gap to fill
-                continue;
-            } else {
-                itemsInBetween = next.index - current.index - 1;
-            }
-
-            // Only fill if we have enough items to fill the gap
-            if (itemsInBetween >= gapSize) {
-                let numberToAssign = expectedNext;
-
-                // Go through items between current and next numbered items
-                for (let j = current.index + 1; j < next.index && numberToAssign < actualNext; j++) {
-                    // Only add numbers to items that don't already have them
-                    const hasNumber = /^\d+\s*-\s*/.test(result[j].body) || /\n\d+\s*-\s*/.test(result[j].body);
-                    if (!hasNumber) {
-                        result[j].body = `${numberToAssign} - ${result[j]}`;
-                        numberToAssign++;
-                    }
-                }
-            }
         }
     }
 
