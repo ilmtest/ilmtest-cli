@@ -49,18 +49,12 @@ export const captureNumericChapters = (ln: Line, entries: Partial<Entry>[], page
     }
 };
 
-export const flattenChapters = (ln: Line) => {
-    if (ln.id) {
-        ln.id = undefined;
-    }
-};
-
 /**
  * Captures lines that start with "باب " (chapter) and assigns them an ID
  * @param ln - Line object to process
  */
 export const capturePlainTextChapters = (ln: Line) => {
-    if (!ln.id && (CHAPTER_REGEX.test(ln.text) || /^مسألة:?$/.test(ln.text))) {
+    if (!ln.id && CHAPTER_REGEX.test(ln.text)) {
         ln.id = '0';
     }
 };

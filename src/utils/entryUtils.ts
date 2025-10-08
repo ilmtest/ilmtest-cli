@@ -78,16 +78,14 @@ export const validateGaplessEntryIndices = (entries: Pick<Entry, 'index' | 'from
  */
 export const fixGaps = (entries: Entry[]) => {
     if (entries.length < 3) {
-        return entries; // Can't fix gaps with less than 3 elements
+        return; // Can't fix gaps with less than 3 elements
     }
 
-    const result = [...entries]; // Create a copy to avoid mutating the original
-
     // Check each element (except first and last) to see if it needs fixing
-    for (let i = 1; i < result.length - 1; i++) {
-        const prev = result[i - 1];
-        const current = result[i].index!;
-        const next = result[i + 1].index!;
+    for (let i = 1; i < entries.length - 1; i++) {
+        const prev = entries[i - 1];
+        const current = entries[i].index!;
+        const next = entries[i + 1].index!;
 
         // Check if current should be prev + 1 and next - 1
         const expectedValue = prev.index! + 1;
@@ -96,13 +94,11 @@ export const fixGaps = (entries: Entry[]) => {
         // 1. Current is not the expected sequential value
         // 2. The expected value would be exactly 1 less than next
         if (current !== expectedValue && expectedValue === next - 1) {
-            logger.warn(`Autocorrected #${current} to #${expectedValue} on page ${result[i].from}`);
-            result[i].index = expectedValue;
-            result[i].id = expectedValue.toString();
+            logger.warn(`Autocorrected #${current} to #${expectedValue} on page ${entries[i].from}`);
+            entries[i].index = expectedValue;
+            entries[i].id = expectedValue.toString();
         }
     }
-
-    return result;
 };
 
 const NUMERIC_CHAPTER_REGEX = /\(([\u0660-\u0669]+)(?:\s+[^)]*)?[)] (.+)/;
