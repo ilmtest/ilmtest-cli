@@ -1,5 +1,5 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
-import { normalizeSpaces } from 'bitaboom';
+import { condenseEllipsis, normalizeSpaces } from 'bitaboom';
 import {
     removeArabicNumericPageMarkers,
     removeTagsExceptSpan,
@@ -60,6 +60,7 @@ export const getPageBodyAndFootnotes = (text: string) => {
     let content = body;
     content = removeSingleDigitFootnoteReferences(content);
     content = removeTagsExceptSpan(content);
+    content = condenseEllipsis(content);
     //content = removeAllTags(content);
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);

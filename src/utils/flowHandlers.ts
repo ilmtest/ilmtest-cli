@@ -49,6 +49,13 @@ export const captureNumericChapters = (ln: Line, entries: Partial<Entry>[], page
     }
 };
 
+export const captureMarkdownChapters = (ln: Line) => {
+    if (!ln.id && ln.text.startsWith('#')) {
+        ln.text = ln.text.slice(1);
+        ln.id = '0';
+    }
+};
+
 /**
  * Captures lines that start with "باب " (chapter) and assigns them an ID
  * @param ln - Line object to process
@@ -90,7 +97,6 @@ export const captureCommaSeparatedArabicNumericListItem = (ln: Line, entries: Pa
 
     if (txt) {
         const numbers = indexes.split(/، ?/).filter(Boolean).map(arabicNumeralToNumber);
-
         entries.push({ arabic: txt.trim(), from: page.id, id: numbers.join(',') });
         return true;
     }
@@ -151,10 +157,14 @@ export const processNumericListItem = (ln: Line, entries: Partial<Entry>[], page
     }
 };
 
+export const usedTerms: Record<string, number> = {};
+
 export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, entries: Partial<Entry>[], page: Page) => {
     const [, txt] = ln.text.match(pattern) || [];
 
     if (txt) {
+        usedTerms[txt] = (usedTerms[txt] || 0) + 1;
+
         entries.push({ arabic: txt.trim(), from: page.id });
         return true;
     }

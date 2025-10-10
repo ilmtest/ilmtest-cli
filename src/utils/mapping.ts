@@ -12,6 +12,7 @@ import {
     captureCommaSeparatedArabicNumericListItem,
     captureEntirePage,
     captureFirstLooseLeaf,
+    captureMarkdownChapters,
     captureNewEntryByPattern,
     captureNumericChapters,
     capturePlainTextChapters,
@@ -24,6 +25,7 @@ import {
     processTranslation,
     removeSquareBracketsFromTitles,
     trimLine,
+    usedTerms,
 } from './flowHandlers.js';
 import { removeAllTags } from './textUtils.js';
 
@@ -143,10 +145,11 @@ export const mapBookPagesToEntries = (
         parseNumericChapters = false,
         pageSpanning = '',
         newEntryMarkerPattern = '',
+        isMarkdown = false,
         fix = '',
         sanitize = [],
         hasDuplicateNumerals = false,
-        captureCommaSeparatedIndices = true,
+        captureCommaSeparatedIndices = false,
         lineSeparator = '\n',
     } = {},
 ) => {
@@ -165,6 +168,7 @@ export const mapBookPagesToEntries = (
     const handlers = [
         trimLine,
         removeSquareBracketsFromTitles,
+        ...(isMarkdown ? [captureMarkdownChapters] : []),
         ...(shouldCapturePlainTextChapters ? [capturePlainTextChapters] : []),
         ...(parseNumericChapters ? [flattenNumericChapters] : []),
         captureNumericChapters,

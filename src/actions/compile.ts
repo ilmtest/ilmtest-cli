@@ -79,6 +79,7 @@ export const compileTranslation = async (collectionId: string, pageRange: string
             e.translation = t.text;
         } else if (!e.commentary) {
             e.commentary = t.text;
+            //throw new Error(`Duplicate ${t.id}`);
         }
 
         e.translator = translator;
