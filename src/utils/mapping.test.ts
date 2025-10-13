@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { CAPTURE_CONTINUOUS_PAGES } from './constants';
-import { mapBookPagesToEntries } from './mapping';
+import { mapBookPagesToEntries, mapLinesToTranslations } from './mapping';
 
 describe('mapping', () => {
     describe('mapBookPagesToEntries', () => {
@@ -367,6 +367,83 @@ describe('mapping', () => {
                     },
                 ]);
             });
+        });
+    });
+
+    describe('mapLinesToTranslations', () => {
+        it('should pick up the page segments', () => {
+            const actual = mapLinesToTranslations('P11 - Abcd\nP22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'P11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'P22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should match book numbers', () => {
+            const actual = mapLinesToTranslations('B11 - Abcd\nB22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'B11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'B22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should match book numbers', () => {
+            const actual = mapLinesToTranslations('B11 - Abcd\nB22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'B11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'B22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should match chapter numbers', () => {
+            const actual = mapLinesToTranslations('C11 - Abcd\nC22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'C11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'C22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should match narration numbers', () => {
+            const actual = mapLinesToTranslations('N11 - Abcd\nN22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'N11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'N22',
+                    text: '2 - Something.',
+                },
+            ]);
         });
     });
 });

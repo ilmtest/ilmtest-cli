@@ -1,19 +1,27 @@
 {
-    "$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+    "$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
     "assist": {
         "actions": {
             "source": {
                 "organizeImports": "on",
                 "useSortedKeys": {
                     "level": "on",
-                    "options": { "sortOrder": "natural" }
+                    "options": {
+                        "sortOrder": "natural"
+                    }
                 }
             }
         }
     },
     "files": {
         "ignoreUnknown": true,
-        "includes": ["**", "!node_modules", "!dist", "!build", "!coverage"]
+        "includes": [
+            "**",
+            "!node_modules",
+            "!dist",
+            "!build",
+            "!coverage"
+        ]
     },
     "formatter": {
         "enabled": true,

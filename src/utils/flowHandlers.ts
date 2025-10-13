@@ -61,7 +61,7 @@ export const captureMarkdownChapters = (ln: Line) => {
  * @param ln - Line object to process
  */
 export const capturePlainTextChapters = (ln: Line) => {
-    if (!ln.id && CHAPTER_REGEX.test(ln.text)) {
+    if (!ln.id && (CHAPTER_REGEX.test(ln.text) || KITAB_REGEX.test(ln.text))) {
         ln.id = '0';
     }
 };

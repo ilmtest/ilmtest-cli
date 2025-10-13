@@ -30,11 +30,7 @@ const loadTranslationFile = async (dir: string) => {
 
     logger.info(`Using ${file.name}`);
 
-    let text = await file.text();
-
-    text = text.replace(/ ([CPN]?\d+) -/gm, '\n$1 -');
-    text = text.replace(/\\\[/gm, '[');
-
+    const text = await file.text();
     const translations = mapLinesToTranslations(text);
     const [translator] = file.name!.split('/').at(-1)!.split('.').map(Number);
 

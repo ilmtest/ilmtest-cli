@@ -59,9 +59,10 @@ export const getPageBodyAndFootnotes = (text: string) => {
 
     let content = body;
     content = removeSingleDigitFootnoteReferences(content);
+    content = sanitizeArabic(text, 'light');
+
     content = removeTagsExceptSpan(content);
     content = condenseEllipsis(content);
-    //content = removeAllTags(content);
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);
     content = sanitizePageContent(content);
