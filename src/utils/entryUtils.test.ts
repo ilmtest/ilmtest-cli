@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { indexEntriesForLookup } from './entryUtils';
+import { fixGaps, indexEntriesForLookup } from './entryUtils';
 
 describe('entryUtils', () => {
     describe('indexEntriesForLookup', () => {
@@ -51,6 +51,87 @@ describe('entryUtils', () => {
                 '5911t0': entries,
                 '5912t0': entries,
             });
+        });
+    });
+
+    describe('fixGaps', () => {
+        it('should not touch chapters', () => {
+            const entries = [{ index: 1 }, { index: 99, type: 3 }, { index: 3 }];
+            const actual = fixGaps(entries as any);
+            expect(actual).toMatchObject(entries);
+        });
+
+        it('should fix the incorrect index', () => {
+            const entries = [{ index: 1 }, { index: 99 }, { index: 3 }];
+            const actual = fixGaps(entries as any);
+            expect(actual).toMatchObject([{ index: 1 }, { index: 2 }, { index: 3 }]);
+        });
+
+        it('should fix the indices in between', () => {
+            const entries = [{ index: 1 }, { index: 99 }, { index: 999 }, { index: 4 }];
+            const actual = fixGaps(entries as any);
+            expect(actual).toMatchObject([{ index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }]);
+        });
+
+        it('should ignore the chapter in between and fix the incorrect ones', () => {
+            const entries = [{ index: 1 }, { index: 99 }, { index: 22, type: 1 }, { index: 999 }, { index: 4 }];
+            const actual = fixGaps(entries as any);
+            expect(actual).toMatchObject([
+                { index: 1 },
+                { index: 2 },
+                { index: 22, type: 1 },
+                { index: 3 },
+                { index: 4 },
+            ]);
+        });
+
+        it('should fix missing indexes', () => {
+            const entries = [{ index: 1 }, {}, { index: 3 }];
+            const actual = fixGaps(entries as any);
+            expect(actual).toMatchObject([{ index: 1 }, { index: 2 }, { index: 3 }]);
+        });
+
+        it('should ignore the chapters in between and fix the incorrect ones', () => {
+            const entries = [
+                { index: 1 },
+                { index: 99 },
+                { index: 22, type: 1 },
+                { index: 23, type: 1 },
+                { index: 999 },
+                { index: 24, type: 1 },
+                { index: 4 },
+            ];
+            const actual = fixGaps(entries as any);
+            expect(actual).toMatchObject([
+                { index: 1 },
+                { index: 2 },
+                { index: 22, type: 1 },
+                { index: 23, type: 1 },
+                { index: 3 },
+                { index: 24, type: 1 },
+                { index: 4 },
+            ]);
+        });
+
+        it('should only start fixing from the first available index', () => {
+            const entries = [{}, {}, { index: 1 }, { index: 999 }, { index: 24 }, { index: 4 }];
+            const actual = fixGaps(entries as any);
+
+            expect(actual).toMatchObject([{}, {}, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }]);
+        });
+
+        it('should only start fixing from the first available index', () => {
+            const entries = [{}, {}, { index: 1 }, { index: 999 }, { index: 24 }, { index: 4 }];
+            const actual = fixGaps(entries as any);
+
+            expect(actual).toMatchObject([{}, {}, { index: 1 }, { index: 2 }, { index: 3 }, { index: 4 }]);
+        });
+
+        it('should handle the subset that can be fixed since their diff is ONLY 1', () => {
+            const entries = [{ index: 1 }, { index: 8 }, { index: 24 }, { index: 10 }];
+            const actual = fixGaps(entries as any);
+
+            expect(actual).toMatchObject([{ index: 1 }, { index: 8 }, { index: 9 }, { index: 10 }]);
         });
     });
 });

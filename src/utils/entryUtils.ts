@@ -71,34 +71,75 @@ export const validateGaplessEntryIndices = (entries: Pick<Entry, 'index' | 'from
 };
 
 /**
- * Attempts to fix gaps in entry index sequences by correcting middle elements
+ * Attempts to fix gaps in entry index sequences by correcting middle elements while ignoring any items where the "type" property is defined.
  * Only fixes if the correction would create a perfect sequential pattern
  * @param entries - Array of entries to fix gaps in
  * @returns New array with corrected entries (does not mutate original)
  */
-export const fixGaps = (entries: Entry[]) => {
-    if (entries.length < 3) {
-        return; // Can't fix gaps with less than 3 elements
+export const fixGaps = <T extends { index?: number; type?: any }>(entries: T[]) => {
+    // Create shallow copy to avoid mutation
+    const result = entries.map((e) => ({ ...e }));
+
+    // Precompute prefix sum of non-type items for O(1) range queries
+    const nonTypePrefix: number[] = [0];
+    for (let i = 0; i < result.length; i++) {
+        nonTypePrefix.push(nonTypePrefix[i] + (result[i].type === undefined ? 1 : 0));
     }
 
-    // Check each element (except first and last) to see if it needs fixing
-    for (let i = 1; i < entries.length - 1; i++) {
-        const prev = entries[i - 1];
-        const current = entries[i].index!;
-        const next = entries[i + 1].index!;
-
-        // Check if current should be prev + 1 and next - 1
-        const expectedValue = prev.index! + 1;
-
-        // Only fix if:
-        // 1. Current is not the expected sequential value
-        // 2. The expected value would be exactly 1 less than next
-        if (current !== expectedValue && expectedValue === next - 1) {
-            logger.warn(`Autocorrected #${current} to #${expectedValue} on page ${entries[i].from}`);
-            entries[i].index = expectedValue;
-            entries[i].id = expectedValue.toString();
+    // Find all "anchor" positions (items with defined index and no type)
+    const anchors: number[] = [];
+    for (let i = 0; i < result.length; i++) {
+        if (result[i].index !== undefined && result[i].type === undefined) {
+            anchors.push(i);
         }
     }
+
+    if (anchors.length < 2) {
+        return result;
+    }
+
+    // Process segments greedily from start to end
+    let i = 0;
+    while (i < anchors.length - 1) {
+        const startPos = anchors[i];
+        const startIndex = result[startPos].index!;
+
+        let bestEndIdx = -1;
+
+        // Find the furthest anchor that makes a valid segment
+        for (let j = i + 1; j < anchors.length; j++) {
+            const endPos = anchors[j];
+            const endIndex = result[endPos].index!;
+
+            // Count non-type items in segment using prefix sum: O(1)
+            const nonTypeCount = nonTypePrefix[endPos + 1] - nonTypePrefix[startPos];
+
+            // Check if this segment is fixable
+            if (endIndex - startIndex === nonTypeCount - 1) {
+                bestEndIdx = j;
+            }
+        }
+
+        // If we found a fixable segment, fix it
+        if (bestEndIdx !== -1) {
+            const endPos = anchors[bestEndIdx];
+            let expectedIndex = startIndex;
+
+            for (let k = startPos; k <= endPos; k++) {
+                if (result[k].type === undefined) {
+                    result[k].index = expectedIndex++;
+                }
+            }
+
+            // Move to the end of the fixed segment
+            i = bestEndIdx;
+        } else {
+            // No fixable segment from this anchor, move to next
+            i++;
+        }
+    }
+
+    return result;
 };
 
 const NUMERIC_CHAPTER_REGEX = /\(([\u0660-\u0669]+)(?:\s+[^)]*)?[)] (.+)/;

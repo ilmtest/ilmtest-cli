@@ -1,3 +1,4 @@
+import { sanitizeArabic } from 'baburchi';
 import { normalizeSpaces } from 'bitaboom';
 import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
@@ -193,7 +194,7 @@ export const mapBookPagesToEntries = (
     }
 
     if (fix.includes('indexes')) {
-        fixGaps(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
+        entries = fixGaps(entries);
         validateGaplessEntryIndices(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
     }
 

@@ -12,7 +12,10 @@ const TRANSLATE_PROMPT = [
     'Preserve full chains of narration and use ALA-LC transliteration only on the names of the narrators in the chain but not the textual content. "حَدَّثَنَا مُحَمَّدُ" would translate to "Muḥammad narrated to us". Translate chapter headings, poetry and verses as well.',
     'Translate "God" as Allah unless the Arabic is actually refering to an ilāh. Whenever صلى الله عليه وسلم is used translate it with ﷺ. There should be no Arabic characters in your response other than this one.',
     'Respond only in plain-text, no markdown or formatting. Keep the numeric prefixes (B1, C2, N33, P44, etc.) that appear in the beginning of each narration. Do NOT attempt to correct the numeric prefixes if they seem out of order or assume continuity from one to another.',
-    'Revise your translation 3 times before sending it to verify its accuracy.',
+    'Revise your translation THREE times before sending it back:',
+    'The first pass: Verify all translations are aligned with matching Arabic numeric markers.',
+    'The second pass: The translations are accurate based on the overall context.',
+    'The third pass: Any transliterations used are accurate.',
 ];
 
 export const generatePrompt = async (dir: string, title: string, entries: Partial<Entry>[]) => {
