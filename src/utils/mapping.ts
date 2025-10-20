@@ -2,8 +2,8 @@ import { sanitizeArabic } from 'baburchi';
 import { normalizeSpaces } from 'bitaboom';
 import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
-import type { ShamelaPage, Translation } from '@/types.js';
-import { CAPTURE_CONTINUOUS_PAGES } from './constants.js';
+import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
+import { CAPTURE_CONTINUOUS_PAGES, DEFAULT_MATN_PARSE_OPTIONS, SANITIZE_HTML } from './constants.js';
 import { fixGaps, validateGaplessEntryIndices } from './entryUtils.js';
 import { runFlow } from './flow.js';
 import {
@@ -117,43 +117,43 @@ const assignIdsToEntries = (
     return result;
 };
 
-const getSanitizers = (patterns: string[], options: { flatten: boolean }) => {
-    const sanitizerPipeline = patterns.map((r) => {
-        const regex = new RegExp(r, 'g');
+const getSanitizers = (patterns: string[], options: { flatten?: boolean } = {}) => {
+    const sanitizerPipeline = patterns
+        .filter((r) => r !== SANITIZE_HTML)
+        .map((r) => {
+            const regex = new RegExp(r, 'g');
 
-        return (text: string) => {
-            return text.replace(regex, '');
-        };
-    });
+            return (text: string) => {
+                return text.replace(regex, '');
+            };
+        });
 
     if (sanitizerPipeline.length) {
         sanitizerPipeline.push(normalizeSpaces);
     }
 
-    if (options.flatten) {
+    if (options.flatten || patterns.includes(SANITIZE_HTML)) {
         sanitizerPipeline.unshift(removeAllTags);
     }
 
     return sanitizerPipeline;
 };
 
-export const mapBookPagesToEntries = (
-    pages: ShamelaPage[],
-    {
+export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {
+    const {
+        pageSpanning,
+        sanitize,
+        flatten,
+        isMarkdown,
+        shouldCapturePlainTextChapters,
+        parseNumericChapters,
         numeralStrategy = 'dashed',
-        flatten = false,
-        shouldCapturePlainTextChapters = false,
-        parseNumericChapters = false,
-        pageSpanning = '',
-        newEntryMarkerPattern = '',
-        isMarkdown = false,
-        fix = '',
-        sanitize = [],
-        hasDuplicateNumerals = false,
-        captureCommaSeparatedIndices = false,
+        captureCommaSeparatedIndices,
         lineSeparator = '\n',
-    } = {},
-) => {
+        fix,
+        hasDuplicateNumerals,
+        newEntryMarkerPattern,
+    } = options;
     const isContinuous = Boolean(pageSpanning);
 
     let entries: Partial<Entry>[] = [];
@@ -164,7 +164,7 @@ export const mapBookPagesToEntries = (
         ...(pageSpanning === CAPTURE_CONTINUOUS_PAGES ? [appendNewPageToLastEntry] : []),
         appendLineToLastEntry,
     ];
-    const sanitizers = getSanitizers(sanitize, { flatten });
+    const sanitizers = getSanitizers(sanitize || [], { flatten });
 
     const handlers = [
         trimLine,
@@ -193,7 +193,7 @@ export const mapBookPagesToEntries = (
         runFlow(rawLines, handlers, entries, page, lineSeparator);
     }
 
-    if (fix.includes('indexes')) {
+    if (fix?.includes('indexes')) {
         entries = fixGaps(entries);
         validateGaplessEntryIndices(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
     }

@@ -31,10 +31,14 @@ export const generatePrompt = async (dir: string, title: string, entries: Partia
             logger.warn(`Errors found: ${errors.join('\n')}`);
         }
 
-        await promptFile.write(
-            [TRANSLATE_PROMPT.join('\n').replace('{{book}}', title), '\n\n', stringifiedEntries.join('\n\n')].join(
-                '\n',
-            ),
-        );
+        const result = [
+            TRANSLATE_PROMPT.join('\n').replace('{{book}}', title),
+            '\n\n',
+            stringifiedEntries.join('\n\n'),
+        ].join('\n');
+
+        await promptFile.write(result);
+
+        return result;
     }
 };

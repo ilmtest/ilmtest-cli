@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { type Entry, EntryFlags } from '@/api/entries.js';
+import type { Excerpts } from '@/types.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
@@ -46,7 +47,7 @@ export const compileTranslation = async (collectionId: string, pageRange: string
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (pageRange?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
-    const entries: Entry[] = await excerptFile.json();
+    const { excerpts: entries, ...rest } = (await excerptFile.json()) as Excerpts;
     const { translations, translator } = await loadTranslationFile(dir);
     const idToEntries = Object.groupBy(
         entries.filter((e) => e.from >= from && e.from <= to),
@@ -84,7 +85,9 @@ export const compileTranslation = async (collectionId: string, pageRange: string
     }
 
     if (!hasError) {
-        await excerptFile.write(JSON.stringify(entries, null, 2));
+        await excerptFile.write(
+            JSON.stringify({ ...rest, excerpts: entries, lastUpdatedAt: Date.now() } satisfies Excerpts, null, 2),
+        );
         logger.info(`${entries.length} saved to ${excerptFile.name}`);
     }
 };

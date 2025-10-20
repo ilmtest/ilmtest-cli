@@ -14,7 +14,7 @@ export const PATTERNS = {
     /** Matches text ending with Arabic-Indic digits (٠-٩) */
     EndsWithNumber: /[\u0660-\u0669]$/,
     /** Matches text ending with common punctuation marks */
-    EndsWithPunctuation: /[.!?؟؛…]$/,
+    EndsWithPunctuation: /[.!?؟؛]$/,
     /** Matches Arabic numeric list items (e.g., "١- item text") */
     MatchArabicNumericListItem: /^([\u0660-\u0669]+)\s?[-–—ـ](.*)/,
     /** Matches numbered paragraphs with Latin numerals (e.g., "1 - paragraph text") */

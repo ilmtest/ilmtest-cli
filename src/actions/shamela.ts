@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { type BookData, getBook, getBookMetadata, setLogger } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
-import type { Collection, ShamelaBook } from '@/types.js';
+import type { Collection, Excerpts, ShamelaBook } from '@/types.js';
 
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
@@ -166,16 +166,31 @@ export const processShamela = async () => {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
     }
 
+    if (unused) {
+        // if we removed a page in between a sequence, get rid of the entries which happens to span from one page to a distant one
+        arabicOnlyEntries = arabicOnlyEntries.filter((e) => !e.to || e.to - e.from! <= 1);
+        const x = arabicOnlyEntries.filter((e) => e.to && e.to - e.from! > 1);
+        console.log(x);
+    }
+
     const excerptsFile = Bun.file(path.join(dir, 'excerpts.json'));
     const fileExists = await excerptsFile.exists();
 
-    if (fileExists) {
-        arabicOnlyEntries = ((await excerptsFile.json()) as Entry[]).filter((e) => !e.translation);
-    }
-
-    await generatePrompt(dir, collection.title, arabicOnlyEntries);
+    const llmPrompt = await generatePrompt(dir, collection.title, arabicOnlyEntries);
 
     if (!fileExists) {
-        await excerptsFile.write(JSON.stringify(arabicOnlyEntries, null, 2));
+        await excerptsFile.write(
+            JSON.stringify(
+                {
+                    contractVersion: 'v1.1',
+                    createdAt: Date.now(),
+                    excerpts: arabicOnlyEntries as Entry[],
+                    lastUpdatedAt: Date.now(),
+                    prompt: llmPrompt,
+                } satisfies Excerpts,
+                null,
+                2,
+            ),
+        );
     }
 };
