@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { CAPTURE_CONTINUOUS_PAGES } from './constants';
+import { startNewEntryIfLastEntryMatches } from './flowHandlers';
 import { mapBookPagesToEntries, mapLinesToTranslations } from './mapping';
 
 describe('mapping', () => {
@@ -360,6 +361,33 @@ describe('mapping', () => {
                     },
                     {
                         arabic: 'B\nC',
+                        from: 1,
+                        id: 'P12',
+                        pp: 1,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('prevEntryMarkerPattern', () => {
+            it('should capture an entry since the last one ended with the pattern', () => {
+                const lines = ['A', 'B 33.', 'C'];
+                const actual = mapBookPagesToEntries([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                    pageSpanning: 'trailing',
+                    prevEntryMarkerPattern: ' \\d+\\.$',
+                });
+
+                expect(actual).toMatchObject([
+                    {
+                        arabic: 'A\nB 33.',
+                        from: 1,
+                        id: 'P11',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'C',
                         from: 1,
                         id: 'P12',
                         pp: 1,

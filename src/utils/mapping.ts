@@ -4,7 +4,7 @@ import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
 import { CAPTURE_CONTINUOUS_PAGES, DEFAULT_MATN_PARSE_OPTIONS, SANITIZE_HTML } from './constants.js';
-import { fixGaps, validateGaplessEntryIndices } from './entryUtils.js';
+import { fixGaps, fixGapsLegacy, validateGaplessEntryIndices } from './entryUtils.js';
 import { runFlow } from './flow.js';
 import {
     appendLineToLastEntry,
@@ -25,6 +25,7 @@ import {
     processNumericListItem,
     processTranslation,
     removeSquareBracketsFromTitles,
+    startNewEntryIfLastEntryMatches,
     trimLine,
     usedTerms,
 } from './flowHandlers.js';
@@ -151,9 +152,11 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
         captureCommaSeparatedIndices,
         lineSeparator = '\n',
         fix,
+        prevEntryMarkerPattern,
         hasDuplicateNumerals,
         newEntryMarkerPattern,
     } = options;
+
     const isContinuous = Boolean(pageSpanning);
 
     let entries: Partial<Entry>[] = [];
@@ -161,6 +164,9 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
     const continuousHandlers = [
         captureFirstLooseLeaf,
+        ...(pageSpanning === CAPTURE_CONTINUOUS_PAGES && prevEntryMarkerPattern
+            ? [startNewEntryIfLastEntryMatches(new RegExp(prevEntryMarkerPattern))]
+            : []),
         ...(pageSpanning === CAPTURE_CONTINUOUS_PAGES ? [appendNewPageToLastEntry] : []),
         appendLineToLastEntry,
     ];
@@ -194,7 +200,8 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
     }
 
     if (fix?.includes('indexes')) {
-        entries = fixGaps(entries);
+        //entries = fixGaps(entries);
+        fixGapsLegacy(entries as any);
         validateGaplessEntryIndices(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
     }
 

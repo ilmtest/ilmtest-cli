@@ -215,7 +215,20 @@ export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[],
     if (last.from !== page.id) {
         last.to = page.id;
     }
+
+    return true;
 };
+
+export const startNewEntryIfLastEntryMatches =
+    (pattern: RegExp) =>
+    ({ text }: Line, entries: Partial<Entry>[], page: Page) => {
+        const last = entries.at(-1)?.arabic!;
+
+        if (pattern.test(last)) {
+            entries.push({ arabic: text.trim(), from: page.id });
+            return true;
+        }
+    };
 
 /**
  * Appends content from a new page to the last entry, handling page breaks intelligently

@@ -97,8 +97,14 @@ export type MatnParseOptions = {
     /** Does text span from one page to another */
     pageSpanning?: typeof CAPTURE_CONTINUOUS_PAGES | 'true';
 
-    /** A regular experession pattern to mark the start of a new entry. */
+    /** A regular expression pattern to mark the start of a new entry. */
     newEntryMarkerPattern?: string;
+
+    /**
+     * A regular expression pattern to mark the start of a new entry iff the last entry's matn matches this pattern.
+     * @since contractVersion v1.1
+     */
+    prevEntryMarkerPattern?: string;
 
     /**
      * @deprecated As of contractVersion v1.1, use newChapterMarkerPattern = '^#'

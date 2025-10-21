@@ -156,11 +156,13 @@ export const loadData = async () => {
 export const processShamela = async () => {
     const { book, collection, dir, unused, coveredIndices, coveredPages, options } = await loadData();
 
-    if (unused === 'pages') {
-        book.pages = book.pages.filter((p) => !coveredPages.has(p.id));
-    }
-
     let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, options);
+
+    if (unused === 'pages') {
+        arabicOnlyEntries = arabicOnlyEntries
+            .filter((e) => !coveredPages.has(e.from!))
+            .filter((e) => !e.to || !coveredPages.has(e.to));
+    }
 
     if (unused === 'index') {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
@@ -169,14 +171,12 @@ export const processShamela = async () => {
     if (unused) {
         // if we removed a page in between a sequence, get rid of the entries which happens to span from one page to a distant one
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !e.to || e.to - e.from! <= 1);
-        const x = arabicOnlyEntries.filter((e) => e.to && e.to - e.from! > 1);
-        console.log(x);
     }
 
     const excerptsFile = Bun.file(path.join(dir, 'excerpts.json'));
     const fileExists = await excerptsFile.exists();
 
-    const llmPrompt = await generatePrompt(dir, collection.title, arabicOnlyEntries);
+    await generatePrompt(dir, collection.title, arabicOnlyEntries);
 
     if (!fileExists) {
         await excerptsFile.write(
@@ -186,7 +186,7 @@ export const processShamela = async () => {
                     createdAt: Date.now(),
                     excerpts: arabicOnlyEntries as Entry[],
                     lastUpdatedAt: Date.now(),
-                    prompt: llmPrompt,
+                    options,
                 } satisfies Excerpts,
                 null,
                 2,

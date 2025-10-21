@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { captureCommaSeparatedArabicNumericListItem, captureSquareBracketListItem } from './flowHandlers';
+import {
+    captureCommaSeparatedArabicNumericListItem,
+    captureSquareBracketListItem,
+    startNewEntryIfLastEntryMatches,
+} from './flowHandlers';
 
 describe('flowHandlers', () => {
     describe('captureCommaSeparatedArabicNumericListItem', () => {
@@ -50,6 +54,26 @@ describe('flowHandlers', () => {
                     arabic: '"إبراهيم" بن حرب',
                     from: 1,
                     index: 99,
+                },
+            ]);
+        });
+    });
+
+    describe('startNewEntryIfLastEntryMatches', () => {
+        it('should start a new entry', () => {
+            const entries = [{ arabic: 'The quick' }];
+
+            const fn = startNewEntryIfLastEntryMatches(/quick$/);
+
+            fn({ text: 'Line' }, entries, { content: 'C', id: 1 });
+
+            expect(entries).toMatchObject([
+                {
+                    arabic: 'The quick',
+                },
+                {
+                    arabic: 'Line',
+                    from: 1,
                 },
             ]);
         });

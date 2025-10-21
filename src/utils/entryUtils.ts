@@ -71,6 +71,37 @@ export const validateGaplessEntryIndices = (entries: Pick<Entry, 'index' | 'from
 };
 
 /**
+ * Attempts to fix gaps in entry index sequences by correcting middle elements
+ * Only fixes if the correction would create a perfect sequential pattern
+ * @param entries - Array of entries to fix gaps in
+ * @returns New array with corrected entries (does not mutate original)
+ */
+export const fixGapsLegacy = (entries: Entry[]) => {
+    if (entries.length < 3) {
+        return; // Can't fix gaps with less than 3 elements
+    }
+
+    // Check each element (except first and last) to see if it needs fixing
+    for (let i = 1; i < entries.length - 1; i++) {
+        const prev = entries[i - 1];
+        const current = entries[i].index!;
+        const next = entries[i + 1].index!;
+
+        // Check if current should be prev + 1 and next - 1
+        const expectedValue = prev.index! + 1;
+
+        // Only fix if:
+        // 1. Current is not the expected sequential value
+        // 2. The expected value would be exactly 1 less than next
+        if (current !== expectedValue && expectedValue === next - 1) {
+            logger.warn(`Autocorrected #${current} to #${expectedValue} on page ${entries[i].from}`);
+            entries[i].index = expectedValue;
+            entries[i].id = expectedValue.toString();
+        }
+    }
+};
+
+/**
  * Attempts to fix gaps in entry index sequences by correcting middle elements while ignoring any items where the "type" property is defined.
  * Only fixes if the correction would create a perfect sequential pattern
  * @param entries - Array of entries to fix gaps in
