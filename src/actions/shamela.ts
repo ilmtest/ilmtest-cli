@@ -182,6 +182,7 @@ export const processShamela = async () => {
         await excerptsFile.write(
             JSON.stringify(
                 {
+                    collection,
                     contractVersion: 'v1.1',
                     createdAt: Date.now(),
                     excerpts: arabicOnlyEntries as Entry[],

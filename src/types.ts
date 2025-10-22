@@ -143,6 +143,11 @@ export type Excerpts = {
     options?: MatnParseOptions;
 
     excerpts: Entry[];
+
+    /**
+     * @since contractVersion v1.1
+     */
+    collection?: Collection;
 };
 
 /**

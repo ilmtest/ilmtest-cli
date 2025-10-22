@@ -1,6 +1,7 @@
 import path from 'node:path';
-import { type Entry, EntryFlags } from '@/api/entries.js';
+import { EntryFlags } from '@/api/entries.js';
 import type { Excerpts } from '@/types.js';
+import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
@@ -21,8 +22,11 @@ const getTranslationFile = async (dir: string, names: string[]) => {
     }
 };
 
-const loadTranslationFile = async (dir: string) => {
-    const file = await getTranslationFile(dir, ['873', '879']);
+const loadTranslationFile = async (dir: string, forcedTranslator?: string) => {
+    const file = await getTranslationFile(
+        dir,
+        ['873', '879'].filter((t) => !forcedTranslator || forcedTranslator === t),
+    );
 
     if (!file) {
         logger.warn(`No translation files found.`);
@@ -35,6 +39,8 @@ const loadTranslationFile = async (dir: string) => {
     const translations = mapLinesToTranslations(text);
     const [translator] = file.name!.split('/').at(-1)!.split('.').map(Number);
 
+    logger.info(`Loaded ${translations.length} translations`);
+
     return { translations, translator };
 };
 
@@ -44,11 +50,13 @@ const loadTranslationFile = async (dir: string) => {
  * @returns Promise that resolves to an array of compiled translations
  */
 export const compileTranslation = async (collectionId: string, pageRange: string) => {
+    const { values: parsedValues } = getParsedArgs({ translator: { type: 'string' } });
+
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = (pageRange?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
     const { excerpts: entries, ...rest } = (await excerptFile.json()) as Excerpts;
-    const { translations, translator } = await loadTranslationFile(dir);
+    const { translations, translator } = await loadTranslationFile(dir, parsedValues.translator as string);
     const idToEntries = Object.groupBy(
         entries.filter((e) => e.from >= from && e.from <= to),
         (e) => e.id,

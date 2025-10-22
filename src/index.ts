@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { parseArgs } from 'node:util';
 import { select } from '@inquirer/prompts';
 import welcome from 'cli-welcome';
-
 import packageJson from '../package.json' with { type: 'json' };
+import { getParsedArgs } from './utils/argsParser.js';
 import { loadConfiguration } from './utils/config.js';
 
 const main = async () => {
@@ -18,40 +17,7 @@ const main = async () => {
 
     //handlePromptTermination();
 
-    const { positionals, values } = parseArgs({
-        allowPositionals: true,
-        options: {
-            compile: {
-                type: 'boolean',
-            },
-            diff: {
-                type: 'string',
-            },
-            download: {
-                type: 'string',
-            },
-            extract: {
-                type: 'boolean',
-            },
-            fix: {
-                type: 'string',
-            },
-            migrate: {
-                type: 'string',
-            },
-            save: {
-                type: 'string',
-            },
-            shamela: {
-                type: 'string',
-            },
-            transcribe: {
-                short: 't',
-                type: 'boolean',
-            },
-        },
-        strict: false,
-    });
+    const { values, positionals } = getParsedArgs();
 
     let action =
         Object.keys(values).length === 0 &&

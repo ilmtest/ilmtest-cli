@@ -1,7 +1,6 @@
 import { findMatches } from 'baburchi';
 import type { Entry } from '@/api/entries.js';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
-import { CAPTURE_CONTINUOUS_PAGES } from './constants.js';
 import { getEntryKey, indexChaptersForLookup, indexEntriesForLookup } from './entryUtils.js';
 import { mapBookPagesToEntries } from './mapping.js';
 
