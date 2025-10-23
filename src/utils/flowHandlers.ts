@@ -210,6 +210,7 @@ export const captureFirstLooseLeaf = (ln: Line, entries: Partial<Entry>[], page:
  */
 export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[], page: Page, separator: string) => {
     const last = entries.at(-1)!;
+    last.fromEndIndex = last.arabic!.length;
     last.arabic = [last.arabic, text].filter(Boolean).join(separator);
 
     if (last.from !== page.id) {

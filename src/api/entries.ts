@@ -23,6 +23,7 @@ export type Entry = {
     explains?: string[];
     commentary?: string;
     flags?: EntryFlags;
+    fromEndIndex?: number;
     from: number;
     id: string;
     index?: number;

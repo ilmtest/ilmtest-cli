@@ -49,10 +49,10 @@ const loadTranslationFile = async (dir: string, forcedTranslator?: string) => {
  * @param collectionId - The ID of the collection to compile translations for
  * @returns Promise that resolves to an array of compiled translations
  */
-export const compileTranslation = async (collectionId: string, pageRange: string) => {
-    const { values: parsedValues } = getParsedArgs({ translator: { type: 'string' } });
+export const compileTranslation = async (collectionId: string) => {
+    const { values: parsedValues } = getParsedArgs({ pages: { type: 'string' }, translator: { type: 'string' } });
 
-    const [from = 1, to = Number.MAX_SAFE_INTEGER] = (pageRange?.split('-') || []).map(Number);
+    const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
     const { excerpts: entries, ...rest } = (await excerptFile.json()) as Excerpts;
@@ -84,7 +84,7 @@ export const compileTranslation = async (collectionId: string, pageRange: string
             e.translation = t.text;
         } else if (!e.commentary) {
             e.commentary = t.text;
-            //throw new Error(`Duplicate ${t.id}`);
+            throw new Error(`Duplicate ${t.id}`);
         }
 
         e.translator = translator;

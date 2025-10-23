@@ -2,7 +2,7 @@ import { arabicNumeralToNumber } from 'bitaboom';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
 import { type Entry, EntryType } from '../api/entries.js';
 import logger from './logger.js';
-import { removeAllTags, sanitizeChapter } from './textUtils.js';
+import { findLastPunctuation, removeAllTags, sanitizeChapter } from './textUtils.js';
 
 /**
  * Generates a unique key for an entry based on its index and type
@@ -215,4 +215,21 @@ export const indexChaptersForLookup = (book: ShamelaBook) => {
         );
 
     return indexToChapters;
+};
+
+export const filterEntriesOnUsedPages = (entries: Entry[], coveredPages: Set<number>) => {
+    const result = entries
+        .filter((e) => !coveredPages.has(e.from!))
+        .map((e) => {
+            if (e.to && coveredPages.has(e.to) && e.fromEndIndex) {
+                const { to, arabic, fromEndIndex, ...entry } = e;
+                const text = arabic!.substring(0, fromEndIndex);
+                return { ...entry, arabic: text.slice(0, findLastPunctuation(text) + 1).trim() };
+            }
+
+            return e;
+        })
+        .filter((e) => e.arabic);
+
+    return result;
 };

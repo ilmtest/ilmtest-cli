@@ -70,7 +70,7 @@ const main = async () => {
     } else if (values.diff) {
         await (await import('./actions/adjust.js')).adjustIndices();
     } else if (values.compile) {
-        await (await import('./actions/compile.js')).compileTranslation(positionals[0], positionals[1]);
+        await (await import('./actions/compile.js')).compileTranslation(values.compile as string);
     } else if (values.save) {
         await (await import('./actions/uploadTranslations.js')).uploadTranslations(values.save as string);
     } else if (values.fix) {

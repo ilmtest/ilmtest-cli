@@ -7,12 +7,12 @@ import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, Excerpts, ShamelaBook } from '@/types.js';
 
 import { OUTPUT_DIR } from '@/utils/constants.js';
-import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
+import { filterEntriesOnUsedPages, getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
-import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
+import { findLastPunctuation, getPageBodyAndFootnotes } from '@/utils/textUtils.js';
 
 /**
  * Parses command line arguments for Shamela operations
@@ -156,12 +156,10 @@ export const loadData = async () => {
 export const processShamela = async () => {
     const { book, collection, dir, unused, coveredIndices, coveredPages, options } = await loadData();
 
-    let arabicOnlyEntries: Partial<Entry>[] = mapBookPagesToEntries(book.pages, options);
+    let arabicOnlyEntries = mapBookPagesToEntries(book.pages, options);
 
     if (unused === 'pages') {
-        arabicOnlyEntries = arabicOnlyEntries
-            .filter((e) => !coveredPages.has(e.from!))
-            .filter((e) => !e.to || !coveredPages.has(e.to));
+        arabicOnlyEntries = filterEntriesOnUsedPages(arabicOnlyEntries as any, coveredPages);
     }
 
     if (unused === 'index') {
@@ -173,10 +171,10 @@ export const processShamela = async () => {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !e.to || e.to - e.from! <= 1);
     }
 
+    await generatePrompt(dir, collection.title, arabicOnlyEntries);
+
     const excerptsFile = Bun.file(path.join(dir, 'excerpts.json'));
     const fileExists = await excerptsFile.exists();
-
-    await generatePrompt(dir, collection.title, arabicOnlyEntries);
 
     if (!fileExists) {
         await excerptsFile.write(

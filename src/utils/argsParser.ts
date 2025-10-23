@@ -5,7 +5,7 @@ export const getParsedArgs = <T extends ParseArgsOptionsConfig>(additionalOption
         allowPositionals: true,
         options: {
             compile: {
-                type: 'boolean',
+                type: 'string',
             },
             diff: {
                 type: 'string',
