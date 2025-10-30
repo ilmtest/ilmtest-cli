@@ -27,6 +27,7 @@ export type Entry = {
     from: number;
     id: string;
     index?: number;
+    lastUpdatedAt?: number;
     pp: number;
     to?: number;
     translation?: string;

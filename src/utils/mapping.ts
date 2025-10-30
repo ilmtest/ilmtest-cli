@@ -1,9 +1,8 @@
-import { sanitizeArabic } from 'baburchi';
 import { normalizeSpaces } from 'bitaboom';
 import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
-import { CAPTURE_CONTINUOUS_PAGES, DEFAULT_MATN_PARSE_OPTIONS, SANITIZE_HTML } from './constants.js';
+import { CAPTURE_CONTINUOUS_PAGES, SANITIZE_HTML } from './constants.js';
 import { fixGaps, fixGapsLegacy, validateGaplessEntryIndices } from './entryUtils.js';
 import { runFlow } from './flow.js';
 import {

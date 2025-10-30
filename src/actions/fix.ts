@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { Entry } from '@/api/entries.js';
+import type { Excerpts } from '@/types.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import { fixGaps } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
@@ -36,14 +37,14 @@ const mergeLoosePages = (entries: Entry[], prefix = 'P') => {
 export const fixExcerpts = async (collectionId: string, type: string) => {
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
-    let entries: Entry[] = await excerptFile.json();
+    const excerpts: Excerpts = await excerptFile.json();
 
     if (type === 'merge') {
-        entries = mergeLoosePages(entries);
+        excerpts.excerpts = mergeLoosePages(excerpts.excerpts);
     } else if (type === 'indices') {
-        entries = fixGaps(entries);
+        excerpts.excerpts = fixGaps(excerpts.excerpts);
     }
 
-    await excerptFile.write(JSON.stringify(entries, null, 2));
-    logger.info(`${entries.length} saved to ${excerptFile.name}`);
+    await excerptFile.write(JSON.stringify(excerpts, null, 2));
+    logger.info(`${excerpts.excerpts.length} saved to ${excerptFile.name}`);
 };

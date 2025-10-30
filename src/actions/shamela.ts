@@ -171,10 +171,14 @@ export const processShamela = async () => {
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !e.to || e.to - e.from! <= 1);
     }
 
-    await generatePrompt(dir, collection.title, arabicOnlyEntries);
-
     const excerptsFile = Bun.file(path.join(dir, 'excerpts.json'));
     const fileExists = await excerptsFile.exists();
+
+    if (fileExists) {
+        arabicOnlyEntries = ((await excerptsFile.json()) as Excerpts).excerpts.filter((e) => !e.translation);
+    }
+
+    await generatePrompt(dir, collection.title, arabicOnlyEntries);
 
     if (!fileExists) {
         await excerptsFile.write(

@@ -1,47 +1,33 @@
 import path from 'node:path';
+import { confirm } from '@inquirer/prompts';
 import { EntryFlags } from '@/api/entries.js';
-import type { Excerpts } from '@/types.js';
+import type { Excerpts, Translation } from '@/types.js';
 import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
 
-/**
- * Finds a translation file from a list of possible names in a directory
- * @param dir - Directory path to search in
- * @param names - Array of possible file names (without extension)
- * @returns Promise that resolves to the first existing translation file, or undefined if none found
- */
-const getTranslationFile = async (dir: string, names: string[]) => {
-    for (const name of names) {
-        const translationFile = Bun.file(path.format({ dir, ext: '.txt', name }));
+const TRANSLATION_IDS = [873, 879, 870];
 
-        if (await translationFile.exists()) {
-            return translationFile;
+type AITranslation = Translation & { translator: number };
+
+const loadTranslations = async (dir: string) => {
+    const translations: AITranslation[] = [];
+
+    for (const translator of TRANSLATION_IDS) {
+        const file = Bun.file(path.format({ dir, ext: '.txt', name: translator.toString() }));
+
+        if (await file.exists()) {
+            const text = await file.text();
+            const newTranslations = mapLinesToTranslations(text).map((t) => ({ ...t, translator }));
+
+            logger.info(`Loaded ${newTranslations.length} translations from ${file.name}`);
+
+            translations.push(...newTranslations);
         }
     }
-};
 
-const loadTranslationFile = async (dir: string, forcedTranslator?: string) => {
-    const file = await getTranslationFile(
-        dir,
-        ['873', '879'].filter((t) => !forcedTranslator || forcedTranslator === t),
-    );
-
-    if (!file) {
-        logger.warn(`No translation files found.`);
-        return { translations: [], translator: 0 };
-    }
-
-    logger.info(`Using ${file.name}`);
-
-    const text = await file.text();
-    const translations = mapLinesToTranslations(text);
-    const [translator] = file.name!.split('/').at(-1)!.split('.').map(Number);
-
-    logger.info(`Loaded ${translations.length} translations`);
-
-    return { translations, translator };
+    return translations;
 };
 
 /**
@@ -50,13 +36,16 @@ const loadTranslationFile = async (dir: string, forcedTranslator?: string) => {
  * @returns Promise that resolves to an array of compiled translations
  */
 export const compileTranslation = async (collectionId: string) => {
-    const { values: parsedValues } = getParsedArgs({ pages: { type: 'string' }, translator: { type: 'string' } });
+    const { values: parsedValues } = getParsedArgs({ pages: { type: 'string' } });
 
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
     const { excerpts: entries, ...rest } = (await excerptFile.json()) as Excerpts;
-    const { translations, translator } = await loadTranslationFile(dir, parsedValues.translator as string);
+    const translations = await loadTranslations(dir);
+
+    logger.info(`Loaded ${translations.length} translations in total`);
+
     const idToEntries = Object.groupBy(
         entries.filter((e) => e.from >= from && e.from <= to),
         (e) => e.id,
@@ -66,7 +55,7 @@ export const compileTranslation = async (collectionId: string) => {
 
     for (const t of translations) {
         if (!idToEntries[t.id]) {
-            logger.error(`${t.id} not found`);
+            logger.error(`${t.id} not found for ${t.translator}`);
             console.error(t);
             hasError = true;
             continue;
@@ -75,7 +64,7 @@ export const compileTranslation = async (collectionId: string) => {
         const e = idToEntries[t.id]!.shift()!;
 
         if (!e) {
-            logger.error(`No entries left for ${t.id}`);
+            logger.error(`No entries left for ${t.id} for ${t.translator}`);
             hasError = true;
             continue;
         }
@@ -84,12 +73,15 @@ export const compileTranslation = async (collectionId: string) => {
             e.translation = t.text;
         } else if (!e.commentary) {
             e.commentary = t.text;
-            throw new Error(`Duplicate ${t.id}`);
+            //hasError = true;
+
+            logger.error(`Duplicate ${t.id}, translator: ${t.translator}`);
         }
 
-        e.translator = translator;
+        e.translator = t.translator;
         e.collection = Number(collectionId);
         e.flags = EntryFlags.PendingReview;
+        e.lastUpdatedAt = Date.now();
     }
 
     if (!hasError) {
@@ -97,5 +89,21 @@ export const compileTranslation = async (collectionId: string) => {
             JSON.stringify({ ...rest, excerpts: entries, lastUpdatedAt: Date.now() } satisfies Excerpts, null, 2),
         );
         logger.info(`${entries.length} saved to ${excerptFile.name}`);
+
+        const untranslatedCount = entries.filter((e) => !e.translation).length;
+        logger.info(
+            `${untranslatedCount} entries (${(untranslatedCount / entries.length) * 100}%) still are not translated.`,
+        );
+
+        const confirmed = await confirm({
+            message: `Do you want to clear out the temporary translation files?`,
+        });
+
+        if (confirmed) {
+            const blankWrites = TRANSLATION_IDS.map(
+                async (id) => await Bun.file(path.format({ dir, ext: '.txt', name: id.toString() })).write(''),
+            );
+            await Promise.all(blankWrites);
+        }
     }
 };
