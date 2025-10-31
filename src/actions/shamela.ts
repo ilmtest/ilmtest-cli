@@ -7,7 +7,7 @@ import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, Excerpts, ShamelaBook } from '@/types.js';
 
 import { OUTPUT_DIR } from '@/utils/constants.js';
-import { filterEntriesOnUsedPages, getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
+import { filterEntriesOnUsedPages, getEntryKey, indexEntriesForLookup, validateUniqueIds } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
@@ -170,6 +170,8 @@ export const processShamela = async () => {
         // if we removed a page in between a sequence, get rid of the entries which happens to span from one page to a distant one
         arabicOnlyEntries = arabicOnlyEntries.filter((e) => !e.to || e.to - e.from! <= 1);
     }
+
+    validateUniqueIds(arabicOnlyEntries as any);
 
     const excerptsFile = Bun.file(path.join(dir, 'excerpts.json'));
     const fileExists = await excerptsFile.exists();

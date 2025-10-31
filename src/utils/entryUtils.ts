@@ -233,3 +233,19 @@ export const filterEntriesOnUsedPages = (entries: Entry[], coveredPages: Set<num
 
     return result;
 };
+
+export const validateUniqueIds = (entries: Entry[]) => {
+    const idToEntries = Object.groupBy(
+        entries.filter((e) => e.id),
+        (e) => e.id!,
+    );
+
+    Object.keys(idToEntries).forEach((id) => {
+        const values = idToEntries[id]!;
+
+        values.slice(1).forEach((v) => {
+            logger.warn(`Turning: ${v.id} into ${v.id}${v.from}`);
+            v.id = `${v.id}${v.from}`;
+        });
+    });
+};

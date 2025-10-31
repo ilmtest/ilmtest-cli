@@ -170,6 +170,16 @@ export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, entries:
     }
 };
 
+export const captureNewEntryByPatternAndType =
+    (pattern: RegExp, type: number) => (ln: Line, entries: Partial<Entry>[], page: Page) => {
+        const [, txt] = ln.text.match(pattern) || [];
+
+        if (txt) {
+            entries.push({ arabic: txt.trim(), from: page.id, type });
+            return true;
+        }
+    };
+
 /**
  * Captures an entire page as a single entry when no recent entries exist
  * @param ln - Line object to process

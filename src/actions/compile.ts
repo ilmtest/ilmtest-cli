@@ -73,7 +73,7 @@ export const compileTranslation = async (collectionId: string) => {
             e.translation = t.text;
         } else if (!e.commentary) {
             e.commentary = t.text;
-            //hasError = true;
+            hasError = true;
 
             logger.error(`Duplicate ${t.id}, translator: ${t.translator}`);
         }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import { CAPTURE_CONTINUOUS_PAGES } from './constants';
-import { startNewEntryIfLastEntryMatches } from './flowHandlers';
 import { mapBookPagesToEntries, mapLinesToTranslations } from './mapping';
 
 describe('mapping', () => {
@@ -54,7 +53,9 @@ describe('mapping', () => {
                     { content: `Something\rSomething else`, id: 1, pp: 1, volume: 1 },
                 ]);
 
-                expect(actual).toEqual([{ arabic: 'Something\nSomething else', from: 1, id: 'P11', pp: 1, volume: 1 }]);
+                expect(actual).toEqual([
+                    { arabic: 'Something\nSomething else', from: 1, fromEndIndex: 9, id: 'P11', pp: 1, volume: 1 },
+                ]);
             });
 
             it('should capture indexed then a loose page', () => {
@@ -89,7 +90,7 @@ describe('mapping', () => {
 
                 expect(actual).toEqual([
                     { arabic: 'Something', from: 1, id: 'N1', index: 1, pp: 1, volume: 1 },
-                    { arabic: 'Something else\nNext line', from: 2, id: 'P21', pp: 2, volume: 1 },
+                    { arabic: 'Something else\nNext line', from: 2, fromEndIndex: 14, id: 'P21', pp: 2, volume: 1 },
                 ]);
             });
 
@@ -102,7 +103,7 @@ describe('mapping', () => {
 
                 expect(actual).toEqual([
                     { arabic: 'Something', from: 1, id: 'N1', index: 1, pp: 1, volume: 1 },
-                    { arabic: 'Something else\nNext line', from: 2, id: 'P21', pp: 2, volume: 1 },
+                    { arabic: 'Something else\nNext line', from: 2, fromEndIndex: 14, id: 'P21', pp: 2, volume: 1 },
                     { arabic: 'New page', from: 3, id: 'P31', pp: 3, volume: 1 },
                 ]);
             });
@@ -227,6 +228,7 @@ describe('mapping', () => {
                     {
                         arabic: 'Some text.\nMore text.',
                         from: 1,
+                        fromEndIndex: 10,
                         id: 'P11',
                         pp: 1,
                         to: 2,
@@ -253,6 +255,7 @@ describe('mapping', () => {
                     {
                         arabic: 'Something else.\nThis is the rest of the sentence.\nAfter that we have it\nAnother sentence.',
                         from: 1,
+                        fromEndIndex: 71,
                         id: 'P11',
                         pp: 1,
                         to: 2,
@@ -283,6 +286,7 @@ describe('mapping', () => {
                     {
                         arabic: 'A\nB.',
                         from: 1,
+                        fromEndIndex: 1,
                         id: 'P11',
                         pp: 1,
                         to: 2,
@@ -291,6 +295,7 @@ describe('mapping', () => {
                     {
                         arabic: 'C\nD.',
                         from: 2,
+                        fromEndIndex: 1,
                         id: 'P21',
                         pp: 2,
                         to: 3,
@@ -299,6 +304,93 @@ describe('mapping', () => {
                     {
                         arabic: 'E\nF',
                         from: 3,
+                        fromEndIndex: 1,
+                        id: 'P31',
+                        pp: 3,
+                        to: 4,
+                        volume: 1,
+                    },
+                ]);
+            });
+
+            it('should handle the three pages with punctuation', () => {
+                const actual = mapBookPagesToEntries(
+                    [
+                        { content: `A`, id: 1, pp: 1, volume: 1 },
+                        { content: `B. C`, id: 2, pp: 2, volume: 1 },
+                        { content: `D. E`, id: 3, pp: 3, volume: 1 },
+                        { content: `F`, id: 4, pp: 4, volume: 1 },
+                    ],
+                    { pageSpanning: CAPTURE_CONTINUOUS_PAGES },
+                );
+
+                expect(actual).toEqual([
+                    {
+                        arabic: 'A\nB.',
+                        from: 1,
+                        fromEndIndex: 1,
+                        id: 'P11',
+                        pp: 1,
+                        to: 2,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'C\nD.',
+                        from: 2,
+                        fromEndIndex: 1,
+                        id: 'P21',
+                        pp: 2,
+                        to: 3,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'E\nF',
+                        from: 3,
+                        fromEndIndex: 1,
+                        id: 'P31',
+                        pp: 3,
+                        to: 4,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('custom punctuation', () => {
+            it('should handle the three pages with punctuation', () => {
+                const actual = mapBookPagesToEntries(
+                    [
+                        { content: `A`, id: 1, pp: 1, volume: 1 },
+                        { content: `B. C`, id: 2, pp: 2, volume: 1 },
+                        { content: `D. E`, id: 3, pp: 3, volume: 1 },
+                        { content: `F`, id: 4, pp: 4, volume: 1 },
+                    ],
+                    { pageSpanning: CAPTURE_CONTINUOUS_PAGES, punctuations: '\n$' },
+                );
+
+                expect(actual).toEqual([
+                    {
+                        arabic: 'A\nB.',
+                        from: 1,
+                        fromEndIndex: 1,
+                        id: 'P11',
+                        pp: 1,
+                        to: 2,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'C\nD.',
+                        from: 2,
+                        fromEndIndex: 1,
+                        id: 'P21',
+                        pp: 2,
+                        to: 3,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'E\nF',
+                        from: 3,
+                        fromEndIndex: 1,
                         id: 'P31',
                         pp: 3,
                         to: 4,

@@ -14,6 +14,7 @@ import {
     captureFirstLooseLeaf,
     captureMarkdownChapters,
     captureNewEntryByPattern,
+    captureNewEntryByPatternAndType,
     captureNumericChapters,
     capturePlainTextChapters,
     captureSquareBracketListItem,
@@ -149,6 +150,7 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
         parseNumericChapters,
         numeralStrategy = 'dashed',
         captureCommaSeparatedIndices,
+        patternToType = {},
         lineSeparator = '\n',
         fix,
         prevEntryMarkerPattern,
@@ -184,6 +186,9 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
         ...(numeralStrategy.includes('square') ? [captureSquareBracketListItem] : []),
         ...(captureCommaSeparatedIndices ? [captureCommaSeparatedArabicNumericListItem] : []),
         ...(newEntryMarkerPattern ? [captureNewEntryByPattern(new RegExp(newEntryMarkerPattern, 'u'))] : []),
+        ...Object.entries(patternToType).map(([pattern, type]) =>
+            captureNewEntryByPatternAndType(new RegExp(pattern, 'u'), type),
+        ),
         ...(!isContinuous ? discreteHandlers : []),
         ...(isContinuous ? continuousHandlers : []),
     ];
@@ -198,8 +203,11 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
         runFlow(rawLines, handlers, entries, page, lineSeparator);
     }
 
+    if (fix?.includes('unstable_indexes')) {
+        entries = fixGaps(entries);
+    }
+
     if (fix?.includes('indexes')) {
-        //entries = fixGaps(entries);
         fixGapsLegacy(entries as any);
         validateGaplessEntryIndices(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
     }

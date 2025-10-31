@@ -97,8 +97,16 @@ export type MatnParseOptions = {
     /** Does text span from one page to another */
     pageSpanning?: typeof CAPTURE_CONTINUOUS_PAGES | 'true';
 
-    /** A regular expression pattern to mark the start of a new entry. */
+    /** A regular expression pattern to mark the start of a new entry.
+     * @deprecated As of contractVersion v1.1 Use typeToMarkerPatterns
+     */
     newEntryMarkerPattern?: string;
+
+    /**
+     * Marker patterns to match a text along with the type of entry to create it as.
+     * @since contractVersion v1.1
+     */
+    patternToType?: Record<string, number>;
 
     /**
      * A regular expression pattern to mark the start of a new entry iff the last entry's matn matches this pattern.
