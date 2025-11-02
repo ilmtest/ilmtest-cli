@@ -29,6 +29,10 @@ export const indexEntriesForLookup = (entries: Entry[], { scanMatn = false } = {
             indexToEntries[key] = (indexToEntries[key] || []).concat(entry);
         }
 
+        if (!entry.from) {
+            logger.warn(`Entry ${entry.id} is unlinked...`);
+        }
+
         const length = entry.to && entry.to !== entry.from ? entry.to : entry.from;
 
         for (let i = entry.from; i <= length; i++) {

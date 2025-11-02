@@ -140,7 +140,7 @@ const getSanitizers = (patterns: string[], options: { flatten?: boolean } = {}) 
     return sanitizerPipeline;
 };
 
-export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {
+const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions) => {
     const {
         pageSpanning,
         sanitize,
@@ -160,7 +160,7 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
 
     const isContinuous = Boolean(pageSpanning);
 
-    let entries: Partial<Entry>[] = [];
+    const entries: Partial<Entry>[] = [];
 
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
     const continuousHandlers = [
@@ -203,11 +203,17 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
         runFlow(rawLines, handlers, entries, page, lineSeparator);
     }
 
-    if (fix?.includes('unstable_indexes')) {
+    return entries;
+};
+
+export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {
+    let entries = mapShamelaPagesToEntries(pages, options);
+
+    if (options.fix?.includes('unstable_indexes')) {
         entries = fixGaps(entries);
     }
 
-    if (fix?.includes('indexes')) {
+    if (options.fix?.includes('indexes')) {
         fixGapsLegacy(entries as any);
         validateGaplessEntryIndices(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
     }
@@ -215,7 +221,7 @@ export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOp
     entries = assignIdsToEntries(
         entries,
         Object.groupBy(pages, (p) => p.id),
-        hasDuplicateNumerals,
+        options.hasDuplicateNumerals,
     );
 
     return entries;

@@ -1,18 +1,18 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { type BookData, getBook, getBookMetadata, setLogger } from 'shamela';
+import { getBookContents } from 'ketab-online-sdk';
+import { type BookData, configure, getBook, getBookMetadata } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, Excerpts, ShamelaBook } from '@/types.js';
-
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import { filterEntriesOnUsedPages, getEntryKey, indexEntriesForLookup, validateUniqueIds } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
-import { findLastPunctuation, getPageBodyAndFootnotes } from '@/utils/textUtils.js';
+import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
 
 /**
  * Parses command line arguments for Shamela operations
@@ -52,6 +52,32 @@ const parseInputArgs = () => {
     };
 };
 
+function parseHTMLContent(html: string) {
+    const paragraphs: { text: string; id: string }[] = [];
+
+    // Match all paragraph tags with id attributes
+    const paragraphRegex = /<p[^>]+id="(p-\d+)"[^>]*>(.*?)<\/p>/gs;
+
+    let match;
+    while ((match = paragraphRegex.exec(html)) !== null) {
+        const id = match[1]; // e.g., "p-1"
+        const content = match[2]; // HTML content inside the paragraph
+
+        // Convert id from "p-1" to "P1"
+        const formattedId = id.replace('p-', 'P');
+
+        // Remove all HTML tags from content
+        const text = content.replace(/<[^>]+>/g, '');
+
+        paragraphs.push({
+            id: formattedId,
+            text: text.trim(),
+        });
+    }
+
+    return paragraphs.map((p) => p.text).join('\n');
+}
+
 /**
  * Loads a Shamela book with specified page range and processes content
  * @param bookId - The Shamela book identifier
@@ -59,10 +85,37 @@ const parseInputArgs = () => {
  * @param dir - Directory to cache the book data
  * @returns Promise resolving to processed ShamelaBook object
  */
-const loadBook = async (bookId: number, [from, to]: number[], dir: string) => {
+const loadBook = async (collection: Collection, [from, to]: number[], dir: string) => {
+    const [bookId] = collection.fid!.map((fid) => fid.id).map(Number);
+
     const book = await loadOrDownload<BookData>(
         'book',
         async () => {
+            if (collection.library === 71) {
+                // ketabonline
+                const json = await getBookContents(bookId);
+
+                const result = {
+                    pages: json.pages
+                        .filter((p) => p.part)
+                        .map(({ content, id, page, part }) => {
+                            return {
+                                content: parseHTMLContent(content),
+                                id,
+                                pp: page,
+                                volume: parseInt((part as any).name, 10),
+                            };
+                        }),
+                    titles: json.index.map(({ title, parent, page_id: page }) => ({
+                        content: title,
+                        page,
+                        parent,
+                    })),
+                };
+
+                return result as any;
+            }
+
             const [metadata, shamelaBook] = await Promise.all([getBookMetadata(bookId), getBook(bookId)]);
 
             return {
@@ -121,10 +174,9 @@ export const loadData = async () => {
     await fs.mkdir(dir, { recursive: true });
 
     const collection = await loadOrDownload<Collection>('collection', async () => getCollection(collectionId), dir);
-    const [bookId] = collection.fid!.map((fid) => fid.id).map(Number);
 
-    setLogger(logger);
-    const book = await loadBook(bookId, [from, to], dir);
+    configure({ logger });
+    const book = await loadBook(collection, [from, to], dir);
 
     const entries = await loadOrDownload<Entry[]>(
         'entries',
@@ -135,6 +187,23 @@ export const loadData = async () => {
     const indexed = indexEntriesForLookup(entries);
 
     const optionsFile = Bun.file(path.join(dir, 'options.json'));
+    const hasOptions = await optionsFile.exists();
+
+    if (!hasOptions) {
+        await optionsFile.write(
+            JSON.stringify(
+                {
+                    pageSpanning: 'trailing',
+                    patternToType: {
+                        '^((word1|word2|word3|word4).*)': 2,
+                    },
+                    prevEntryMarkerPattern: '(التَّوْفِيقُ|وَلِلَّهِ الْحَمْدُ|التَّوْفِيقُ|كُلِّ حَالٍ)\\.$',
+                },
+                null,
+                2,
+            ),
+        );
+    }
 
     return {
         book,
@@ -143,7 +212,7 @@ export const loadData = async () => {
         coveredPages: new Set(Object.keys(indexed.pageToEntries).map(Number)),
         dir,
         entries: entriesToFilter ? entries.filter((e) => entriesToFilter.includes(e.id)) : entries,
-        options: (await optionsFile.exists()) ? await optionsFile.json() : {},
+        options: hasOptions ? await optionsFile.json() : {},
         ...rest,
     };
 };

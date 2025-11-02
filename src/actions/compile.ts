@@ -90,10 +90,16 @@ export const compileTranslation = async (collectionId: string) => {
         );
         logger.info(`${entries.length} saved to ${excerptFile.name}`);
 
-        const untranslatedCount = entries.filter((e) => !e.translation).length;
+        const untranslated = entries.filter((e) => !e.translation);
+        const untranslatedCount = untranslated.length;
+
         logger.info(
             `${untranslatedCount} entries (${(untranslatedCount / entries.length) * 100}%) still are not translated.`,
         );
+
+        if (untranslatedCount && untranslatedCount < 30) {
+            logger.info(`The following are still not translated: ${untranslated.map((e) => e.id).toString()}`);
+        }
 
         const confirmed = await confirm({
             message: `Do you want to clear out the temporary translation files?`,
