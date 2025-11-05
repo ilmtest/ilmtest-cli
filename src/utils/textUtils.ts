@@ -66,6 +66,7 @@ export const getPageBodyAndFootnotes = (text: string) => {
     content = condenseEllipsis(content);
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);
+    //content = content.replace(/\s?⦗[\u0660-\u0669]+⦘\s?/g, ' ');
     content = sanitizePageContent(content);
     content = normalizeSpaces(content);
 

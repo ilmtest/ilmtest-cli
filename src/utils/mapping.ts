@@ -152,9 +152,7 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
         captureCommaSeparatedIndices,
         patternToType = {},
         lineSeparator = '\n',
-        fix,
         prevEntryMarkerPattern,
-        hasDuplicateNumerals,
         newEntryMarkerPattern,
     } = options;
 

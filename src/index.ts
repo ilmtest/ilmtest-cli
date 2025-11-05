@@ -66,7 +66,7 @@ const main = async () => {
     } else if (values.shamela) {
         await (await import('./actions/shamela.js')).processShamela();
     } else if (values.migrate) {
-        await (await import('./actions/migrate.js')).migrateEntries(values.migrate as string);
+        await (await import('./actions/migrate.js')).migrateEntries();
     } else if (values.diff) {
         await (await import('./actions/adjust.js')).adjustIndices();
     } else if (values.compile) {

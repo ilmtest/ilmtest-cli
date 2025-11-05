@@ -16,6 +16,7 @@ const TRANSLATE_PROMPT = [
     'The first pass: Verify all translations are aligned with matching Arabic numeric markers.',
     'The second pass: The translations are accurate based on the overall context.',
     'The third pass: Any transliterations used are accurate.',
+    'CRITICAL: Never format chapter headings into all uppercase.',
 ];
 
 export const generatePrompt = async (dir: string, title: string, entries: Partial<Entry>[]) => {

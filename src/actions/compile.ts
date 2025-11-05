@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { confirm } from '@inquirer/prompts';
-import { EntryFlags } from '@/api/entries.js';
+import { type Entry, EntryFlags } from '@/api/entries.js';
 import type { Excerpts, Translation } from '@/types.js';
 import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
@@ -30,13 +30,35 @@ const loadTranslations = async (dir: string) => {
     return translations;
 };
 
+const mergeShortEntriesWithPrevious = (entries: Entry[], minWords: number, separator: string): Entry[] => {
+    return entries.reduce<Entry[]>((acc, entry) => {
+        const wordCount = entry.arabic!.trim().split(/\s+/).length;
+        const prev = acc.at(-1);
+
+        const shouldMerge = wordCount < minWords && !entry.to && prev?.from === entry.from && !prev.to;
+
+        if (shouldMerge) {
+            return [
+                ...acc.slice(0, -1),
+                {
+                    ...prev,
+                    arabic: `${prev.arabic}${separator}${entry.arabic}`,
+                    translation: `${prev.translation}${separator}${entry.translation}`,
+                },
+            ];
+        }
+
+        return [...acc, entry];
+    }, []);
+};
+
 /**
  * Compiles translation data for a collection by matching entries with translation files
  * @param collectionId - The ID of the collection to compile translations for
  * @returns Promise that resolves to an array of compiled translations
  */
 export const compileTranslation = async (collectionId: string) => {
-    const { values: parsedValues } = getParsedArgs({ pages: { type: 'string' } });
+    const { values: parsedValues } = getParsedArgs({ duplicates: { type: 'boolean' }, pages: { type: 'string' } });
 
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
@@ -73,9 +95,13 @@ export const compileTranslation = async (collectionId: string) => {
             e.translation = t.text;
         } else if (!e.commentary) {
             e.commentary = t.text;
-            hasError = true;
 
-            logger.error(`Duplicate ${t.id}, translator: ${t.translator}`);
+            if (parsedValues.duplicates) {
+                logger.warn(`Adding commentary for ${t.id}, translator: ${t.translator}`);
+            } else {
+                hasError = true;
+                logger.error(`Duplicate ${t.id}, translator: ${t.translator}`);
+            }
         }
 
         e.translator = t.translator;

@@ -1,13 +1,20 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { confirm, select } from '@inquirer/prompts';
 import { getBookContents } from 'ketab-online-sdk';
 import { type BookData, configure, getBook, getBookMetadata } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
-import type { Collection, Excerpts, ShamelaBook } from '@/types.js';
-import { OUTPUT_DIR } from '@/utils/constants.js';
-import { filterEntriesOnUsedPages, getEntryKey, indexEntriesForLookup, validateUniqueIds } from '@/utils/entryUtils.js';
+import type { Collection, Excerpts, MatnParseOptions, ShamelaBook } from '@/types.js';
+import { CAPTURE_CONTINUOUS_PAGES, OUTPUT_DIR } from '@/utils/constants.js';
+import {
+    filterEntriesOnUsedPages,
+    filterMatchedEntries,
+    getEntryKey,
+    indexEntriesForLookup,
+    validateUniqueIds,
+} from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
@@ -162,6 +169,61 @@ const loadBook = async (collection: Collection, [from, to]: number[], dir: strin
     return book as ShamelaBook;
 };
 
+const loadOptions = async (dir: string) => {
+    const optionsFile = Bun.file(path.join(dir, 'options.json'));
+    const hasOptions = await optionsFile.exists();
+    const options: MatnParseOptions = hasOptions ? await optionsFile.json() : {};
+
+    if (!hasOptions) {
+        options.numeralStrategy = (await select({
+            choices: [
+                { name: '8 - Dashed', value: 'dashed' },
+                { name: '[8] Square', value: 'square' },
+                { name: 'None', value: '' },
+            ],
+            default: 'dashed',
+            message: 'What kinds of numeral index markers does your book use?',
+        })) as any;
+
+        const spanning = await confirm({
+            message: `Does each entry span more than one page?`,
+        });
+
+        if (spanning) {
+            const trailing = await confirm({
+                message: `Do you want to cut each entry based on the last punctuation mark?`,
+            });
+
+            options.pageSpanning = trailing ? CAPTURE_CONTINUOUS_PAGES : 'true';
+
+            if (trailing) {
+                options.patternToType = {
+                    '^((word1|word2|word3|word4).*)': 0,
+                };
+
+                options.prevEntryMarkerPattern = '(التَّوْفِيقُ|وَلِلَّهِ الْحَمْدُ|التَّوْفِيقُ|كُلِّ حَالٍ)\\.$';
+            }
+        }
+
+        if (options.numeralStrategy) {
+            const autoFix = await confirm({
+                message: `Should we automatically fix indexes`,
+            });
+
+            if (autoFix) {
+                options.fix = 'indexes';
+            }
+        }
+
+        await optionsFile.write(JSON.stringify(options));
+    }
+
+    // \n.",
+    // ^\s?.\s?$
+
+    return options;
+};
+
 /**
  * Loads and prepares all necessary data for Shamela processing
  * Includes collection data, book content, and entry information
@@ -185,25 +247,7 @@ export const loadData = async () => {
     );
 
     const indexed = indexEntriesForLookup(entries);
-
-    const optionsFile = Bun.file(path.join(dir, 'options.json'));
-    const hasOptions = await optionsFile.exists();
-
-    if (!hasOptions) {
-        await optionsFile.write(
-            JSON.stringify(
-                {
-                    pageSpanning: 'trailing',
-                    patternToType: {
-                        '^((word1|word2|word3|word4).*)': 2,
-                    },
-                    prevEntryMarkerPattern: '(التَّوْفِيقُ|وَلِلَّهِ الْحَمْدُ|التَّوْفِيقُ|كُلِّ حَالٍ)\\.$',
-                },
-                null,
-                2,
-            ),
-        );
-    }
+    const options = await loadOptions(dir);
 
     return {
         book,
@@ -212,7 +256,7 @@ export const loadData = async () => {
         coveredPages: new Set(Object.keys(indexed.pageToEntries).map(Number)),
         dir,
         entries: entriesToFilter ? entries.filter((e) => entriesToFilter.includes(e.id)) : entries,
-        options: hasOptions ? await optionsFile.json() : {},
+        options,
         ...rest,
     };
 };
@@ -223,16 +267,17 @@ export const loadData = async () => {
  * @returns Promise that resolves when processing is complete
  */
 export const processShamela = async () => {
-    const { book, collection, dir, unused, coveredIndices, coveredPages, options } = await loadData();
+    const { book, collection, dir, unused, coveredIndices, coveredPages, options, entries } = await loadData();
 
     let arabicOnlyEntries = mapBookPagesToEntries(book.pages, options);
 
-    if (unused === 'pages') {
+    if (unused?.includes('pages')) {
         arabicOnlyEntries = filterEntriesOnUsedPages(arabicOnlyEntries as any, coveredPages);
     }
 
-    if (unused === 'index') {
-        arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
+    if (unused?.includes('index')) {
+        //arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
+        arabicOnlyEntries = filterMatchedEntries(arabicOnlyEntries as any, entries);
     }
 
     if (unused) {
