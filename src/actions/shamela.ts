@@ -2,6 +2,30 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { confirm, select } from '@inquirer/prompts';
+import {
+    addSpaceBeforeAndAfterPunctuation,
+    addSpaceBetweenArabicTextAndNumbers,
+    cleanSpacesBeforePeriod,
+    condenseAsterisks,
+    condenseColons,
+    condenseDashes,
+    condenseEllipsis,
+    condensePeriods,
+    condenseUnderscores,
+    doubleToSingleBrackets,
+    ensureSpaceBeforeBrackets,
+    ensureSpaceBeforeQuotes,
+    fixBracketTypos,
+    fixCurlyBraces,
+    fixMismatchedQuotationMarks,
+    fixTrailingWow,
+    normalizeSpaces,
+    removeRedundantPunctuation,
+    removeSpaceInsideBrackets,
+    replaceDoubleBracketsWithArrows,
+    replaceEnglishPunctuationWithArabic,
+    trimSpaceInsideQuotes,
+} from 'bitaboom';
 import { getBookContents } from 'ketab-online-sdk';
 import { type BookData, configure, getBook, getBookMetadata } from 'shamela';
 import { getCollection } from '@/api/collections.js';
@@ -11,7 +35,6 @@ import { CAPTURE_CONTINUOUS_PAGES, OUTPUT_DIR } from '@/utils/constants.js';
 import {
     filterEntriesOnUsedPages,
     filterMatchedEntries,
-    getEntryKey,
     indexEntriesForLookup,
     validateUniqueIds,
 } from '@/utils/entryUtils.js';
@@ -65,7 +88,7 @@ function parseHTMLContent(html: string) {
     // Match all paragraph tags with id attributes
     const paragraphRegex = /<p[^>]+id="(p-\d+)"[^>]*>(.*?)<\/p>/gs;
 
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = paragraphRegex.exec(html)) !== null) {
         const id = match[1]; // e.g., "p-1"
         const content = match[2]; // HTML content inside the paragraph
@@ -240,11 +263,9 @@ export const loadData = async () => {
     configure({ logger });
     const book = await loadBook(collection, [from, to], dir);
 
-    const entries = await loadOrDownload<Entry[]>(
-        'entries',
-        async () => getEntries(collectionId, { full: 1, limit: -1 }),
-        dir,
-    );
+    const entries =
+        ([] as Entry[]) ||
+        (await loadOrDownload<Entry[]>('entries', async () => getEntries(collectionId, { full: 1, limit: -1 }), dir));
 
     const indexed = indexEntriesForLookup(entries);
     const options = await loadOptions(dir);
@@ -261,6 +282,37 @@ export const loadData = async () => {
     };
 };
 
+const formatArabic = (text: string) => {
+    for (const formatter of [
+        cleanSpacesBeforePeriod,
+        condenseColons,
+        condenseAsterisks,
+        condenseEllipsis,
+        replaceEnglishPunctuationWithArabic,
+        condenseDashes,
+        addSpaceBeforeAndAfterPunctuation,
+        condensePeriods,
+        condenseUnderscores,
+        ensureSpaceBeforeBrackets,
+        doubleToSingleBrackets,
+        fixBracketTypos,
+        fixMismatchedQuotationMarks,
+        fixCurlyBraces,
+        removeRedundantPunctuation,
+        fixTrailingWow,
+        removeSpaceInsideBrackets,
+        trimSpaceInsideQuotes,
+        addSpaceBetweenArabicTextAndNumbers,
+        ensureSpaceBeforeQuotes,
+        (text: string) => text.trim().replace(/\n"$/, ''),
+        normalizeSpaces,
+    ]) {
+        text = formatter(text);
+    }
+
+    return text;
+};
+
 /**
  * Main function to process Shamela content and generate translation prompts
  * Processes book pages, filters content based on options, and generates output files
@@ -269,7 +321,12 @@ export const loadData = async () => {
 export const processShamela = async () => {
     const { book, collection, dir, unused, coveredIndices, coveredPages, options, entries } = await loadData();
 
-    let arabicOnlyEntries = mapBookPagesToEntries(book.pages, options);
+    let arabicOnlyEntries = mapBookPagesToEntries(book.pages, options)
+        .map((e) => ({
+            ...e,
+            arabic: formatArabic(e.arabic!),
+        }))
+        .filter((e) => e.arabic!.trim().length > 2) as Entry[];
 
     if (unused?.includes('pages')) {
         arabicOnlyEntries = filterEntriesOnUsedPages(arabicOnlyEntries as any, coveredPages);
@@ -291,7 +348,8 @@ export const processShamela = async () => {
     const fileExists = await excerptsFile.exists();
 
     if (fileExists) {
-        arabicOnlyEntries = ((await excerptsFile.json()) as Excerpts).excerpts.filter((e) => !e.translation);
+        const existingEntries = ((await excerptsFile.json()) as Excerpts).excerpts.filter((e) => !e.translation);
+        arabicOnlyEntries = existingEntries;
     }
 
     await generatePrompt(dir, collection.title, arabicOnlyEntries);

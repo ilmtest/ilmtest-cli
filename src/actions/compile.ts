@@ -7,7 +7,7 @@ import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
 
-const TRANSLATION_IDS = [873, 879, 870];
+const TRANSLATION_IDS = [873, 879];
 
 type AITranslation = Translation & { translator: number };
 
@@ -58,7 +58,11 @@ const mergeShortEntriesWithPrevious = (entries: Entry[], minWords: number, separ
  * @returns Promise that resolves to an array of compiled translations
  */
 export const compileTranslation = async (collectionId: string) => {
-    const { values: parsedValues } = getParsedArgs({ duplicates: { type: 'boolean' }, pages: { type: 'string' } });
+    const { values: parsedValues } = getParsedArgs({
+        duplicates: { type: 'boolean' },
+        pages: { type: 'string' },
+        show: { type: 'boolean' },
+    });
 
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
@@ -123,7 +127,7 @@ export const compileTranslation = async (collectionId: string) => {
             `${untranslatedCount} entries (${(untranslatedCount / entries.length) * 100}%) still are not translated.`,
         );
 
-        if (untranslatedCount && untranslatedCount < 30) {
+        if ((untranslatedCount && untranslatedCount < 70) || parsedValues.show) {
             logger.info(`The following are still not translated: ${untranslated.map((e) => e.id).toString()}`);
         }
 

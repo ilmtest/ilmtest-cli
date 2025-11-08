@@ -82,6 +82,12 @@ export type MatnParseOptions = {
     numeralStrategy?: 'dashed' | 'letter' | 'square';
 
     /**
+     * Marks the very first page from which entry indexes should be considered to be added. Otherwise we will just assume they are part of the paragraph text.
+     * @since contractVersion v1.1
+     */
+    firstPageWithIndex?: number;
+
+    /**
      * Should flatten all html tags.
      * @deprecated As of contractVersion v1.1, use sanitize = ['html'] */
     flatten?: boolean;

@@ -1,3 +1,4 @@
+import { findMatches, findMatchesAll } from 'baburchi';
 import { arabicNumeralToNumber } from 'bitaboom';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
 import { type Entry, EntryType } from '../api/entries.js';
@@ -236,6 +237,35 @@ export const filterEntriesOnUsedPages = (entries: Entry[], coveredPages: Set<num
         .filter((e) => e.arabic);
 
     return result;
+};
+
+/**
+ * Filters out from entries all the ones that are already processed
+ * @param existing
+ * @param entries
+ */
+export const filterMatchedEntries = (entries: Entry[], existing: Entry[]) => {
+    const { pageToEntries } = indexEntriesForLookup(existing);
+
+    return entries.filter((e) => {
+        const entriesOnPage = pageToEntries[e.from];
+
+        if (!entriesOnPage) {
+            return true;
+        }
+
+        if (e.index) {
+            const key = getEntryKey(e);
+            return !entriesOnPage.some((ep) => getEntryKey(ep) === key);
+        }
+
+        const [matchedIndex] = findMatches(
+            entriesOnPage.map((a) => a.arabic!),
+            [e.arabic!],
+        );
+
+        return matchedIndex === -1;
+    });
 };
 
 export const validateUniqueIds = (entries: Entry[]) => {

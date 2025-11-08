@@ -2,6 +2,7 @@ import { arabicNumeralToNumber, isAllUppercase, makeDiacriticInsensitiveRegex, t
 import type { Line, Page } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
+import type { EntriesContext } from './entryContext.js';
 import { findLastPunctuation, PATTERNS } from './textUtils.js';
 
 const CHAPTER_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('باب').source} `);
@@ -31,12 +32,12 @@ const getEntryType = (text: string) => (KITAB_REGEX.test(text.trim()) ? EntryTyp
  * Removes ID from lines that match Arabic numeric list item pattern
  * @param ln - Line object to process
  */
-export const captureNumericChapters = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const captureNumericChapters = (ln: Line, page: Page, context: EntriesContext) => {
     if (ln.id) {
         const [, idx, txt] = ln.text.match(PATTERNS.MatchArabicNumericListItem) || [];
 
         if (txt) {
-            entries.push({
+            context.addEntry({
                 arabic: txt.trim(),
                 from: page.id,
                 id: ln.id,
@@ -79,9 +80,9 @@ export const removeSquareBracketsFromTitles = (ln: Line) => {
  * @param page - Current page being processed
  * @returns True if a chapter was processed, undefined otherwise
  */
-export const processChapter = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const processChapter = (ln: Line, page: Page, context: EntriesContext) => {
     if (ln.id) {
-        entries.push({
+        context.addEntry({
             arabic: ln.text,
             from: page.id,
             id: ln.id,
@@ -92,21 +93,21 @@ export const processChapter = (ln: Line, entries: Partial<Entry>[], page: Page) 
     }
 };
 
-export const captureCommaSeparatedArabicNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const captureCommaSeparatedArabicNumericListItem = (ln: Line, page: Page, context: EntriesContext) => {
     const [, indexes, txt] = ln.text.match(/^((?:[\u0660-\u0669]+(?:، )?)+)\s?[-–—ـ](.*)/) || [];
 
     if (txt) {
         const numbers = indexes.split(/، ?/).filter(Boolean).map(arabicNumeralToNumber);
-        entries.push({ arabic: txt.trim(), from: page.id, id: numbers.join(',') });
+        context.addEntry({ arabic: txt.trim(), from: page.id, id: numbers.join(',') });
         return true;
     }
 };
 
-export const captureSquareBracketListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const captureSquareBracketListItem = (ln: Line, page: Page, context: EntriesContext) => {
     const [, idx, arabic] = ln.text.match(/^\[([\u0660-\u0669]+)\]\s?(.*)/) || [];
 
     if (arabic) {
-        entries.push({
+        context.addEntry({
             arabic,
             from: page.id,
             index: arabicNumeralToNumber(idx),
@@ -123,20 +124,21 @@ export const captureSquareBracketListItem = (ln: Line, entries: Partial<Entry>[]
  * @param page - Current page being processed
  * @returns True if an Arabic numeric list item was processed, undefined otherwise
  */
-export const processArabicNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    const [, idx, txt] = ln.text.match(PATTERNS.MatchArabicNumericListItem) || [];
+export const processArabicNumericListItem =
+    (firstPageWithIndex: number) => (ln: Line, page: Page, context: EntriesContext) => {
+        const [, idx, txt] = ln.text.match(PATTERNS.MatchArabicNumericListItem) || [];
 
-    if (txt) {
-        entries.push({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
-        return true;
-    }
-};
+        if (txt && page.id >= firstPageWithIndex) {
+            context.addEntry({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
+            return true;
+        }
+    };
 
-export const processArabicLetterNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const processArabicLetterNumericListItem = (ln: Line, page: Page, context: EntriesContext) => {
     const [, idx, txt] = ln.text.match(/^[\u0621-\u064A\u0660-\u0669]+\s+([\u0660-\u0669]+)\s?[-–—ـ]\s*(.*)/) || [];
 
     if (txt) {
-        entries.push({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
+        context.addEntry({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
         return true;
     }
 };
@@ -148,34 +150,34 @@ export const processArabicLetterNumericListItem = (ln: Line, entries: Partial<En
  * @param page - Current page being processed
  * @returns True if a numeric list item was processed, undefined otherwise
  */
-export const processNumericListItem = (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const processNumericListItem = (ln: Line, page: Page, context: EntriesContext) => {
     const [, idx, txt] = ln.text.match(PATTERNS.MatchNumericListItem) || [];
 
     if (txt) {
-        entries.push({ arabic: txt.trim(), from: page.id, index: parseInt(idx, 10) });
+        context.addEntry({ arabic: txt.trim(), from: page.id, index: parseInt(idx, 10) });
         return true;
     }
 };
 
 export const usedTerms: Record<string, number> = {};
 
-export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, entries: Partial<Entry>[], page: Page) => {
+export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, page: Page, context: EntriesContext) => {
     const [, txt] = ln.text.match(pattern) || [];
 
     if (txt) {
         usedTerms[txt] = (usedTerms[txt] || 0) + 1;
 
-        entries.push({ arabic: txt.trim(), from: page.id });
+        context.addEntry({ arabic: txt.trim(), from: page.id });
         return true;
     }
 };
 
 export const captureNewEntryByPatternAndType =
-    (pattern: RegExp, type: number) => (ln: Line, entries: Partial<Entry>[], page: Page) => {
+    (pattern: RegExp, type: number) => (ln: Line, page: Page, context: EntriesContext) => {
         const [, txt] = ln.text.match(pattern) || [];
 
         if (txt) {
-            entries.push({ arabic: txt.trim(), from: page.id, type });
+            context.addEntry({ arabic: txt.trim(), from: page.id, type });
             return true;
         }
     };
@@ -187,11 +189,9 @@ export const captureNewEntryByPatternAndType =
  * @param page - Current page being processed
  * @returns True if the entire page was captured, undefined otherwise
  */
-export const captureEntirePage = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    const lastEntry = entries.at(-1);
-
+export const captureEntirePage = (ln: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
     if (!lastEntry || page.id - lastEntry.from! >= 1) {
-        entries.push({ arabic: ln.text, from: page.id });
+        addEntry({ arabic: ln.text, from: page.id });
         return true;
     }
 };
@@ -203,12 +203,10 @@ export const captureEntirePage = (ln: Line, entries: Partial<Entry>[], page: Pag
  * @param page - Current page being processed
  * @returns True if the first loose leaf was captured, undefined otherwise
  */
-export const captureFirstLooseLeaf = (ln: Line, entries: Partial<Entry>[], page: Page) => {
-    const lastEntry = entries.at(-1);
-
+export const captureFirstLooseLeaf = (ln: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
     if (!lastEntry) {
         // first item is a loose leaf page
-        entries.push({ arabic: ln.text, from: page.id });
+        addEntry({ arabic: ln.text, from: page.id });
         return true;
     }
 };
@@ -218,10 +216,10 @@ export const captureFirstLooseLeaf = (ln: Line, entries: Partial<Entry>[], page:
  * @param param0 - Destructured line object containing text
  * @param entries - Array of entries to modify
  */
-export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[], page: Page, separator: string) => {
-    const last = entries.at(-1)!;
+export const appendLineToLastEntry = ({ text }: Line, page: Page, context: EntriesContext) => {
+    const last = context.lastEntry!;
     last.fromEndIndex = last.arabic!.length;
-    last.arabic = [last.arabic, text].filter(Boolean).join(separator);
+    last.arabic = [last.arabic, text].filter(Boolean).join(context.separator);
 
     if (last.from !== page.id) {
         last.to = page.id;
@@ -232,11 +230,11 @@ export const appendLineToLastEntry = ({ text }: Line, entries: Partial<Entry>[],
 
 export const startNewEntryIfLastEntryMatches =
     (pattern: RegExp) =>
-    ({ text }: Line, entries: Partial<Entry>[], page: Page) => {
-        const last = entries.at(-1)?.arabic!;
+    ({ text }: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
+        const last = lastEntry!.arabic!;
 
         if (pattern.test(last)) {
-            entries.push({ arabic: text.trim(), from: page.id });
+            addEntry({ arabic: text.trim(), from: page.id });
             return true;
         }
     };
@@ -248,8 +246,8 @@ export const startNewEntryIfLastEntryMatches =
  * @param page - Current page being processed
  * @returns True if the content was appended or processed, undefined otherwise
  */
-export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], page: Page, separator: string) => {
-    const lastEntry = entries.at(-1)!;
+export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesContext) => {
+    const lastEntry = context.lastEntry!;
     const diff = page.id - lastEntry.from!;
 
     if (diff >= 1) {
@@ -257,7 +255,7 @@ export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], pa
 
         if (PATTERNS.EndsWithPunctuation.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
             // last page ended with a punctuation no need to continue here, just make this page separate
-            return captureEntirePage(ln, entries, page);
+            return captureEntirePage(ln, page, context);
         }
 
         let lastPeriodIndex = findLastPunctuation(ln.text);
@@ -267,14 +265,14 @@ export const appendNewPageToLastEntry = (ln: Line, entries: Partial<Entry>[], pa
         }
 
         const beforePunctuation = ln.text.slice(0, lastPeriodIndex + 1).trim();
-        appendLineToLastEntry({ text: beforePunctuation }, entries, page, separator);
+        appendLineToLastEntry({ text: beforePunctuation }, page, context);
 
         lastEntry.to = page.id;
 
         const afterPunctuation = ln.text.slice(lastPeriodIndex + 1).trim();
 
         if (afterPunctuation) {
-            entries.push({ arabic: afterPunctuation, from: page.id });
+            context.addEntry({ arabic: afterPunctuation, from: page.id });
         }
 
         return true;

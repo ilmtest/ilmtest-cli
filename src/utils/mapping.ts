@@ -3,6 +3,7 @@ import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
 import { CAPTURE_CONTINUOUS_PAGES, SANITIZE_HTML } from './constants.js';
+import { EntriesContext } from './entryContext.js';
 import { fixGaps, fixGapsLegacy, validateGaplessEntryIndices } from './entryUtils.js';
 import { runFlow } from './flow.js';
 import {
@@ -149,6 +150,7 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
         shouldCapturePlainTextChapters,
         parseNumericChapters,
         numeralStrategy = 'dashed',
+        firstPageWithIndex = 1,
         captureCommaSeparatedIndices,
         patternToType = {},
         lineSeparator = '\n',
@@ -157,8 +159,6 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
     } = options;
 
     const isContinuous = Boolean(pageSpanning);
-
-    const entries: Partial<Entry>[] = [];
 
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
     const continuousHandlers = [
@@ -180,7 +180,9 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
         captureNumericChapters,
         processChapter,
         ...(numeralStrategy.includes('letter') ? [processArabicLetterNumericListItem] : []),
-        ...(numeralStrategy.includes('dashed') ? [processArabicNumericListItem, processNumericListItem] : []),
+        ...(numeralStrategy.includes('dashed')
+            ? [processArabicNumericListItem(firstPageWithIndex), processNumericListItem]
+            : []),
         ...(numeralStrategy.includes('square') ? [captureSquareBracketListItem] : []),
         ...(captureCommaSeparatedIndices ? [captureCommaSeparatedArabicNumericListItem] : []),
         ...(newEntryMarkerPattern ? [captureNewEntryByPattern(new RegExp(newEntryMarkerPattern, 'u'))] : []),
@@ -191,6 +193,8 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
         ...(isContinuous ? continuousHandlers : []),
     ];
 
+    const context = new EntriesContext(lineSeparator);
+
     for (const page of pages) {
         const content = sanitizers.reduce((prev, sanitizer) => {
             return sanitizer(prev);
@@ -198,10 +202,10 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
 
         let rawLines = parseContentRobust(content);
         rawLines = splitTextOnCarriageReturns(rawLines);
-        runFlow(rawLines, handlers, entries, page, lineSeparator);
+        runFlow(rawLines, handlers, page, context);
     }
 
-    return entries;
+    return context.result;
 };
 
 export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {

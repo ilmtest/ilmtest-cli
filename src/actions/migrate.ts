@@ -3,6 +3,7 @@ import { findMatches } from 'baburchi';
 import { stripHtml } from 'string-strip-html';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { ShamelaBook, ShamelaPage } from '@/types.js';
+import { getParsedArgs } from '@/utils/argsParser.js';
 import { getEntryKey, getVolumePageKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { mapBookPagesToEntries } from '@/utils/mapping.js';
@@ -84,7 +85,7 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
  * Uses multiple matching strategies and prompts user for confirmation before saving changes
  * @returns Promise that resolves when migration completes
  */
-export const migrateEntries = async (strategy?: string) => {
+export const migrateEntries = async (strategy = 'duplicate') => {
     const { book, entries, options } = await loadData();
 
     if (strategy === 'index') {
@@ -180,8 +181,6 @@ export const migrateEntries = async (strategy?: string) => {
 
         logger.info(`${patches.length} entries linked, ${unlinked.length} could not be linked...`);
     }
-
-    console.log('unlinked', unlinked);
 
     unlinked
         .filter((u) => u.from)

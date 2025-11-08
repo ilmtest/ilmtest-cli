@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { filterEntriesOnUsedPages, fixGaps, indexEntriesForLookup } from './entryUtils';
+import { filterEntriesOnUsedPages, filterMatchedEntries, fixGaps, indexEntriesForLookup } from './entryUtils';
 
 describe('entryUtils', () => {
     describe('indexEntriesForLookup', () => {
@@ -147,6 +147,36 @@ describe('entryUtils', () => {
                 new Set([2]),
             );
             expect(actual).toMatchObject([{ arabic: 'A.', from: 1 }]);
+        });
+    });
+
+    describe('filterMatchedEntries', () => {
+        it('should remove due to common index', () => {
+            const actual = filterMatchedEntries([{ from: 1, index: 1 }] as any, [{ from: 1, index: 1 }] as any);
+
+            expect(actual).toBeEmpty();
+        });
+
+        it('should not remove due to differing index', () => {
+            const actual = filterMatchedEntries([{ from: 1, index: 1 }] as any, [{ from: 1, index: 2 }] as any);
+
+            expect(actual).toMatchObject([{ from: 1, index: 1 }]);
+        });
+
+        it('should match due to common matn', () => {
+            const entries = [{ arabic: 'أَشْعَثُ عَنْ عَامِرٍ', from: 1 }];
+
+            const actual = filterMatchedEntries(entries as any, [{ arabic: 'أَشْعَثُ عَنْ عَامِرٍ', from: 1 }] as any);
+
+            expect(actual).toBeEmpty();
+        });
+
+        it('should not match due to differing matn', () => {
+            const entries = [{ arabic: 'أَشْعَثُ عَنْ عَامِرٍ', from: 1 }];
+
+            const actual = filterMatchedEntries(entries as any, [{ arabic: 'عَامِرٍ', from: 1 }] as any);
+
+            expect(actual).toMatchObject(entries);
         });
     });
 });
