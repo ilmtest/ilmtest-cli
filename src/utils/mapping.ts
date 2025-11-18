@@ -1,4 +1,4 @@
-import { normalizeSpaces } from 'bitaboom';
+import { normalizeSpaces, removeAllTags } from 'bitaboom';
 import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
@@ -30,7 +30,7 @@ import {
     trimLine,
     usedTerms,
 } from './flowHandlers.js';
-import { removeAllTags } from './textUtils.js';
+import { mapPatternsToFormatters } from './textUtils.js';
 
 const splitTextOnCarriageReturns = (items: Line[]) => {
     const result: Line[] = [];
@@ -64,17 +64,17 @@ const splitTextOnCarriageReturns = (items: Line[]) => {
     return result;
 };
 
-const assignIdsToEntries = (
+const assignIdsToSegments = (
     entries: Partial<Entry>[],
     idToPages: Partial<Record<number, ShamelaPage[]>>,
     hasDuplicateNumerals?: boolean,
 ) => {
     const result = Object.values(Object.groupBy(entries, (e) => e.from!)).flatMap((partialEntries) => {
-        let nextIdCounter = 0;
+        const nextIdCounter = 0;
 
-        const values = partialEntries?.flatMap((e) => {
+        const values = (partialEntries || []).flatMap((e) => {
             const [page] = idToPages[e.from!]!;
-            const next = [{ ...e, pp: page.pp, volume: page.volume }];
+            const next = [{ ...e, pp: page.pp, volume: page.volume }] as Entry[];
 
             if (e.type === EntryType.Chapter) {
                 next.forEach((n) => {
@@ -106,7 +106,8 @@ const assignIdsToEntries = (
                 if (n.index) {
                     n.id = hasDuplicateNumerals ? `N${n.volume}${n.index}` : `N${n.index}`;
                 } else {
-                    n.id = `P${page.id}${++nextIdCounter}`;
+                    //n.id = `P${page.id}${++nextIdCounter}`;
+                    n.id = `P${page.id}`;
                 }
             }
 
@@ -119,8 +120,8 @@ const assignIdsToEntries = (
     return result;
 };
 
-const getSanitizers = (patterns: string[], options: { flatten?: boolean } = {}) => {
-    const sanitizerPipeline = patterns
+const getSanitizers = (patterns: string[], options: { flatten?: boolean; replacements: Record<string, string> }) => {
+    let sanitizerPipeline = patterns
         .filter((r) => r !== SANITIZE_HTML)
         .map((r) => {
             const regex = new RegExp(r, 'g');
@@ -129,6 +130,8 @@ const getSanitizers = (patterns: string[], options: { flatten?: boolean } = {}) 
                 return text.replace(regex, '');
             };
         });
+
+    sanitizerPipeline = sanitizerPipeline.concat(mapPatternsToFormatters(options.replacements));
 
     if (sanitizerPipeline.length) {
         sanitizerPipeline.push(normalizeSpaces);
@@ -141,7 +144,7 @@ const getSanitizers = (patterns: string[], options: { flatten?: boolean } = {}) 
     return sanitizerPipeline;
 };
 
-const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions) => {
+const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) => {
     const {
         pageSpanning,
         sanitize,
@@ -152,6 +155,7 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
         numeralStrategy = 'dashed',
         firstPageWithIndex = 1,
         captureCommaSeparatedIndices,
+        replacements = {},
         patternToType = {},
         lineSeparator = '\n',
         prevEntryMarkerPattern,
@@ -169,7 +173,7 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
         ...(pageSpanning === CAPTURE_CONTINUOUS_PAGES ? [appendNewPageToLastEntry] : []),
         appendLineToLastEntry,
     ];
-    const sanitizers = getSanitizers(sanitize || [], { flatten });
+    const sanitizers = getSanitizers(sanitize || [], { flatten, replacements });
 
     const handlers = [
         trimLine,
@@ -208,30 +212,30 @@ const mapShamelaPagesToEntries = (pages: ShamelaPage[], options: MatnParseOption
     return context.result;
 };
 
-export const mapBookPagesToEntries = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {
-    let entries = mapShamelaPagesToEntries(pages, options);
+export const segmentPages = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {
+    let segments = segmentShamelaPages(pages, options);
 
     if (options.fix?.includes('unstable_indexes')) {
-        entries = fixGaps(entries);
+        segments = fixGaps(segments);
     }
 
     if (options.fix?.includes('indexes')) {
-        fixGapsLegacy(entries as any);
-        validateGaplessEntryIndices(entries.filter((e) => e.index && !e.type && !e.id) as Entry[]);
+        fixGapsLegacy(segments as any);
+        validateGaplessEntryIndices(segments.filter((e) => e.index && !e.type && !e.id) as Entry[]);
     }
 
-    entries = assignIdsToEntries(
-        entries,
+    segments = assignIdsToSegments(
+        segments,
         Object.groupBy(pages, (p) => p.id),
         options.hasDuplicateNumerals,
     );
 
-    return entries;
+    return segments;
 };
 
 export const mapLinesToTranslations = (content: string) => {
     const lines = content
-        .replace(/ ([NBCP])(\d+) -/gm, '\n$1$2 -')
+        .replace(/ ([NBCP]\d+[a-j]?) -/gm, '\n$1$2 -')
         .replace(/\\\[/gm, '[')
         .split('\n')
         .map((line) => line.trim())

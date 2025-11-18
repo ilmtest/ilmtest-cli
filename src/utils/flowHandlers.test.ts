@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import {
     captureCommaSeparatedArabicNumericListItem,
     captureSquareBracketListItem,
+    processTranslation,
     startNewEntryIfLastEntryMatches,
 } from './flowHandlers';
 
@@ -76,6 +77,15 @@ describe('flowHandlers', () => {
                     from: 1,
                 },
             ]);
+        });
+    });
+
+    describe('processTranslation', () => {
+        it.only('should pick up the translation marker', () => {
+            const translations = [];
+            processTranslation('P122a - Hi', translations);
+
+            console.log(translations);
         });
     });
 });

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { CAPTURE_CONTINUOUS_PAGES } from './constants';
-import { mapBookPagesToEntries, mapLinesToTranslations } from './mapping';
+import { mapLinesToTranslations, segmentPages } from './mapping';
 
 describe('mapping', () => {
-    describe('mapBookPagesToEntries', () => {
+    describe('segmentPages', () => {
         describe('discrete', () => {
             it('should trim the text', () => {
-                const actual = mapBookPagesToEntries([{ content: ' ١٧٥٩ - تميم بن نذير ', id: 1, pp: 20, volume: 10 }]);
+                const actual = segmentPages([{ content: ' ١٧٥٩ - تميم بن نذير ', id: 1, pp: 20, volume: 10 }]);
 
                 expect(actual).toEqual([
                     { arabic: 'تميم بن نذير', from: 1, id: 'N1759', index: 1759, pp: 20, volume: 10 },
@@ -14,7 +14,7 @@ describe('mapping', () => {
             });
 
             it('should capture plain-text chapters', () => {
-                const actual = mapBookPagesToEntries([{ content: 'باب التاء', id: 1, pp: 20, volume: 10 }], {
+                const actual = segmentPages([{ content: 'باب التاء', id: 1, pp: 20, volume: 10 }], {
                     shouldCapturePlainTextChapters: true,
                 });
 
@@ -22,7 +22,7 @@ describe('mapping', () => {
             });
 
             it('should capture chapter spans', () => {
-                const actual = mapBookPagesToEntries([
+                const actual = segmentPages([
                     { content: `<span data-type="title" id=toc-355> الحكم </span>`, id: 1, pp: 20, volume: 10 },
                 ]);
 
@@ -30,7 +30,7 @@ describe('mapping', () => {
             });
 
             it('should capture roman numeric item', () => {
-                const actual = mapBookPagesToEntries([{ content: `1234 - Something`, id: 1, pp: 20, volume: 10 }], {});
+                const actual = segmentPages([{ content: `1234 - Something`, id: 1, pp: 20, volume: 10 }], {});
 
                 expect(actual).toEqual([
                     { arabic: 'Something', from: 1, id: 'N1234', index: 1234, pp: 20, volume: 10 },
@@ -38,9 +38,7 @@ describe('mapping', () => {
             });
 
             it('should handle multiple narrations on the same page', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `22 - Something\n23 - Else`, id: 1, pp: 20, volume: 10 },
-                ]);
+                const actual = segmentPages([{ content: `22 - Something\n23 - Else`, id: 1, pp: 20, volume: 10 }]);
 
                 expect(actual).toEqual([
                     { arabic: 'Something', from: 1, id: 'N22', index: 22, pp: 20, volume: 10 },
@@ -49,9 +47,7 @@ describe('mapping', () => {
             });
 
             it('should just capture the page as the first loose leaf', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `Something\rSomething else`, id: 1, pp: 1, volume: 1 },
-                ]);
+                const actual = segmentPages([{ content: `Something\rSomething else`, id: 1, pp: 1, volume: 1 }]);
 
                 expect(actual).toEqual([
                     { arabic: 'Something\nSomething else', from: 1, fromEndIndex: 9, id: 'P11', pp: 1, volume: 1 },
@@ -59,7 +55,7 @@ describe('mapping', () => {
             });
 
             it('should capture indexed then a loose page', () => {
-                const actual = mapBookPagesToEntries([
+                const actual = segmentPages([
                     { content: `1 - Something.`, id: 1, pp: 1, volume: 1 },
                     { content: `Something else.`, id: 2, pp: 2, volume: 1 },
                 ]);
@@ -71,7 +67,7 @@ describe('mapping', () => {
             });
 
             it('should capture index then loose page without punctuations', () => {
-                const actual = mapBookPagesToEntries([
+                const actual = segmentPages([
                     { content: `1 - Something`, id: 1, pp: 1, volume: 1 },
                     { content: `Something else`, id: 2, pp: 2, volume: 1 },
                 ]);
@@ -83,7 +79,7 @@ describe('mapping', () => {
             });
 
             it('should capture index then loose page with more than one line', () => {
-                const actual = mapBookPagesToEntries([
+                const actual = segmentPages([
                     { content: `1 - Something`, id: 1, pp: 1, volume: 1 },
                     { content: `Something else\rNext line`, id: 2, pp: 2, volume: 1 },
                 ]);
@@ -95,7 +91,7 @@ describe('mapping', () => {
             });
 
             it('should capture index then loose page with more than one line then new page separately in a new entry', () => {
-                const actual = mapBookPagesToEntries([
+                const actual = segmentPages([
                     { content: `1 - Something`, id: 1, pp: 1, volume: 1 },
                     { content: `Something else\rNext line`, id: 2, pp: 2, volume: 1 },
                     { content: `New page`, id: 3, pp: 3, volume: 1 },
@@ -109,7 +105,7 @@ describe('mapping', () => {
             });
 
             it('should handle the three pages', () => {
-                const actual = mapBookPagesToEntries([
+                const actual = segmentPages([
                     { content: `A`, id: 1, pp: 1, volume: 1 },
                     { content: `B. C`, id: 2, pp: 2, volume: 1 },
                     { content: `D`, id: 3, pp: 3, volume: 1 },
@@ -143,7 +139,7 @@ describe('mapping', () => {
 
         describe('captureCommaSeparatedIndices', () => {
             it('should produce empty entries for the subsequent indices', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [{ content: '١٢١٩، ١٢٢٠، ١٢٢١، ١٢٢٢ - قال أبو داود', id: 1, pp: 1, volume: 1 }],
                     {
                         captureCommaSeparatedIndices: true,
@@ -189,7 +185,7 @@ describe('mapping', () => {
 
         describe('isMulti', () => {
             it('should be two separate pages since first ends with punctuation', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         { content: `Some text.`, id: 1, pp: 1, volume: 1 },
                         { content: `More text.`, id: 2, pp: 2, volume: 1 },
@@ -216,7 +212,7 @@ describe('mapping', () => {
             });
 
             it('should be a single spanning entry since we are not capturing trailing', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         { content: `Some text.`, id: 1, pp: 1, volume: 1 },
                         { content: `More text.`, id: 2, pp: 2, volume: 1 },
@@ -238,7 +234,7 @@ describe('mapping', () => {
             });
 
             it('should only create a new entry after the last punctuation sentence', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         {
                             content: `Something else.\rThis is the rest of the sentence.\rAfter that we have it`,
@@ -272,7 +268,7 @@ describe('mapping', () => {
             });
 
             it('should handle the three pages with punctuation', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         { content: `A`, id: 1, pp: 1, volume: 1 },
                         { content: `B. C`, id: 2, pp: 2, volume: 1 },
@@ -314,7 +310,7 @@ describe('mapping', () => {
             });
 
             it('should handle the three pages with punctuation', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         { content: `A`, id: 1, pp: 1, volume: 1 },
                         { content: `B. C`, id: 2, pp: 2, volume: 1 },
@@ -358,7 +354,7 @@ describe('mapping', () => {
 
         describe('custom punctuation', () => {
             it('should handle the three pages with punctuation', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         { content: `A`, id: 1, pp: 1, volume: 1 },
                         { content: `B. C`, id: 2, pp: 2, volume: 1 },
@@ -404,7 +400,7 @@ describe('mapping', () => {
             it('should capture the square brackets', () => {
                 const lines = ['فأخبره ويسألني', '[٦٥] "إبراهيم" بن إسماعيل', '[٦٦] "إبراهيم" بن إسماعيل'];
 
-                const actual = mapBookPagesToEntries([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                const actual = segmentPages([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
                     numeralStrategy: 'square',
                 });
 
@@ -439,7 +435,7 @@ describe('mapping', () => {
         describe('newEntryMarkerPattern', () => {
             it('should capture an entry starting with bullet points', () => {
                 const lines = ['• A', '•B', 'C'];
-                const actual = mapBookPagesToEntries([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                const actual = segmentPages([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
                     newEntryMarkerPattern: '^•\\s?(.*)',
                 });
 
@@ -465,7 +461,7 @@ describe('mapping', () => {
         describe('prevEntryMarkerPattern', () => {
             it('should capture an entry since the last one ended with the pattern', () => {
                 const lines = ['A', 'B 33.', 'C'];
-                const actual = mapBookPagesToEntries([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                const actual = segmentPages([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
                     pageSpanning: 'trailing',
                     prevEntryMarkerPattern: ' \\d+\\.$',
                 });
@@ -490,7 +486,7 @@ describe('mapping', () => {
         });
     });
 
-    describe('mapLinesToTranslations', () => {
+    describe.only('mapLinesToTranslations', () => {
         it('should pick up the page segments', () => {
             const actual = mapLinesToTranslations('P11 - Abcd\nP22 - 2 - Something.');
 

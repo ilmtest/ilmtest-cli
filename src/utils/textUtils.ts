@@ -2,7 +2,7 @@ import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sa
 import { condenseEllipsis, normalizeSpaces } from 'bitaboom';
 import {
     removeArabicNumericPageMarkers,
-    removeTagsExceptSpan,
+    //removeTagsExceptSpan,
     sanitizePageContent,
     splitPageBodyFromFooter,
 } from 'shamela';
@@ -13,8 +13,6 @@ import {
 export const PATTERNS = {
     /** Matches text ending with Arabic-Indic digits (٠-٩) */
     EndsWithNumber: /[\u0660-\u0669]$/,
-    /** Matches text ending with common punctuation marks */
-    EndsWithPunctuation: /[.!?؟؛]$/,
     /** Matches Arabic numeric list items (e.g., "١- item text") */
     MatchArabicNumericListItem: /^([\u0660-\u0669]+)\s?[-–—ـ](.*)/,
     /** Matches numbered paragraphs with Latin numerals (e.g., "1 - paragraph text") */
@@ -25,34 +23,27 @@ export const PATTERNS = {
     MatchRoundArabicNumericItem: /^\(([\u0660-\u0669]+)\)$/,
 };
 
-/**
- * Finds the position of the last punctuation character in a string
- *
- * @param text - The text to search through
- * @returns The index of the last punctuation character, or -1 if none found
- *
- * @example
- * ```typescript
- * const text = "Hello world! How are you?";
- * const lastPuncIndex = findLastPunctuation(text);
- * // Result: 24 (position of the last '?')
- *
- * const noPuncText = "Hello world";
- * const notFound = findLastPunctuation(noPuncText);
- * // Result: -1 (no punctuation found)
- * ```
- */
-export const findLastPunctuation = (text: string) => {
-    for (let i = text.length - 1; i >= 0; i--) {
-        if (PATTERNS.EndsWithPunctuation.test(text[i])) {
-            return i;
-        }
-    }
+const removeTagsExceptSpan = (content: string) => {
+    // Remove <a> tags and their content, keeping only the text inside
+    content = content.replace(/<a[^>]*>(.*?)<\/a>/gs, '$1');
 
-    return -1;
+    // Remove <hadeeth> tags (both self-closing, with content, and numbered)
+    content = content.replace(/<hadeeth[^>]*>|<\/hadeeth>|<hadeeth-\d+>/gs, '');
+
+    return content;
 };
 
-export const removeAllTags = (content: string) => content.replace(/<[^>]*>/g, '');
+export const mapPatternsToFormatters = (patternToReplacement: Record<string, string>) => {
+    const formatters = Object.entries(patternToReplacement).map(([pattern, replacement]) => {
+        const regex = new RegExp(pattern, 'g');
+
+        return (text: string) => {
+            return text.replace(regex, replacement);
+        };
+    });
+
+    return formatters;
+};
 
 export const getPageBodyAndFootnotes = (text: string) => {
     const [body, footnote] = splitPageBodyFromFooter(text);

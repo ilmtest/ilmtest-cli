@@ -128,10 +128,28 @@ export type MatnParseOptions = {
     /** Should we automatically attempt to fix out of order numerals indexes. */
     fix?: 'indexes';
 
-    /** Regular expression patterns to remove from the text before processing. */
+    /**
+     * Regular expression patterns to remove from the text before processing.
+     *
+     * @deprecated since contractVersion v1.2 Use replacements.
+     */
     sanitize?: Array<string | SanitizeGroups>;
 
-    /** If this book has repeating numerals such that a numeral is not unique. If so, we */
+    /**
+     * Preprocessing replacements to make.
+     * @since contractVersion 1.2
+     */
+    replacements?: Record<string, string>;
+
+    /**
+     * Preprocessing replacements to make before sending to prompt.
+     * @since contractVersion v1.2
+     */
+    preprompt?: Record<string, string>;
+
+    /** If this book has repeating numerals such that a numeral is not unique.
+     * @deprecated since contractVersion v1.2
+     */
     hasDuplicateNumerals?: boolean;
 
     /** Should we capture comma separated numerals (ie: 3,4,5 - Abcd) for manual post-processing. */

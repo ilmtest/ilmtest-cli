@@ -1,9 +1,16 @@
-import { arabicNumeralToNumber, isAllUppercase, makeDiacriticInsensitiveRegex, toTitleCase } from 'bitaboom';
+import {
+    arabicNumeralToNumber,
+    findLastPunctuation,
+    isAllUppercase,
+    makeDiacriticInsensitiveRegex,
+    PATTERN_ENDS_WITH_PUNCTUATION,
+    toTitleCase,
+} from 'bitaboom';
 import type { Line, Page } from 'shamela';
-import { type Entry, EntryType } from '@/api/entries.js';
+import { EntryType } from '@/api/entries.js';
 import type { Translation } from '@/types.js';
 import type { EntriesContext } from './entryContext.js';
-import { findLastPunctuation, PATTERNS } from './textUtils.js';
+import { PATTERNS } from './textUtils.js';
 
 const CHAPTER_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('باب').source} `);
 const KITAB_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('كتاب').source} `);
@@ -190,7 +197,7 @@ export const captureNewEntryByPatternAndType =
  * @returns True if the entire page was captured, undefined otherwise
  */
 export const captureEntirePage = (ln: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
-    if (!lastEntry || page.id - lastEntry.from! >= 1) {
+    if (!lastEntry || page.id - lastEntry.from! > 1) {
         addEntry({ arabic: ln.text, from: page.id });
         return true;
     }
@@ -253,7 +260,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
     if (diff >= 1) {
         const arabic = lastEntry.arabic!;
 
-        if (PATTERNS.EndsWithPunctuation.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
+        if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
             // last page ended with a punctuation no need to continue here, just make this page separate
             return captureEntirePage(ln, page, context);
         }
@@ -286,7 +293,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
  * @returns True if a translation was processed, undefined otherwise
  */
 export const processTranslation = (line: string, translations: Translation[]) => {
-    const [, id, text] = line.match(/^([BCNP]\d+)\s?[-–—ـ](.*)$/) || [];
+    const [, id, text] = line.match(/^([BCNP]\d+[a-j]?)\s?[-–—ـ](.*)$/) || [];
 
     if (text) {
         translations.push({

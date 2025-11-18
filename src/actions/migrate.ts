@@ -6,7 +6,7 @@ import type { ShamelaBook, ShamelaPage } from '@/types.js';
 import { getParsedArgs } from '@/utils/argsParser.js';
 import { getEntryKey, getVolumePageKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
-import { mapBookPagesToEntries } from '@/utils/mapping.js';
+import { segmentPages } from '@/utils/mapping.js';
 import { createPatch, patchChaptersByIndex, patchChaptersByMatn, patchEntriesByIndex } from '@/utils/patchUtils.js';
 import { sanitizeChapter } from '@/utils/textUtils.js';
 import { loadData } from './shamela.js';
@@ -22,7 +22,7 @@ import { saveEntries } from './uploadTranslations.js';
 const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], options: any) => {
     const patches: Partial<Entry>[] = [];
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, options);
+    const arabicEntries = segmentPages(book.pages, options);
 
     const unlinked = findMatches(
         arabicEntries.map((a) => a.arabic!),

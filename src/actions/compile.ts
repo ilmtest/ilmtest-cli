@@ -19,6 +19,21 @@ const loadTranslations = async (dir: string) => {
 
         if (await file.exists()) {
             const text = await file.text();
+            const match = text.match(/ [BCNP]\d+[a-j]+\s?[-–—]/m) || text.match(/^[BCNP]\d+[a-j](?! [-–—])/m);
+
+            if (match) {
+                throw new Error(`Error in text: found "${match[0]}"`);
+            }
+
+            // Check for invalid reference formats (letters mixed in number portion)
+            const invalidRef = text.match(/^[BCNP](?=.*[-–—])(?!\d+[a-j]*\s?[-–—])[^\s-–—]+\s?[-–—]/m);
+
+            if (invalidRef) {
+                throw new Error(
+                    `Error in text: invalid reference format "${invalidRef[0].trim()}" - expected format is letter + numbers + optional suffix (a-j) + dash`,
+                );
+            }
+
             const newTranslations = mapLinesToTranslations(text).map((t) => ({ ...t, translator }));
 
             logger.info(`Loaded ${newTranslations.length} translations from ${file.name}`);

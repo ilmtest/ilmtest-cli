@@ -22,7 +22,6 @@ import {
     normalizeSpaces,
     removeRedundantPunctuation,
     removeSpaceInsideBrackets,
-    replaceDoubleBracketsWithArrows,
     replaceEnglishPunctuationWithArabic,
     trimSpaceInsideQuotes,
 } from 'bitaboom';
@@ -39,7 +38,7 @@ import {
     validateUniqueIds,
 } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
-import { mapBookPagesToEntries } from '@/utils/mapping.js';
+import { segmentPages } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
 import { generatePrompt } from '@/utils/promptUtils.js';
 import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
@@ -321,7 +320,7 @@ const formatArabic = (text: string) => {
 export const processShamela = async () => {
     const { book, collection, dir, unused, coveredIndices, coveredPages, options, entries } = await loadData();
 
-    let arabicOnlyEntries = mapBookPagesToEntries(book.pages, options)
+    let arabicOnlyEntries = segmentPages(book.pages, options)
         .map((e) => ({
             ...e,
             arabic: formatArabic(e.arabic!),
@@ -352,14 +351,14 @@ export const processShamela = async () => {
         arabicOnlyEntries = existingEntries;
     }
 
-    await generatePrompt(dir, collection.title, arabicOnlyEntries);
+    await generatePrompt(dir, collection.title, arabicOnlyEntries, options);
 
     if (!fileExists) {
         await excerptsFile.write(
             JSON.stringify(
                 {
                     collection,
-                    contractVersion: 'v1.1',
+                    contractVersion: 'v1.2',
                     createdAt: Date.now(),
                     excerpts: arabicOnlyEntries as Entry[],
                     lastUpdatedAt: Date.now(),

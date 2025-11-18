@@ -2,7 +2,7 @@ import { findMatches } from 'baburchi';
 import type { Entry } from '@/api/entries.js';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
 import { getEntryKey, indexChaptersForLookup, indexEntriesForLookup } from './entryUtils.js';
-import { mapBookPagesToEntries } from './mapping.js';
+import { segmentPages } from './mapping.js';
 
 const PRECISE_MATCH_CONFIG = {
     // Enable fuzzy matching for better coverage
@@ -72,7 +72,7 @@ export const patchEntriesByIndex = (book: ShamelaBook, unlinked: Entry[], option
         (page) => page.number,
     );
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, options);
+    const arabicEntries = segmentPages(book.pages, options);
     const { indexToEntries } = indexEntriesForLookup(arabicEntries as Entry[], { scanMatn: true });
 
     const indexedNarrations = unlinked.filter((a) => a.index && a.type).sort((a, b) => a.index! - b.index!);

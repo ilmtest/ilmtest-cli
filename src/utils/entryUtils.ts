@@ -1,9 +1,9 @@
-import { findMatches, findMatchesAll } from 'baburchi';
-import { arabicNumeralToNumber } from 'bitaboom';
+import { findMatches } from 'baburchi';
+import { arabicNumeralToNumber, removeAllTags } from 'bitaboom';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
 import { type Entry, EntryType } from '../api/entries.js';
 import logger from './logger.js';
-import { findLastPunctuation, removeAllTags, sanitizeChapter } from './textUtils.js';
+import { sanitizeChapter } from './textUtils.js';
 
 /**
  * Generates a unique key for an entry based on its index and type
@@ -277,9 +277,13 @@ export const validateUniqueIds = (entries: Entry[]) => {
     Object.keys(idToEntries).forEach((id) => {
         const values = idToEntries[id]!;
 
-        values.slice(1).forEach((v) => {
-            logger.warn(`Turning: ${v.id} into ${v.id}${v.from}`);
-            v.id = `${v.id}${v.from}`;
+        values.slice(1).forEach((v, i) => {
+            const letter = String.fromCharCode(97 + i);
+            const newId = `${v.id}${letter}`;
+
+            logger.warn(`Turning: ${v.id} into ${newId}`);
+            //v.id = `${v.id}${v.from}`;
+            v.id = newId;
         });
     });
 };
