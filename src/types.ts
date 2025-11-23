@@ -1,4 +1,4 @@
-import type { BookData, GetBookMetadataResponsePayload, Page } from 'shamela';
+import type { BookData, GetBookMetadataResponsePayload, Page, Title } from 'shamela';
 import type { Segment } from 'tafrigh';
 import type { Entry } from './api/entries.js';
 import type { CAPTURE_CONTINUOUS_PAGES, SANITIZE_HTML } from './utils/constants.js';
@@ -77,6 +77,19 @@ export type TranscriptSeries = {
 
 type SanitizeGroups = typeof SANITIZE_HTML;
 
+export type PatternOptions = {
+    minPage?: number;
+    type: number;
+};
+
+export type HeadingOptions = {
+    /**
+     * Preprocessing replacements to make before sending to prompt.
+     * @since contractVersion v1.2
+     */
+    preprompt?: Record<string, string>;
+};
+
 export type MatnParseOptions = {
     /** How should indexed entries be parsed dashed: (8 - abcd), an Arabic abbreviation followed by a number, or in square brackets [2] Abcd  */
     numeralStrategy?: 'dashed' | 'letter' | 'square';
@@ -91,6 +104,30 @@ export type MatnParseOptions = {
      * Should flatten all html tags.
      * @deprecated As of contractVersion v1.1, use sanitize = ['html'] */
     flatten?: boolean;
+
+    /**
+     * If this is truthy we will capture footnotes.
+     * @since contractVersion v1.2
+     */
+    footnotes?: boolean;
+
+    /**
+     * Options for processing headings.
+     * @since contractVersion v1.2
+     */
+    headings?: HeadingOptions;
+
+    /**
+     * Removes all pages
+     * @since contractVersion v1.2
+     */
+    removePagesWithPattern?: string;
+
+    /**
+     * Filters out these pages.
+     * @since contractVersion v1.2
+     */
+    excludePages?: number[];
 
     /**
      * @deprecated As of contractVersion v1.1, use newChapterMarkerPattern = '^باب'
@@ -111,8 +148,14 @@ export type MatnParseOptions = {
     /**
      * Marker patterns to match a text along with the type of entry to create it as.
      * @since contractVersion v1.1
+     * @deprecated since contractVersion v1.2, use patternToOptions instead.
      */
     patternToType?: Record<string, number>;
+
+    /**
+     * @since contractVersion v1.2
+     */
+    patternToOptions?: Record<string, PatternOptions>;
 
     /**
      * A regular expression pattern to mark the start of a new entry iff the last entry's matn matches this pattern.
@@ -159,6 +202,29 @@ export type MatnParseOptions = {
     lineSeparator?: string;
 };
 
+export type Heading = {
+    nass: string;
+    text?: string;
+    from: number;
+    id: string;
+    parent?: number;
+    translator?: number;
+
+    /** Timestamp when the series was last updated */
+    lastUpdatedAt?: number;
+};
+
+export type Footnote = {
+    nass: string;
+    from: number;
+    id: string;
+    text?: string;
+    translator?: number;
+
+    /** Timestamp when the series was last updated */
+    lastUpdatedAt?: number;
+};
+
 export type Excerpts = {
     /** Contract version for data format compatibility */
     contractVersion: string;
@@ -175,6 +241,17 @@ export type Excerpts = {
     options?: MatnParseOptions;
 
     excerpts: Entry[];
+
+    /**
+     * @since contractVersion v1.2
+     */
+    headings: Heading[];
+
+    /**
+     * Footnotes.
+     * @since contractVersion v1.2
+     */
+    footnotes: Footnote[];
 
     /**
      * @since contractVersion v1.1

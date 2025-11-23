@@ -1,4 +1,4 @@
-import { normalizeSpaces, removeAllTags } from 'bitaboom';
+import { escapeRegex, normalizeSpaces, removeAllTags } from 'bitaboom';
 import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
@@ -16,6 +16,7 @@ import {
     captureMarkdownChapters,
     captureNewEntryByPattern,
     captureNewEntryByPatternAndType,
+    captureNewEntryByPatternOptions,
     captureNumericChapters,
     capturePlainTextChapters,
     captureSquareBracketListItem,
@@ -157,6 +158,7 @@ const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) =>
         captureCommaSeparatedIndices,
         replacements = {},
         patternToType = {},
+        patternToOptions = {},
         lineSeparator = '\n',
         prevEntryMarkerPattern,
         newEntryMarkerPattern,
@@ -193,6 +195,9 @@ const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) =>
         ...Object.entries(patternToType).map(([pattern, type]) =>
             captureNewEntryByPatternAndType(new RegExp(pattern, 'u'), type),
         ),
+        ...Object.entries(patternToOptions).map(([pattern, options]) =>
+            captureNewEntryByPatternOptions(new RegExp(pattern, 'u'), options),
+        ),
         ...(!isContinuous ? discreteHandlers : []),
         ...(isContinuous ? continuousHandlers : []),
     ];
@@ -213,6 +218,16 @@ const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) =>
 };
 
 export const segmentPages = (pages: ShamelaPage[], options: MatnParseOptions = {}) => {
+    if (options.removePagesWithPattern) {
+        const pattern = new RegExp(options.removePagesWithPattern, 'u');
+        pages = pages.filter((p) => !pattern.test(p.content));
+    }
+
+    if (options.excludePages) {
+        const excludedPages = new Set(options.excludePages);
+        pages = pages.filter((p) => !excludedPages.has(p.id));
+    }
+
     let segments = segmentShamelaPages(pages, options);
 
     if (options.fix?.includes('unstable_indexes')) {
@@ -235,7 +250,7 @@ export const segmentPages = (pages: ShamelaPage[], options: MatnParseOptions = {
 
 export const mapLinesToTranslations = (content: string) => {
     const lines = content
-        .replace(/ ([NBCP]\d+[a-j]?) -/gm, '\n$1$2 -')
+        .replace(/ ([BCFTP]\d+[a-j]?) -/gm, '\n$1$2 -')
         .replace(/\\\[/gm, '[')
         .split('\n')
         .map((line) => line.trim())

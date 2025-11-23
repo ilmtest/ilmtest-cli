@@ -26,21 +26,16 @@ import {
     trimSpaceInsideQuotes,
 } from 'bitaboom';
 import { getBookContents } from 'ketab-online-sdk';
-import { type BookData, configure, getBook, getBookMetadata } from 'shamela';
+import { type BookData, configure, getBook, getBookMetadata, Title } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
-import type { Collection, Excerpts, MatnParseOptions, ShamelaBook } from '@/types.js';
+import type { Collection, Excerpts, Footnote, MatnParseOptions, ShamelaBook } from '@/types.js';
 import { CAPTURE_CONTINUOUS_PAGES, OUTPUT_DIR } from '@/utils/constants.js';
-import {
-    filterEntriesOnUsedPages,
-    filterMatchedEntries,
-    indexEntriesForLookup,
-    validateUniqueIds,
-} from '@/utils/entryUtils.js';
+import { indexEntriesForLookup, validateUniqueIds } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
 import { segmentPages } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
-import { generatePrompt } from '@/utils/promptUtils.js';
+import { generateFootnotePrompts, generatePrompt, generateTitlePrompt } from '@/utils/promptUtils.js';
 import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
 
 /**
@@ -318,7 +313,7 @@ const formatArabic = (text: string) => {
  * @returns Promise that resolves when processing is complete
  */
 export const processShamela = async () => {
-    const { book, collection, dir, unused, coveredIndices, coveredPages, options, entries } = await loadData();
+    const { book, collection, dir, options } = await loadData();
 
     let arabicOnlyEntries = segmentPages(book.pages, options)
         .map((e) => ({
@@ -327,19 +322,9 @@ export const processShamela = async () => {
         }))
         .filter((e) => e.arabic!.trim().length > 2) as Entry[];
 
-    if (unused?.includes('pages')) {
-        arabicOnlyEntries = filterEntriesOnUsedPages(arabicOnlyEntries as any, coveredPages);
-    }
-
-    if (unused?.includes('index')) {
-        //arabicOnlyEntries = arabicOnlyEntries.filter((e) => !coveredIndices.has(getEntryKey(e)));
-        arabicOnlyEntries = filterMatchedEntries(arabicOnlyEntries as any, entries);
-    }
-
-    if (unused) {
-        // if we removed a page in between a sequence, get rid of the entries which happens to span from one page to a distant one
-        arabicOnlyEntries = arabicOnlyEntries.filter((e) => !e.to || e.to - e.from! <= 1);
-    }
+    const footnotes: Footnote[] = options.footnotes
+        ? book.pages.filter((p) => p.footer).map((f) => ({ from: f.id, id: `F${f.id}`, nass: f.footer! }))
+        : [];
 
     validateUniqueIds(arabicOnlyEntries as any);
 
@@ -351,7 +336,11 @@ export const processShamela = async () => {
         arabicOnlyEntries = existingEntries;
     }
 
+    const headings = book.titles.map((t) => ({ from: t.page, id: `T${t.id}`, nass: t.content, parent: t.parent }));
+
     await generatePrompt(dir, collection.title, arabicOnlyEntries, options);
+    await generateTitlePrompt(dir, collection.title, headings, options);
+    await generateFootnotePrompts(dir, collection.title, footnotes);
 
     if (!fileExists) {
         await excerptsFile.write(
@@ -361,6 +350,8 @@ export const processShamela = async () => {
                     contractVersion: 'v1.2',
                     createdAt: Date.now(),
                     excerpts: arabicOnlyEntries as Entry[],
+                    footnotes,
+                    headings,
                     lastUpdatedAt: Date.now(),
                     options,
                 } satisfies Excerpts,

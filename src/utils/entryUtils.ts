@@ -281,7 +281,7 @@ export const validateUniqueIds = (entries: Entry[]) => {
             const letter = String.fromCharCode(97 + i);
             const newId = `${v.id}${letter}`;
 
-            logger.warn(`Turning: ${v.id} into ${newId}`);
+            //logger.warn(`Turning: ${v.id} into ${newId}`);
             //v.id = `${v.id}${v.from}`;
             v.id = newId;
         });

@@ -8,7 +8,7 @@ import {
 } from 'bitaboom';
 import type { Line, Page } from 'shamela';
 import { EntryType } from '@/api/entries.js';
-import type { Translation } from '@/types.js';
+import type { PatternOptions, Translation } from '@/types.js';
 import type { EntriesContext } from './entryContext.js';
 import { PATTERNS } from './textUtils.js';
 
@@ -179,15 +179,20 @@ export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, page: Pa
     }
 };
 
-export const captureNewEntryByPatternAndType =
-    (pattern: RegExp, type: number) => (ln: Line, page: Page, context: EntriesContext) => {
+export const captureNewEntryByPatternOptions = (pattern: RegExp, options: PatternOptions) => {
+    return (ln: Line, page: Page, context: EntriesContext) => {
         const [, txt] = ln.text.match(pattern) || [];
 
-        if (txt) {
-            context.addEntry({ arabic: txt.trim(), from: page.id, type });
+        if (txt && (!options.minPage || page.id >= options.minPage)) {
+            context.addEntry({ arabic: txt.trim(), from: page.id, type: options.type });
             return true;
         }
     };
+};
+
+export const captureNewEntryByPatternAndType = (pattern: RegExp, type: number) => {
+    return captureNewEntryByPatternOptions(pattern, { type });
+};
 
 /**
  * Captures an entire page as a single entry when no recent entries exist
@@ -293,7 +298,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
  * @returns True if a translation was processed, undefined otherwise
  */
 export const processTranslation = (line: string, translations: Translation[]) => {
-    const [, id, text] = line.match(/^([BCNP]\d+[a-j]?)\s?[-–—ـ](.*)$/) || [];
+    const [, id, text] = line.match(/^([BCFTP]\d+[a-j]?)\s?[-–—ـ](.*)$/) || [];
 
     if (text) {
         translations.push({

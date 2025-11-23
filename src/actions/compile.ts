@@ -1,13 +1,13 @@
 import path from 'node:path';
 import { confirm } from '@inquirer/prompts';
-import { type Entry, EntryFlags } from '@/api/entries.js';
+import type { Entry } from '@/api/entries.js';
 import type { Excerpts, Translation } from '@/types.js';
 import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
 
-const TRANSLATION_IDS = [873, 879];
+const TRANSLATION_IDS = [879, 890];
 
 type AITranslation = Translation & { translator: number };
 
@@ -19,14 +19,14 @@ const loadTranslations = async (dir: string) => {
 
         if (await file.exists()) {
             const text = await file.text();
-            const match = text.match(/ [BCNP]\d+[a-j]+\s?[-–—]/m) || text.match(/^[BCNP]\d+[a-j](?! [-–—])/m);
+            const match = text.match(/ [BCFTP]\d+[a-j]+\s?[-–—]/m) || text.match(/^[BCFTP]\d+[a-j](?! [-–—])/m);
 
             if (match) {
                 throw new Error(`Error in text: found "${match[0]}"`);
             }
 
             // Check for invalid reference formats (letters mixed in number portion)
-            const invalidRef = text.match(/^[BCNP](?=.*[-–—])(?!\d+[a-j]*\s?[-–—])[^\s-–—]+\s?[-–—]/m);
+            const invalidRef = text.match(/^[BCFTP](?=.*[-–—])(?!\d+[a-j]*\s?[-–—])[^\s-–—]+\s?[-–—]/m);
 
             if (invalidRef) {
                 throw new Error(
@@ -42,7 +42,11 @@ const loadTranslations = async (dir: string) => {
         }
     }
 
-    return translations;
+    const headings = translations.filter((t) => t.id.startsWith('T'));
+    const footnotes = translations.filter((t) => t.id.startsWith('F'));
+    const excerpts = translations.filter((t) => !t.id.startsWith('F') && !t.id.startsWith('T'));
+
+    return { excerpts, footnotes, headings };
 };
 
 const mergeShortEntriesWithPrevious = (entries: Entry[], minWords: number, separator: string): Entry[] => {
@@ -82,19 +86,31 @@ export const compileTranslation = async (collectionId: string) => {
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
-    const { excerpts: entries, ...rest } = (await excerptFile.json()) as Excerpts;
+    const { excerpts: entries, headings, footnotes, ...rest } = (await excerptFile.json()) as Excerpts;
     const translations = await loadTranslations(dir);
 
-    logger.info(`Loaded ${translations.length} translations in total`);
+    logger.info(
+        `Loaded ${translations.excerpts.length} excerpts, ${translations.headings.length} headings and ${translations.footnotes.length} footnotes translations in total`,
+    );
 
     const idToEntries = Object.groupBy(
         entries.filter((e) => e.from >= from && e.from <= to),
         (e) => e.id,
     );
 
+    const idToHeadings = Object.groupBy(
+        headings.filter((e) => e.from >= from && e.from <= to),
+        (e) => e.id,
+    );
+
+    const idToFootnotes = Object.groupBy(
+        footnotes.filter((e) => e.from >= from && e.from <= to),
+        (e) => e.id,
+    );
+
     let hasError = false;
 
-    for (const t of translations) {
+    for (const t of translations.excerpts) {
         if (!idToEntries[t.id]) {
             logger.error(`${t.id} not found for ${t.translator}`);
             console.error(t);
@@ -124,14 +140,70 @@ export const compileTranslation = async (collectionId: string) => {
         }
 
         e.translator = t.translator;
-        e.collection = Number(collectionId);
-        e.flags = EntryFlags.PendingReview;
+        e.lastUpdatedAt = Date.now();
+    }
+
+    for (const t of translations.headings) {
+        if (!idToHeadings[t.id]) {
+            logger.error(`${t.id} heading not found for ${t.translator}`);
+            console.error(t);
+            hasError = true;
+            continue;
+        }
+
+        const e = idToHeadings[t.id]!.shift()!;
+
+        if (!e) {
+            logger.error(`No headings left for ${t.id} for ${t.translator}`);
+            hasError = true;
+            continue;
+        }
+
+        if (!e.text) {
+            e.text = t.text;
+        } else {
+            hasError = true;
+            logger.error(`Duplicate heading ${t.id}, translator: ${t.translator}`);
+        }
+
+        e.translator = t.translator;
+        e.lastUpdatedAt = Date.now();
+    }
+
+    for (const t of translations.footnotes) {
+        if (!idToFootnotes[t.id]) {
+            logger.error(`${t.id} footnote not found for ${t.translator}`);
+            console.error(t);
+            hasError = true;
+            continue;
+        }
+
+        const e = idToFootnotes[t.id]!.shift()!;
+
+        if (!e) {
+            logger.error(`No footnotes left for ${t.id} for ${t.translator}`);
+            hasError = true;
+            continue;
+        }
+
+        if (!e.text) {
+            e.text = t.text;
+        } else {
+            hasError = true;
+            logger.error(`Duplicate footnote ${t.id}, translator: ${t.translator}`);
+        }
+
+        e.translator = t.translator;
         e.lastUpdatedAt = Date.now();
     }
 
     if (!hasError) {
         await excerptFile.write(
-            JSON.stringify({ ...rest, excerpts: entries, lastUpdatedAt: Date.now() } satisfies Excerpts, null, 2),
+            JSON.stringify(
+                { ...rest, excerpts: entries, footnotes, headings, lastUpdatedAt: Date.now() } satisfies Excerpts,
+                null,
+                2,
+            ),
         );
         logger.info(`${entries.length} saved to ${excerptFile.name}`);
 
