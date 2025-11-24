@@ -26,10 +26,10 @@ import {
     trimSpaceInsideQuotes,
 } from 'bitaboom';
 import { getBookContents } from 'ketab-online-sdk';
-import { type BookData, configure, getBook, getBookMetadata, Title } from 'shamela';
+import { type BookData, configure, getBook, getBookMetadata, sanitizePageContent, Title } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
-import type { Collection, Excerpts, Footnote, MatnParseOptions, ShamelaBook } from '@/types.js';
+import type { Collection, Excerpts, Footnote, Heading, MatnParseOptions, ShamelaBook } from '@/types.js';
 import { CAPTURE_CONTINUOUS_PAGES, OUTPUT_DIR } from '@/utils/constants.js';
 import { indexEntriesForLookup, validateUniqueIds } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
@@ -182,6 +182,7 @@ const loadBook = async (collection: Collection, [from, to]: number[], dir: strin
         const [content, footer] = getPageBodyAndFootnotes(p.content);
         return { ...p, content, ...(footer && { footer }), pp: page || 0, volume: Number(part) || 1 };
     });
+    book.titles = book.titles.map(({ content, ...t }) => ({ ...t, content: sanitizePageContent(content) }));
 
     return book as ShamelaBook;
 };
@@ -322,9 +323,16 @@ export const processShamela = async () => {
         }))
         .filter((e) => e.arabic!.trim().length > 2) as Entry[];
 
-    const footnotes: Footnote[] = options.footnotes
+    let footnotes: Footnote[] = options.footnotes
         ? book.pages.filter((p) => p.footer).map((f) => ({ from: f.id, id: `F${f.id}`, nass: f.footer! }))
         : [];
+
+    let headings: Heading[] = book.titles.map((t) => ({
+        from: t.page,
+        id: `T${t.id}`,
+        nass: t.content,
+        parent: t.parent,
+    }));
 
     validateUniqueIds(arabicOnlyEntries as any);
 
@@ -332,15 +340,21 @@ export const processShamela = async () => {
     const fileExists = await excerptsFile.exists();
 
     if (fileExists) {
-        const existingEntries = ((await excerptsFile.json()) as Excerpts).excerpts.filter((e) => !e.translation);
-        arabicOnlyEntries = existingEntries;
-    }
+        const data = (await excerptsFile.json()) as Excerpts;
 
-    const headings = book.titles.map((t) => ({ from: t.page, id: `T${t.id}`, nass: t.content, parent: t.parent }));
+        const existingEntries = data.excerpts.filter((e) => !e.translation);
+        arabicOnlyEntries = existingEntries;
+
+        footnotes = data.footnotes.filter((e) => !e.text);
+        headings = data.headings.filter((e) => !e.text);
+    }
 
     await generatePrompt(dir, collection.title, arabicOnlyEntries, options);
     await generateTitlePrompt(dir, collection.title, headings, options);
-    await generateFootnotePrompts(dir, collection.title, footnotes);
+
+    if (options.footnotes) {
+        await generateFootnotePrompts(dir, collection.title, footnotes);
+    }
 
     if (!fileExists) {
         await excerptsFile.write(

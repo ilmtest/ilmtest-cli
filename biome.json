@@ -15,13 +15,7 @@
     },
     "files": {
         "ignoreUnknown": true,
-        "includes": [
-            "**",
-            "!node_modules",
-            "!dist",
-            "!build",
-            "!coverage"
-        ]
+        "includes": ["**", "!node_modules", "!dist", "!build", "!coverage"]
     },
     "formatter": {
         "enabled": true,

@@ -6,8 +6,9 @@ import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
+import { validateTranslationMarkers } from '@/utils/textUtils.js';
 
-const TRANSLATION_IDS = [879, 890];
+const TRANSLATION_IDS = [879, 890, 891];
 
 type AITranslation = Translation & { translator: number };
 
@@ -19,19 +20,9 @@ const loadTranslations = async (dir: string) => {
 
         if (await file.exists()) {
             const text = await file.text();
-            const match = text.match(/ [BCFTP]\d+[a-j]+\s?[-–—]/m) || text.match(/^[BCFTP]\d+[a-j](?! [-–—])/m);
 
-            if (match) {
-                throw new Error(`Error in text: found "${match[0]}"`);
-            }
-
-            // Check for invalid reference formats (letters mixed in number portion)
-            const invalidRef = text.match(/^[BCFTP](?=.*[-–—])(?!\d+[a-j]*\s?[-–—])[^\s-–—]+\s?[-–—]/m);
-
-            if (invalidRef) {
-                throw new Error(
-                    `Error in text: invalid reference format "${invalidRef[0].trim()}" - expected format is letter + numbers + optional suffix (a-j) + dash`,
-                );
+            if (validateTranslationMarkers(text)) {
+                throw new Error(validateTranslationMarkers(text));
             }
 
             const newTranslations = mapLinesToTranslations(text).map((t) => ({ ...t, translator }));
@@ -205,16 +196,22 @@ export const compileTranslation = async (collectionId: string) => {
                 2,
             ),
         );
-        logger.info(`${entries.length} saved to ${excerptFile.name}`);
+        logger.info(
+            `${entries.length} excerpts, ${footnotes.length} footnotes, ${headings.length} headings saved to ${excerptFile.name}`,
+        );
 
-        const untranslated = entries.filter((e) => !e.translation);
+        const untranslated: any[] = entries.filter((e) => !e.translation);
+
+        untranslated.push(...headings.filter((e) => !e.text));
+        untranslated.push(...footnotes.filter((e) => !e.text));
+
         const untranslatedCount = untranslated.length;
 
         logger.info(
-            `${untranslatedCount} entries (${(untranslatedCount / entries.length) * 100}%) still are not translated.`,
+            `${untranslatedCount} items (${(untranslatedCount / entries.length) * 100}%),  still are not translated.`,
         );
 
-        if ((untranslatedCount && untranslatedCount < 70) || parsedValues.show) {
+        if ((untranslatedCount > 0 && untranslatedCount < 70) || parsedValues.show) {
             logger.info(`The following are still not translated: ${untranslated.map((e) => e.id).toString()}`);
         }
 

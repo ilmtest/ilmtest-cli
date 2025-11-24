@@ -298,7 +298,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
  * @returns True if a translation was processed, undefined otherwise
  */
 export const processTranslation = (line: string, translations: Translation[]) => {
-    const [, id, text] = line.match(/^([BCFTP]\d+[a-j]?)\s?[-–—ـ](.*)$/) || [];
+    const [, id, text] = line.match(/^([BCFTP]\d+[a-z]?)\s?[-–—ـ](.*)$/) || [];
 
     if (text) {
         translations.push({

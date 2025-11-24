@@ -1,4 +1,4 @@
-import { escapeRegex, normalizeSpaces, removeAllTags } from 'bitaboom';
+import { escapeRegex, normalizeSpaces, parsePageRanges, removeAllTags } from 'bitaboom';
 import { type Line, parseContentRobust } from 'shamela';
 import { type Entry, EntryType } from '@/api/entries.js';
 import type { MatnParseOptions, ShamelaPage, Translation } from '@/types.js';
@@ -224,7 +224,13 @@ export const segmentPages = (pages: ShamelaPage[], options: MatnParseOptions = {
     }
 
     if (options.excludePages) {
-        const excludedPages = new Set(options.excludePages);
+        const excludedPages = new Set(
+            options.excludePages.flatMap((r) => {
+                const range = parsePageRanges(r);
+                return range;
+            }),
+        );
+
         pages = pages.filter((p) => !excludedPages.has(p.id));
     }
 

@@ -124,10 +124,10 @@ export type MatnParseOptions = {
     removePagesWithPattern?: string;
 
     /**
-     * Filters out these pages.
+     * Filters out these page ranges.
      * @since contractVersion v1.2
      */
-    excludePages?: number[];
+    excludePages?: string[];
 
     /**
      * @deprecated As of contractVersion v1.1, use newChapterMarkerPattern = '^باب'
