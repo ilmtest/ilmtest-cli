@@ -95,7 +95,7 @@ export const captureNewEntryByPatternOptions = (pattern: RegExp, options: Patter
         const [, txt] = ln.text.match(pattern) || [];
 
         if (txt && (!options.minPage || page.id >= options.minPage)) {
-            context.addEntry({ arabic: txt.trim(), from: page.id, type: options.type });
+            context.addEntry({ arabic: txt.trim(), from: page.id, ...(options.type && { type: options.type }) });
             return true;
         }
     };
@@ -108,8 +108,8 @@ export const captureNewEntryByPatternOptions = (pattern: RegExp, options: Patter
  * @param page - Current page being processed
  * @returns True if the entire page was captured, undefined otherwise
  */
-export const captureEntirePage = (ln: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
-    if (!lastEntry || page.id - lastEntry.from! > 1) {
+export const captureEntirePage = (ln: Line, page: Page, { lastEntry, addEntry }: EntriesContext, minDiff = 1) => {
+    if (!lastEntry || page.id - lastEntry.from! >= minDiff) {
         addEntry({ arabic: ln.text, from: page.id });
         return true;
     }
@@ -142,7 +142,6 @@ export const appendLineToLastEntry = (
     separatorOverride?: string,
 ) => {
     const last = context.lastEntry!;
-    last.fromEndIndex = last.arabic!.length;
     last.arabic = [last.arabic, text].filter(Boolean).join(separatorOverride || context.separator);
 
     if (last.from !== page.id) {
@@ -150,6 +149,17 @@ export const appendLineToLastEntry = (
     }
 
     return true;
+};
+
+export const startNewEntryIfLastEntryMatches = (pattern: RegExp) => {
+    return ({ text }: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
+        const last = lastEntry!.arabic!;
+
+        if (pattern.test(last)) {
+            addEntry({ arabic: text.trim(), from: page.id });
+            return true;
+        }
+    };
 };
 
 /**
@@ -163,7 +173,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
     const lastEntry = context.lastEntry!;
     const diff = page.id - lastEntry.from!;
 
-    if (diff > 1) {
+    if (diff >= 1) {
         const arabic = lastEntry.arabic!;
 
         if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
@@ -178,7 +188,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
         }
 
         const beforePunctuation = ln.text.slice(0, lastPeriodIndex + 1).trim();
-        appendLineToLastEntry({ text: beforePunctuation }, page, context, ' ');
+        appendLineToLastEntry({ text: beforePunctuation }, page, context);
 
         lastEntry.to = page.id;
 

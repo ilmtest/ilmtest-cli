@@ -79,7 +79,7 @@ type SanitizeGroups = typeof SANITIZE_HTML;
 
 export type PatternOptions = {
     minPage?: number;
-    type: number;
+    type?: number;
 };
 
 export type HeadingOptions = {
@@ -154,8 +154,19 @@ export type MatnParseOptions = {
     /** If a chapter has <span id='toc-23'>3 - ChapterName</span> should we turn the chapter into a numbered list item */
     parseNumericChapters?: boolean;
 
-    /** Does text span from one page to another */
+    /**
+     * Does text span from one page to another
+     * @deprecated as of v2.0, use overflow.
+     */
     pageSpanning?: typeof CAPTURE_CONTINUOUS_PAGES | 'true';
+
+    /**
+     * Controls how text overflow is handled at page breaks.
+     * - `punctuation`: Cut off text at the last punctuation mark
+     * - `next`: Continue text until the next pattern marker.
+     * @since v2.0
+     */
+    overflow?: 'punctuation' | 'next';
 
     /** A regular expression pattern to mark the start of a new entry.
      * @deprecated As of contractVersion v1.1 Use typeToMarkerPatterns
@@ -177,7 +188,6 @@ export type MatnParseOptions = {
     /**
      * A regular expression pattern to mark the start of a new entry iff the last entry's matn matches this pattern.
      * @since contractVersion v1.1
-     * @deprecated since contractVersion v1.2, use patternOptions with a $ pattern
      */
     prevEntryMarkerPattern?: string;
 

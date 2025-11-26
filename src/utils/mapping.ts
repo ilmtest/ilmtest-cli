@@ -18,6 +18,7 @@ import {
     processChapter,
     processTranslation,
     removeSquareBracketsFromTitles,
+    startNewEntryIfLastEntryMatches,
     trimLine,
 } from './flowHandlers.js';
 import { applyCustomPatches, filterExcludedPages } from './optionsHandler.js';
@@ -117,10 +118,11 @@ const getSanitizers = (patterns: string[], options: { flatten?: boolean; replace
 
 const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) => {
     const {
-        pageSpanning,
+        overflow,
         isMarkdown,
         parseNumericChapters,
         replacements = {},
+        prevEntryMarkerPattern,
         patternToOptions = {},
         lineSeparator = '\n',
     } = options;
@@ -131,12 +133,13 @@ const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) =>
         options.patternToOptions = { ...options.patternToOptions, '^#': { type: EntryType.Chapter } };
     }
 
-    const isContinuous = Boolean(pageSpanning);
-
     const discreteHandlers = [captureEntirePage, appendLineToLastEntry];
     const continuousHandlers = [
         captureFirstLooseLeaf,
-        ...(pageSpanning === CAPTURE_CONTINUOUS_PAGES ? [appendNewPageToLastEntry] : []),
+        ...(overflow === 'punctuation' && prevEntryMarkerPattern
+            ? [startNewEntryIfLastEntryMatches(new RegExp(prevEntryMarkerPattern))]
+            : []),
+        ...(overflow === 'punctuation' ? [appendNewPageToLastEntry] : []),
         appendLineToLastEntry,
     ];
     const sanitizers = getSanitizers([], { replacements });
@@ -151,8 +154,8 @@ const segmentShamelaPages = (pages: ShamelaPage[], options: MatnParseOptions) =>
         ...Object.entries(patternToOptions).map(([pattern, options]) =>
             captureNewEntryByPatternOptions(new RegExp(pattern, 'u'), options),
         ),
-        ...(!isContinuous ? discreteHandlers : []),
-        ...(isContinuous ? continuousHandlers : []),
+        ...(!overflow ? discreteHandlers : []),
+        ...(overflow ? continuousHandlers : []),
     ];
 
     const context = new EntriesContext(lineSeparator);

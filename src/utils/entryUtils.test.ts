@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { filterEntriesOnUsedPages, filterMatchedEntries, fixGaps, indexEntriesForLookup } from './entryUtils';
+import { filterMatchedEntries, fixGaps, indexEntriesForLookup } from './entryUtils';
 
 describe('entryUtils', () => {
     describe('indexEntriesForLookup', () => {
@@ -132,21 +132,6 @@ describe('entryUtils', () => {
             const actual = fixGaps(entries as any);
 
             expect(actual).toMatchObject([{ index: 1 }, { index: 8 }, { index: 9 }, { index: 10 }]);
-        });
-    });
-
-    describe('filterEntriesOnUsedPages', () => {
-        it('should remove any pages already covered', () => {
-            const actual = filterEntriesOnUsedPages([{ from: 1 }] as any, new Set([1]));
-            expect(actual).toBeEmpty();
-        });
-
-        it('should trim any page that spans', () => {
-            const actual = filterEntriesOnUsedPages(
-                [{ arabic: 'A. B.', from: 1, fromEndIndex: 2, to: 2 }] as any,
-                new Set([2]),
-            );
-            expect(actual).toMatchObject([{ arabic: 'A.', from: 1 }]);
         });
     });
 

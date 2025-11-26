@@ -1,7 +1,277 @@
 import { describe, expect, it } from 'bun:test';
-import { validateTranslationMarkers } from './validation';
+import { validateDeprecatedOptions, validateTranslationMarkers } from './validation';
 
 describe('validation', () => {
+    describe('validateDeprecatedOptions', () => {
+        it('should not throw when no deprecated options are provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({});
+            }).not.toThrow();
+        });
+
+        it('should not throw when only valid options are provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    excludePagesWithPatterns: ['pattern'],
+                    patternToOptions: { '^test': { type: 1 } },
+                    replacements: { old: 'new' },
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw error when numeralStrategy is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    numeralStrategy: 'dashed',
+                });
+            }).toThrow('numeralStrategy has been deprecated, please migrate the breaking changes');
+        });
+
+        it('should throw error when numeralStrategy is provided with value "letter"', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    numeralStrategy: 'letter',
+                });
+            }).toThrow('numeralStrategy has been deprecated, please migrate the breaking changes');
+        });
+
+        it('should throw error when numeralStrategy is provided with value "square"', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    numeralStrategy: 'square',
+                });
+            }).toThrow('numeralStrategy has been deprecated, please migrate the breaking changes');
+        });
+
+        it('should throw error when removePagesWithPattern is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    removePagesWithPattern: 'some pattern',
+                });
+            }).toThrow('removePagesWithPattern has been replaced with excludePagesWithPatterns');
+        });
+
+        it('should throw error when removePagesWithPattern is provided with empty string', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    removePagesWithPattern: '',
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw error when fix is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    fix: 'indexes',
+                });
+            }).toThrow('fix has been deprecated');
+        });
+
+        it('should throw error when firstPageWithIndex is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    firstPageWithIndex: 10,
+                });
+            }).toThrow('firstPageWithIndex has been moved to the minPage in the patternToOptions');
+        });
+
+        it('should not throw error when firstPageWithIndex is provided with value 0', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    firstPageWithIndex: 0,
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw error when hasDuplicateNumerals is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    hasDuplicateNumerals: true,
+                });
+            }).toThrow('hasDuplicateNumerals has been deprecated');
+        });
+
+        it('should throw error when hasDuplicateNumerals is provided with value false', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    hasDuplicateNumerals: false,
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw error when newEntryMarkerPattern is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    newEntryMarkerPattern: '^entry',
+                });
+            }).toThrow('newEntryMarkerPattern has been replaced with patternToOptions');
+        });
+
+        it('should throw error when captureCommaSeparatedIndices is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    captureCommaSeparatedIndices: true,
+                });
+            }).toThrow('captureCommaSeparatedIndices has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error when sanitize is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    sanitize: ['html'],
+                });
+            }).toThrow('sanitize has been deprecated in favour of replacements');
+        });
+
+        it('should throw error when sanitize is provided with empty array', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    sanitize: [],
+                });
+            }).toThrow('sanitize has been deprecated in favour of replacements');
+        });
+
+        it('should throw error when shouldCapturePlainTextChapters is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    shouldCapturePlainTextChapters: true,
+                });
+            }).toThrow('shouldCapturePlainTextChapters has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error when patternToType is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    patternToType: { '^test': 1 },
+                });
+            }).toThrow('patternToType has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error when patternToType is provided with empty object', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    patternToType: {},
+                });
+            }).toThrow('patternToType has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error when flatten is provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    flatten: true,
+                });
+            }).toThrow('flatten has been deprecated in favour of replacements[HTML]');
+        });
+
+        it('should throw error when flatten is provided with value false', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    flatten: false,
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw error for first deprecated option when multiple are provided', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    fix: 'indexes',
+                    flatten: true,
+                    numeralStrategy: 'dashed',
+                });
+            }).toThrow('numeralStrategy has been deprecated, please migrate the breaking changes');
+        });
+
+        it('should throw error for removePagesWithPattern when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    patternToOptions: { '^test': { type: 1 } },
+                    removePagesWithPattern: 'pattern',
+                });
+            }).toThrow('removePagesWithPattern has been replaced with excludePagesWithPatterns');
+        });
+
+        it('should throw error for fix when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    excludePagesWithPatterns: ['pattern'],
+                    fix: 'indexes',
+                });
+            }).toThrow('fix has been deprecated');
+        });
+
+        it('should throw error for firstPageWithIndex when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    firstPageWithIndex: 5,
+                    patternToOptions: { '^test': { type: 1 } },
+                });
+            }).toThrow('firstPageWithIndex has been moved to the minPage in the patternToOptions');
+        });
+
+        it('should throw error for hasDuplicateNumerals when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    hasDuplicateNumerals: true,
+                    replacements: { old: 'new' },
+                });
+            }).toThrow('hasDuplicateNumerals has been deprecated');
+        });
+
+        it('should throw error for newEntryMarkerPattern when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    excludePagesWithPatterns: ['pattern'],
+                    newEntryMarkerPattern: '^entry',
+                });
+            }).toThrow('newEntryMarkerPattern has been replaced with patternToOptions');
+        });
+
+        it('should throw error for captureCommaSeparatedIndices when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    captureCommaSeparatedIndices: true,
+                    patternToOptions: { '^test': { type: 1 } },
+                });
+            }).toThrow('captureCommaSeparatedIndices has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error for sanitize when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    replacements: { old: 'new' },
+                    sanitize: ['html'],
+                });
+            }).toThrow('sanitize has been deprecated in favour of replacements');
+        });
+
+        it('should throw error for shouldCapturePlainTextChapters when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    excludePagesWithPatterns: ['pattern'],
+                    shouldCapturePlainTextChapters: true,
+                });
+            }).toThrow('shouldCapturePlainTextChapters has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error for patternToType when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    patternToType: { '^test': 1 },
+                    replacements: { old: 'new' },
+                });
+            }).toThrow('patternToType has been deprecated in favour of patternToOptions');
+        });
+
+        it('should throw error for flatten when provided with other valid options', () => {
+            expect(() => {
+                validateDeprecatedOptions({
+                    flatten: true,
+                    patternToOptions: { '^test': { type: 1 } },
+                });
+            }).toThrow('flatten has been deprecated in favour of replacements[HTML]');
+        });
+    });
+
     describe('validateTranslationMarkers', () => {
         it('should return undefined for valid text without markers', () => {
             const result = validateTranslationMarkers('This is normal text without any markers');

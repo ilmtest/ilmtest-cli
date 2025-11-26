@@ -12,19 +12,19 @@ export const validateDeprecatedOptions = ({
     hasDuplicateNumerals,
     patternToType,
     flatten,
-    prevEntryMarkerPattern,
+    pageSpanning,
     shouldCapturePlainTextChapters,
 }: MatnParseOptions) => {
     if (numeralStrategy) {
         throw new Error(`numeralStrategy has been deprecated, please migrate the breaking changes`);
     }
 
-    if (removePagesWithPattern) {
-        throw new Error('removePagesWithPattern has been replaced with excludePagesWithPatterns');
+    if (pageSpanning) {
+        throw new Error('pageSpanning has been replaced with overflow');
     }
 
-    if (prevEntryMarkerPattern) {
-        throw new Error('prevEntryMarkerPattern has been replaced with patternOptions with a $ matcher');
+    if (removePagesWithPattern) {
+        throw new Error('removePagesWithPattern has been replaced with excludePagesWithPatterns');
     }
 
     if (fix) {
