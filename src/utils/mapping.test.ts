@@ -502,6 +502,32 @@ describe('mapping', () => {
             ]);
         });
 
+        it('should correct markers that were accidentally merged into a single line', () => {
+            const actual = mapLinesToTranslations('P11 - Abcd P22 - 2 - Something. ');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'P11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'P22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should correct escaped characters', () => {
+            const actual = mapLinesToTranslations('P11 - \\[Abcd]');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'P11',
+                    text: '[Abcd]',
+                },
+            ]);
+        });
+
         it('should match book numbers', () => {
             const actual = mapLinesToTranslations('B11 - Abcd\nB22 - 2 - Something.');
 
@@ -542,21 +568,6 @@ describe('mapping', () => {
                 },
                 {
                     id: 'C22',
-                    text: '2 - Something.',
-                },
-            ]);
-        });
-
-        it('should match narration numbers', () => {
-            const actual = mapLinesToTranslations('N11 - Abcd\nN22 - 2 - Something.');
-
-            expect(actual).toMatchObject([
-                {
-                    id: 'N11',
-                    text: 'Abcd',
-                },
-                {
-                    id: 'N22',
                     text: '2 - Something.',
                 },
             ]);

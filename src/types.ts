@@ -91,12 +91,16 @@ export type HeadingOptions = {
 };
 
 export type MatnParseOptions = {
-    /** How should indexed entries be parsed dashed: (8 - abcd), an Arabic abbreviation followed by a number, or in square brackets [2] Abcd  */
+    /**
+     * How should indexed entries be parsed dashed: (8 - abcd), an Arabic abbreviation followed by a number, or in square brackets [2] Abcd
+     * @deprecated since contractVersion v1.2 just use patternToOptions and do post-processing.
+     */
     numeralStrategy?: 'dashed' | 'letter' | 'square';
 
     /**
      * Marks the very first page from which entry indexes should be considered to be added. Otherwise we will just assume they are part of the paragraph text.
      * @since contractVersion v1.1
+     * @deprecated since contractVersion v1.2 Use
      */
     firstPageWithIndex?: number;
 
@@ -118,10 +122,23 @@ export type MatnParseOptions = {
     headings?: HeadingOptions;
 
     /**
-     * Removes all pages
+     * Surgical patches for the book which has typos.
      * @since contractVersion v1.2
      */
+    aslPatches?: Array<{ page: number; match: string; replacement: string }>;
+
+    /**
+     * Removes all pages that matches this pattern.
+     * @since contractVersion v1.2
+     * @deprecated since contractVersion v2.0, use excludePagesWithPatterns
+     */
     removePagesWithPattern?: string;
+
+    /**
+     * Removes all pages that match any of these patterns, it'll be concatenated using a | in the final Regex.
+     * @since contractVersion v1.2
+     */
+    excludePagesWithPatterns?: string[];
 
     /**
      * Filters out these page ranges.
@@ -160,15 +177,18 @@ export type MatnParseOptions = {
     /**
      * A regular expression pattern to mark the start of a new entry iff the last entry's matn matches this pattern.
      * @since contractVersion v1.1
+     * @deprecated since contractVersion v1.2, use patternOptions with a $ pattern
      */
     prevEntryMarkerPattern?: string;
 
     /**
-     * @deprecated As of contractVersion v1.1, use newChapterMarkerPattern = '^#'
      * If there are no any text that starts with # should we parse them as chapters */
     isMarkdown?: boolean;
 
-    /** Should we automatically attempt to fix out of order numerals indexes. */
+    /**
+     * Should we automatically attempt to fix out of order numerals indexes.
+     * @deprecated since contractVersion v2.0, this is now done in a post-processing step.
+     */
     fix?: 'indexes';
 
     /**
@@ -195,7 +215,10 @@ export type MatnParseOptions = {
      */
     hasDuplicateNumerals?: boolean;
 
-    /** Should we capture comma separated numerals (ie: 3,4,5 - Abcd) for manual post-processing. */
+    /**
+     * Should we capture comma separated numerals (ie: 3,4,5 - Abcd) for manual post-processing.
+     * @deprecated since contractVersion v1.2, use patternToOptions
+     */
     captureCommaSeparatedIndices?: boolean;
 
     /** The delimeter to put between lines. By default it is a line break character \n. */

@@ -1,5 +1,5 @@
 import { findMatches } from 'baburchi';
-import { arabicNumeralToNumber, removeAllTags } from 'bitaboom';
+import { arabicNumeralToNumber, findLastPunctuation, removeAllTags } from 'bitaboom';
 import type { ArabicEntry, ShamelaBook, ShamelaPage } from '@/types.js';
 import { type Entry, EntryType } from '../api/entries.js';
 import logger from './logger.js';

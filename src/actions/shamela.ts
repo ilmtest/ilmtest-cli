@@ -323,6 +323,12 @@ export const processShamela = async () => {
         }))
         .filter((e) => e.arabic!.trim().length > 2) as Entry[];
 
+    arabicOnlyEntries.forEach((p) => {
+        if (/ [\u0660-\u0669]+ -/.test(p.arabic!)) {
+            logger.warn(`Found suspicious Arabic list item in page: ${p.from}`);
+        }
+    });
+
     let footnotes: Footnote[] = options.footnotes
         ? book.pages.filter((p) => p.footer).map((f) => ({ from: f.id, id: `F${f.id}`, nass: f.footer! }))
         : [];
@@ -361,7 +367,7 @@ export const processShamela = async () => {
             JSON.stringify(
                 {
                     collection,
-                    contractVersion: 'v1.2',
+                    contractVersion: 'v2.0',
                     createdAt: Date.now(),
                     excerpts: arabicOnlyEntries as Entry[],
                     footnotes,

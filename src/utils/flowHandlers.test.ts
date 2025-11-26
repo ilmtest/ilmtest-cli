@@ -1,91 +1,45 @@
 import { describe, expect, it } from 'bun:test';
-
-import {
-    captureCommaSeparatedArabicNumericListItem,
-    captureSquareBracketListItem,
-    processTranslation,
-    startNewEntryIfLastEntryMatches,
-} from './flowHandlers';
+import { processTranslation } from './flowHandlers';
 
 describe('flowHandlers', () => {
-    describe('captureCommaSeparatedArabicNumericListItem', () => {
-        it('should start the entry', () => {
-            const entries = [];
-            captureCommaSeparatedArabicNumericListItem({ text: '٦٩، ٧٠ - قال' }, entries, {
-                content: 'C',
-                id: 1,
-            });
-
-            expect(entries).toMatchObject([
-                {
-                    arabic: 'قال',
-                    from: 1,
-                    id: '69,70',
-                },
-            ]);
-        });
-
-        it('should capture 4 entries', () => {
-            const entries = [];
-            captureCommaSeparatedArabicNumericListItem({ text: '١٢١٩، ١٢٢٠، ١٢٢١، ١٢٢٢ - قال أبو داود' }, entries, {
-                content: 'C',
-                id: 1,
-            });
-
-            expect(entries).toMatchObject([
-                {
-                    arabic: 'قال أبو داود',
-                    from: 1,
-                    id: '1219,1220,1221,1222',
-                },
-            ]);
-        });
-    });
-
-    describe('captureSquareBracketListItem', () => {
-        it('should capture the square list item', () => {
-            const entries = [];
-            captureSquareBracketListItem({ text: '[٩٩] "إبراهيم" بن حرب' }, entries, {
-                content: 'C',
-                id: 1,
-            });
-
-            expect(entries).toMatchObject([
-                {
-                    arabic: '"إبراهيم" بن حرب',
-                    from: 1,
-                    index: 99,
-                },
-            ]);
-        });
-    });
-
-    describe('startNewEntryIfLastEntryMatches', () => {
-        it('should start a new entry', () => {
-            const entries = [{ arabic: 'The quick' }];
-
-            const fn = startNewEntryIfLastEntryMatches(/quick$/);
-
-            fn({ text: 'Line' }, entries, { content: 'C', id: 1 });
-
-            expect(entries).toMatchObject([
-                {
-                    arabic: 'The quick',
-                },
-                {
-                    arabic: 'Line',
-                    from: 1,
-                },
-            ]);
-        });
-    });
-
     describe('processTranslation', () => {
-        it.only('should pick up the translation marker', () => {
+        it('should pick up the translation marker', () => {
             const translations = [];
-            processTranslation('P122a - Hi', translations);
 
-            console.log(translations);
+            ['B1 - Book', 'C3c - Chapter', 'F2 - Footnote', 'T1b - Heading', 'P122a - Hi'].forEach((line) => {
+                processTranslation(line, translations);
+            });
+
+            expect(translations).toMatchObject([
+                {
+                    id: 'B1',
+                    text: 'Book',
+                },
+                {
+                    id: 'C3c',
+                    text: 'Chapter',
+                },
+                {
+                    id: 'F2',
+                    text: 'Footnote',
+                },
+                {
+                    id: 'T1b',
+                    text: 'Heading',
+                },
+                {
+                    id: 'P122a',
+                    text: 'Hi',
+                },
+            ]);
+        });
+
+        it('should not handle non-markers', () => {
+            const translations = [];
+
+            processTranslation('A line', translations);
+
+            expect(translations).toBeEmpty();
         });
     });
 });

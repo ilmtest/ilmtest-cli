@@ -6,7 +6,7 @@ import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
-import { validateTranslationMarkers } from '@/utils/textUtils.js';
+import { validateTranslationMarkers } from '@/utils/validation.js';
 
 const TRANSLATION_IDS = [879, 890, 891];
 

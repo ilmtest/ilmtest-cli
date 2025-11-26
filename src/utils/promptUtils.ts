@@ -25,7 +25,7 @@ const TRANSLATE_HEADINGS_PROMPT = [
     `You will be translating chapter titles from the book: {{book}}.`,
     'Translate the following Arabic text into English with the highest level of accuracy preferring literal translations except when the context fits to translate by meaning.',
     'Carefully analyze the context to ensure the correct usage of Islamic technical terminology.',
-    'Use ALA-LC transliteration on names of narrators. "حَدَّثَنَا مُحَمَّدُ" would translate to "Muḥammad narrated to us".',
+    'Use ALA-LC transliteration on names of nouns where appropriate.',
     'Translate "God" as Allah unless the Arabic is actually refering to an ilāh. Whenever صلى الله عليه وسلم is used translate it with ﷺ. There should be no Arabic characters in your response other than this one.',
     'Respond only in plain-text, no markdown or formatting. Keep the IDs (T1, T5, etc.) that appear in the beginning of each segment. Do NOT attempt to correct the numeric prefixes if they seem out of order or assume continuity from one to another.',
     'Revise your translation TWO times before sending it back:',

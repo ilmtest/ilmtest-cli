@@ -9,10 +9,10 @@ import {
 import type { Line, Page } from 'shamela';
 import { EntryType } from '@/api/entries.js';
 import type { PatternOptions, Translation } from '@/types.js';
+import { MARKER_ID_PATTERN, TRANSLATION_MARKER_PARTS } from './constants.js';
 import type { EntriesContext } from './entryContext.js';
 import { PATTERNS } from './textUtils.js';
 
-const CHAPTER_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('باب').source} `);
 const KITAB_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('كتاب').source} `);
 
 /**
@@ -64,16 +64,6 @@ export const captureMarkdownChapters = (ln: Line) => {
     }
 };
 
-/**
- * Captures lines that start with "باب " (chapter) and assigns them an ID
- * @param ln - Line object to process
- */
-export const capturePlainTextChapters = (ln: Line) => {
-    if (!ln.id && (CHAPTER_REGEX.test(ln.text) || KITAB_REGEX.test(ln.text))) {
-        ln.id = '0';
-    }
-};
-
 export const removeSquareBracketsFromTitles = (ln: Line) => {
     if (ln.id && /\[([^-]+?)\s*-\s*([^\]]+)\]/.test(ln.text)) {
         ln.text = ln.text.slice(1, -1);
@@ -100,85 +90,6 @@ export const processChapter = (ln: Line, page: Page, context: EntriesContext) =>
     }
 };
 
-export const captureCommaSeparatedArabicNumericListItem = (ln: Line, page: Page, context: EntriesContext) => {
-    const [, indexes, txt] = ln.text.match(/^((?:[\u0660-\u0669]+(?:، )?)+)\s?[-–—ـ](.*)/) || [];
-
-    if (txt) {
-        const numbers = indexes.split(/، ?/).filter(Boolean).map(arabicNumeralToNumber);
-        context.addEntry({ arabic: txt.trim(), from: page.id, id: numbers.join(',') });
-        return true;
-    }
-};
-
-export const captureSquareBracketListItem = (ln: Line, page: Page, context: EntriesContext) => {
-    const [, idx, arabic] = ln.text.match(/^\[([\u0660-\u0669]+)\]\s?(.*)/) || [];
-
-    if (arabic) {
-        context.addEntry({
-            arabic,
-            from: page.id,
-            index: arabicNumeralToNumber(idx),
-        });
-
-        return true;
-    }
-};
-
-/**
- * Processes Arabic numeric list items and creates corresponding entries
- * @param ln - Line object to process
- * @param entries - Array to add new entries to
- * @param page - Current page being processed
- * @returns True if an Arabic numeric list item was processed, undefined otherwise
- */
-export const processArabicNumericListItem =
-    (firstPageWithIndex: number) => (ln: Line, page: Page, context: EntriesContext) => {
-        const [, idx, txt] = ln.text.match(PATTERNS.MatchArabicNumericListItem) || [];
-
-        if (txt && page.id >= firstPageWithIndex) {
-            context.addEntry({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
-            return true;
-        }
-    };
-
-export const processArabicLetterNumericListItem = (ln: Line, page: Page, context: EntriesContext) => {
-    const [, idx, txt] = ln.text.match(/^[\u0621-\u064A\u0660-\u0669]+\s+([\u0660-\u0669]+)\s?[-–—ـ]\s*(.*)/) || [];
-
-    if (txt) {
-        context.addEntry({ arabic: txt.trim(), from: page.id, index: arabicNumeralToNumber(idx) });
-        return true;
-    }
-};
-
-/**
- * Processes regular numeric list items and creates corresponding entries
- * @param ln - Line object to process
- * @param entries - Array to add new entries to
- * @param page - Current page being processed
- * @returns True if a numeric list item was processed, undefined otherwise
- */
-export const processNumericListItem = (ln: Line, page: Page, context: EntriesContext) => {
-    const [, idx, txt] = ln.text.match(PATTERNS.MatchNumericListItem) || [];
-
-    if (txt) {
-        context.addEntry({ arabic: txt.trim(), from: page.id, index: parseInt(idx, 10) });
-        return true;
-    }
-};
-
-export const usedTerms: Record<string, number> = {};
-
-export const captureNewEntryByPattern = (pattern: RegExp) => (ln: Line, page: Page, context: EntriesContext) => {
-    const [, txt] = ln.text.match(pattern) || [];
-
-    if (txt) {
-        usedTerms[txt] = (usedTerms[txt] || 0) + 1;
-
-        context.addEntry({ arabic: txt.trim(), from: page.id });
-        return true;
-    }
-};
-
 export const captureNewEntryByPatternOptions = (pattern: RegExp, options: PatternOptions) => {
     return (ln: Line, page: Page, context: EntriesContext) => {
         const [, txt] = ln.text.match(pattern) || [];
@@ -188,10 +99,6 @@ export const captureNewEntryByPatternOptions = (pattern: RegExp, options: Patter
             return true;
         }
     };
-};
-
-export const captureNewEntryByPatternAndType = (pattern: RegExp, type: number) => {
-    return captureNewEntryByPatternOptions(pattern, { type });
 };
 
 /**
@@ -228,10 +135,15 @@ export const captureFirstLooseLeaf = (ln: Line, page: Page, { lastEntry, addEntr
  * @param param0 - Destructured line object containing text
  * @param entries - Array of entries to modify
  */
-export const appendLineToLastEntry = ({ text }: Line, page: Page, context: EntriesContext) => {
+export const appendLineToLastEntry = (
+    { text }: Line,
+    page: Page,
+    context: EntriesContext,
+    separatorOverride?: string,
+) => {
     const last = context.lastEntry!;
     last.fromEndIndex = last.arabic!.length;
-    last.arabic = [last.arabic, text].filter(Boolean).join(context.separator);
+    last.arabic = [last.arabic, text].filter(Boolean).join(separatorOverride || context.separator);
 
     if (last.from !== page.id) {
         last.to = page.id;
@@ -239,17 +151,6 @@ export const appendLineToLastEntry = ({ text }: Line, page: Page, context: Entri
 
     return true;
 };
-
-export const startNewEntryIfLastEntryMatches =
-    (pattern: RegExp) =>
-    ({ text }: Line, page: Page, { lastEntry, addEntry }: EntriesContext) => {
-        const last = lastEntry!.arabic!;
-
-        if (pattern.test(last)) {
-            addEntry({ arabic: text.trim(), from: page.id });
-            return true;
-        }
-    };
 
 /**
  * Appends content from a new page to the last entry, handling page breaks intelligently
@@ -262,7 +163,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
     const lastEntry = context.lastEntry!;
     const diff = page.id - lastEntry.from!;
 
-    if (diff >= 1) {
+    if (diff > 1) {
         const arabic = lastEntry.arabic!;
 
         if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
@@ -277,7 +178,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
         }
 
         const beforePunctuation = ln.text.slice(0, lastPeriodIndex + 1).trim();
-        appendLineToLastEntry({ text: beforePunctuation }, page, context);
+        appendLineToLastEntry({ text: beforePunctuation }, page, context, ' ');
 
         lastEntry.to = page.id;
 
@@ -298,7 +199,9 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
  * @returns True if a translation was processed, undefined otherwise
  */
 export const processTranslation = (line: string, translations: Translation[]) => {
-    const [, id, text] = line.match(/^([BCFTP]\d+[a-z]?)\s?[-–—ـ](.*)$/) || [];
+    const { dashes, optionalSpace } = TRANSLATION_MARKER_PARTS;
+    const pattern = new RegExp(`^(${MARKER_ID_PATTERN})${optionalSpace}${dashes}(.*)$`);
+    const [, id, text] = line.match(pattern) || [];
 
     if (text) {
         translations.push({
