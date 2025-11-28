@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { validateDeprecatedOptions, validateTranslationMarkers } from './validation';
+import { validateDeprecatedOptions, validateParseOptions, validateTranslationMarkers } from './validation';
 
 describe('validation', () => {
     describe('validateDeprecatedOptions', () => {
@@ -269,6 +269,145 @@ describe('validation', () => {
                     patternToOptions: { '^test': { type: 1 } },
                 });
             }).toThrow('flatten has been deprecated in favour of replacements[HTML]');
+        });
+    });
+
+    describe('validateParseOptions', () => {
+        it('should not throw when patternToOptions is not provided', () => {
+            expect(() => {
+                validateParseOptions({});
+            }).not.toThrow();
+        });
+
+        it('should not throw when patternToOptions is empty', () => {
+            expect(() => {
+                validateParseOptions({ patternToOptions: {} });
+            }).not.toThrow();
+        });
+
+        it('should not throw for valid patterns with capture groups', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^((بَابُ).*)': { type: 2 },
+                        '^([\\u0660-\\u0669]+\\s?[-–—ـ].*)': { minPage: 153 },
+                        '^(test.*)': {},
+                    },
+                });
+            }).not.toThrow();
+        });
+
+        it('should not throw for patterns with nested capture groups', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^((group1|group2).*)': {},
+                    },
+                });
+            }).not.toThrow();
+        });
+
+        it('should not throw for patterns with non-capturing groups and capture groups', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^(?:prefix)(captured.*)': {},
+                    },
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw for pattern without any capture group', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^test.*': {},
+                    },
+                });
+            }).toThrow(/must contain at least one capture group/);
+        });
+
+        it('should throw for pattern with only non-capturing groups', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^(?:test).*': {},
+                    },
+                });
+            }).toThrow(/must contain at least one capture group/);
+        });
+
+        it('should throw for pattern with escaped parentheses only', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^\\(test\\).*': {},
+                    },
+                });
+            }).toThrow(/must contain at least one capture group/);
+        });
+
+        it('should throw for invalid regex pattern', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^[invalid(regex': {},
+                    },
+                });
+            }).toThrow(/Invalid regex pattern/);
+        });
+
+        it('should throw for invalid regex with unbalanced brackets', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^[': {},
+                    },
+                });
+            }).toThrow(/Invalid regex pattern/);
+        });
+
+        it('should include the problematic pattern in error message', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^nocapture': {},
+                    },
+                });
+            }).toThrow('"^nocapture"');
+        });
+
+        it('should validate all patterns and throw on first invalid one', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^(also-valid.*)': {},
+                        '^(valid.*)': {},
+                        '^invalid': {},
+                    },
+                });
+            }).toThrow(/must contain at least one capture group.*"\^invalid"/);
+        });
+
+        it('should not throw for complex Arabic patterns with capture groups', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^(([\\u0660-\\u0669]+\\s?[-–—ـ]|•|وَاعْلَمْ).*)': {},
+                        '^((\\[بِسْمِ |بِسْمِ اللَّهِ|أَخْبَرَنَا).*)': {},
+                    },
+                });
+            }).not.toThrow();
+        });
+
+        it('should throw for complex pattern missing capture group', () => {
+            expect(() => {
+                validateParseOptions({
+                    patternToOptions: {
+                        '^[\\u0660-\\u0669]+\\s?[-–—ـ].*': {},
+                    },
+                });
+            }).toThrow(/must contain at least one capture group/);
         });
     });
 

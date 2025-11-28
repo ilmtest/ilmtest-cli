@@ -1,11 +1,17 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
-import { condenseEllipsis, makeDiacriticInsensitiveRegex, normalizeSpaces } from 'bitaboom';
+import {
+    condenseEllipsis,
+    makeDiacriticInsensitive,
+    makeDiacriticInsensitiveRegex,
+    normalizeSpaces,
+} from 'bitaboom';
 import {
     removeArabicNumericPageMarkers,
     //removeTagsExceptSpan,
     sanitizePageContent,
     splitPageBodyFromFooter,
 } from 'shamela';
+import type { MarkerConfig, NumberingStyle, SeparatorStyle } from '@/types.js';
 
 /**
  *
@@ -82,3 +88,4 @@ export const sanitizeChapter = (title: string) => {
         .replace(/^كتاب/, '')
         .trim();
 };
+

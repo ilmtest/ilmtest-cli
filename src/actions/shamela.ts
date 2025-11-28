@@ -26,7 +26,7 @@ import {
     trimSpaceInsideQuotes,
 } from 'bitaboom';
 import { getBookContents } from 'ketab-online-sdk';
-import { type BookData, configure, getBook, getBookMetadata, sanitizePageContent, Title } from 'shamela';
+import { type BookData, configure, getBook, getBookMetadata, sanitizePageContent } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, Excerpts, Footnote, Heading, MatnParseOptions, ShamelaBook } from '@/types.js';
@@ -348,14 +348,16 @@ export const processShamela = async () => {
     if (fileExists) {
         const data = (await excerptsFile.json()) as Excerpts;
 
-        const existingEntries = data.excerpts.filter((e) => !e.translation);
-        arabicOnlyEntries = existingEntries;
+        const existingEntries = new Set(data.excerpts.filter((e) => !e.translation).map((e) => e.id));
+
+        arabicOnlyEntries = arabicOnlyEntries.filter((e) => existingEntries.has(e.id));
 
         footnotes = data.footnotes.filter((e) => !e.text);
         headings = data.headings.filter((e) => !e.text);
     }
 
-    await generatePrompt(dir, collection.title, arabicOnlyEntries, options);
+    // Named groups already provide clean content - no preprompt needed
+    await generatePrompt(dir, collection.title, arabicOnlyEntries);
     await generateTitlePrompt(dir, collection.title, headings, options);
 
     if (options.footnotes) {

@@ -1,6 +1,38 @@
 import type { MatnParseOptions } from '@/types.js';
 import { MARKER_ID_PATTERN, TRANSLATION_MARKER_PARTS } from './constants.js';
 
+/**
+ * Validates that patternToOptions contains valid regex patterns with capture groups.
+ * Throws an error if a pattern is invalid or missing capture groups.
+ */
+export const validateParseOptions = ({ patternToOptions = {} }: MatnParseOptions) => {
+    for (const pattern of Object.keys(patternToOptions)) {
+        // Validate that the pattern is a valid regex
+        try {
+            new RegExp(pattern, 'u');
+        } catch (e) {
+            throw new Error(`Invalid regex pattern in patternToOptions: "${pattern}" - ${(e as Error).message}`);
+        }
+
+        // Check that the pattern contains at least one capture group
+        // We need to account for escaped parentheses \( \) and non-capturing groups (?:
+        const unescapedPattern = pattern
+            .replace(/\\./g, '') // Remove all escaped characters
+            .replace(/\(\?:/g, ''); // Remove non-capturing group markers
+
+        // Count remaining unescaped opening parentheses that start capture groups
+        const captureGroupCount = (unescapedPattern.match(/\(/g) || []).length;
+
+        if (captureGroupCount === 0) {
+            throw new Error(
+                `Pattern in patternToOptions must contain at least one capture group: "${pattern}". ` +
+                    `Without a capture group, the matched text cannot be extracted. ` +
+                    `Wrap the part you want to capture in parentheses, e.g., "^(${pattern.replace(/^\^/, '')})"`,
+            );
+        }
+    }
+};
+
 export const validateDeprecatedOptions = ({
     numeralStrategy,
     firstPageWithIndex,
