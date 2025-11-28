@@ -75,8 +75,6 @@ const main = async () => {
         await (await import('./actions/uploadTranslations.js')).uploadTranslations(values.save as string);
     } else if (values.fix) {
         await (await import('./actions/fix.js')).fixExcerpts(positionals[0], values.fix as string);
-    } else if (values.translate) {
-        await (await import('./actions/translate.js')).translateExcerpts(values.translate as string);
     }
 };
 

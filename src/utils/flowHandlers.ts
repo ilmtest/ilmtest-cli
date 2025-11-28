@@ -92,35 +92,10 @@ export const processChapter = (ln: Line, page: Page, context: EntriesContext) =>
 
 export const captureNewEntryByPatternOptions = (pattern: RegExp, options: PatternOptions) => {
     return (ln: Line, page: Page, context: EntriesContext) => {
-        const match = ln.text.match(pattern);
+        const [, txt] = ln.text.match(pattern) || [];
 
-        if (match && (!options.minPage || page.id >= options.minPage)) {
-            const { minPage, ...metadata } = options;
-            
-            // Support both new flappa-doormal patterns (with named groups) and legacy patterns
-            if (match.groups?.full) {
-                // New pattern with named groups
-                const arabic = match.groups.full.trim();
-                const cleanContent = match.groups.content.trim();
-                const marker = match.groups.marker;
-                
-                context.addEntry({ 
-                    arabic,  // Full text with marker
-                    cleanContent,  // Clean text without marker (for LLM)
-                    marker,  // Just the marker (for metadata extraction)
-                    from: page.id, 
-                    ...metadata 
-                });
-            } else {
-                // Legacy pattern without named groups
-                // Restore old behavior: use first capture group if available, otherwise full match
-                const content = match[1] || match[0];
-                context.addEntry({ 
-                    arabic: content.trim(),
-                    from: page.id, 
-                    ...metadata 
-                });
-            }
+        if (txt && (!options.minPage || page.id >= options.minPage)) {
+            context.addEntry({ arabic: txt.trim(), from: page.id, ...(options.type && { type: options.type }) });
             return true;
         }
     };
@@ -168,10 +143,6 @@ export const appendLineToLastEntry = (
 ) => {
     const last = context.lastEntry!;
     last.arabic = [last.arabic, text].filter(Boolean).join(separatorOverride || context.separator);
-
-    if (last.cleanContent) {
-        last.cleanContent = [last.cleanContent, text].filter(Boolean).join(separatorOverride || context.separator);
-    }
 
     if (last.from !== page.id) {
         last.to = page.id;

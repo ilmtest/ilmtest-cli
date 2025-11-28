@@ -8,7 +8,7 @@ import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
 import { validateTranslationMarkers } from '@/utils/validation.js';
 
-const TRANSLATION_IDS = [879, 890];
+const TRANSLATION_IDS = [879, 890, 891];
 
 type AITranslation = Translation & { translator: number };
 
@@ -62,29 +62,6 @@ const mergeShortEntriesWithPrevious = (entries: Entry[], minWords: number, separ
     }, []);
 };
 
-const dump = async () => {
-    const excerptFile = Bun.file(path.join('tmp', '2579', 'excerpts.json'));
-    const { excerpts, ...rest } = await excerptFile.json();
-
-    const unfinished = excerpts
-        .filter((e) => !e.translation)
-        .map((e) => `${e.id} - ${e.arabic}`)
-        .join('\n\n');
-
-    const gpt = excerpts
-        .filter((e) => e.translator === 879)
-        .map((e) => `${e.id} - ${e.translation}`)
-        .join('\n\n');
-    const gemini = excerpts
-        .filter((e) => e.translator === 890)
-        .map((e) => `${e.id} - ${e.translation}`)
-        .join('\n\n');
-
-    //await Bun.file(path.join('tmp', '2579', '879.txt')).write(gpt);
-    //await Bun.file(path.join('tmp', '2579', '890.txt')).write(gemini);
-    await Bun.file(path.join('tmp', '2579', 'prompt.txt')).write(unfinished);
-};
-
 /**
  * Compiles translation data for a collection by matching entries with translation files
  * @param collectionId - The ID of the collection to compile translations for
@@ -95,12 +72,7 @@ export const compileTranslation = async (collectionId: string) => {
         duplicates: { type: 'boolean' },
         pages: { type: 'string' },
         show: { type: 'boolean' },
-        unfinished: { type: 'boolean' },
     });
-
-    if (parsedValues.unfinished) {
-        return dump();
-    }
 
     const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);

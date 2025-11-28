@@ -50,19 +50,23 @@ export const generatePrompt = async (
     dir: string,
     title: string,
     entries: Partial<Entry>[],
+    options: Pick<MatnParseOptions, 'preprompt'>,
 ) => {
     const promptFile = Bun.file(path.format({ dir, ext: '.txt', name: 'prompt' }));
+    const formatters = options.preprompt ? mapPatternsToFormatters(options.preprompt) : [];
 
     if (!(await promptFile.exists())) {
         logger.info(`Writing ${promptFile.name}...`);
 
-        // Use cleanContent (from match.groups.content) if available
-        // Otherwise fall back to arabic for backwards compatibility
         const stringifiedEntries = entries.map((e) => {
-            const text = (e as any).cleanContent || e.arabic!;
+            let text = e.arabic!;
+
+            for (const formatter of formatters) {
+                text = formatter(text);
+            }
+
             return `${e.id} - ${text.trim()}`;
         });
-
         const errors = stringifiedEntries.filter(
             (s) =>
                 s.includes('span') ||

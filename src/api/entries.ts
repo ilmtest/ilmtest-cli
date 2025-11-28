@@ -18,28 +18,22 @@ export enum EntryType {
 }
 
 export type Entry = {
-    /** Arabic text content of the entry - now contains FULL text with markers for metadata */
     arabic?: string;
-    /** Clean content without markers (from match.groups.content) - for LLM processing */
-    cleanContent?: string;
-    /** The marker extracted from the text (from match.groups.marker) - for metadata extraction */
-    marker?: string;
-    /** Starting page number where this entry begins */
-    from?: number;
-    /** Unique identifier for the entry */
+    collection: number;
+    explains?: string[];
+    commentary?: string;
+    flags?: EntryFlags;
+    from: number;
     id: string;
-    /** Optional index number for ordered entries */
     index?: number;
-    /** Page number reference for the entry */
-    pp?: number;
-    /** Ending page number if entry spans multiple pages */
+    lastUpdatedAt?: number;
+    pp: number;
     to?: number;
-    /** English translation of the entry */
     translation?: string;
-    /** Entry type classification */
+    translator?: number;
     type?: EntryType;
-    /** Volume number the entry belongs to */
-    volume?: number;
+    url?: string;
+    volume: number;
 };
 
 /**

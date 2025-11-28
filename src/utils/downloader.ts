@@ -1,52 +1,22 @@
-import { spawn } from 'node:child_process';
-import { lookpath } from 'lookpath';
-import logger from './logger.js';
+import { findBestDownloadUrl } from 'rabbito';
+
+import { downloadFileWithProgress } from './network.js';
 
 export const MEDIA_CONTAINER = 'mp4';
 
 export const downloadYouTubeVideo = async (id: string, outputFile: string): Promise<string> => {
-    const ytDlpPath = await lookpath('yt-dlp');
-
-    if (!ytDlpPath) {
-        throw new Error('yt-dlp is not installed. Please install it to download videos.');
+    if (1 === Number(1)) {
+        return '';
     }
 
-    logger.info(`Downloading video ${id} to ${outputFile} using yt-dlp...`);
+    const formats: { url: string }[] = [];
 
-    return new Promise((resolve, reject) => {
-        const process = spawn(ytDlpPath, [
-            '-f',
-            `bestvideo[ext=${MEDIA_CONTAINER}]+bestaudio[ext=m4a]/best[ext=${MEDIA_CONTAINER}]/best`,
-            '-o',
-            outputFile,
-            `https://www.youtube.com/watch?v=${id}`,
-        ]);
+    if (formats.length === 0) {
+        throw new Error('No suitable mp4 format found');
+    }
 
-        process.stdout.on('data', (data) => {
-            const output = data.toString().trim();
-            if (output) {
-                logger.info(`[yt-dlp] ${output}`);
-            }
-        });
+    const successfulUrl = await findBestDownloadUrl(formats.map((f) => f.url));
+    const result = await downloadFileWithProgress(successfulUrl, outputFile);
 
-        process.stderr.on('data', (data) => {
-            const output = data.toString().trim();
-            if (output) {
-                logger.warn(`[yt-dlp] ${output}`);
-            }
-        });
-
-        process.on('close', (code) => {
-            if (code === 0) {
-                logger.info(`Successfully downloaded video ${id}`);
-                resolve(outputFile);
-            } else {
-                reject(new Error(`yt-dlp exited with code ${code}`));
-            }
-        });
-
-        process.on('error', (err) => {
-            reject(err);
-        });
-    });
+    return result;
 };

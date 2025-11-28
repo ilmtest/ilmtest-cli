@@ -80,7 +80,6 @@ type SanitizeGroups = typeof SANITIZE_HTML;
 export type PatternOptions = {
     minPage?: number;
     type?: number;
-    [key: string]: any;
 };
 
 export type HeadingOptions = {
@@ -90,8 +89,6 @@ export type HeadingOptions = {
      */
     preprompt?: Record<string, string>;
 };
-
-
 
 export type MatnParseOptions = {
     /**
@@ -236,114 +233,7 @@ export type MatnParseOptions = {
 
     /** The delimeter to put between lines. By default it is a line break character \n. */
     lineSeparator?: string;
-
-    /**
-     * List of markers to identify new entries.
-     * @since contractVersion v2.1
-     */
-    markers?: MarkerConfig[];
-
-    /**
-     * Global exclude patterns (replacing excludePagesWithPatterns).
-     * @since contractVersion v2.1
-     */
-    excludePatterns?: string[];
 };
-
-export type NumberingStyle = 'arabic-indic' | 'latin';
-export type SeparatorStyle = 'dash' | 'dot' | 'paren' | 'colon' | 'none';
-
-/**
- * Modifier for numbered markers to handle common variations
- */
-export type NumberedModifier = 
-    | 'with-letter'      // ٥ أ - (numeral + Arabic letter + separator)
-    | 'with-slash'       // ٥/٦ - (numeral/numeral + separator)
-    | 'with-parentheses' // ٥ (أ) - (numeral with parenthetical content)
-    | 'bullet-prefix';   // • ٥ - (bullet followed by numeral)
-
-export type MarkerType = 
-    | 'numbered'
-    | 'bullet'
-    | 'heading'
-    | 'pattern'          // Custom pattern (renamed from 'custom')
-    // Preset types for common Arabic text patterns:
-    | 'bab'              // باب chapter markers
-    | 'hadith-chain'     // Hadith narrator chain patterns
-    | 'basmala'          // بسم الله patterns
-    | 'phrase'           // Configurable phrase starters
-    | 'square-bracket'   // [number] reference patterns
-    // Numbered marker variants (common patterns):
-    | 'num-letter'       // ٥ أ - (number + Arabic letter + dash)
-    | 'num-paren'        // ٥ (أ) - (number + parenthetical + dash)
-    | 'num-slash';       // ٥/٦ - (number / number + dash)
-
-export type MarkerConfig = {
-    /** The type of marker to look for */
-    type: MarkerType;
-    /** For numbered markers, the digit style */
-    numbering?: NumberingStyle;
-    /** The separator that follows the marker */
-    separator?: SeparatorStyle | string;
-    /**
-     * Template format for numbered markers using token syntax.
-     * Replaces the old 'modifier' field with readable templates.
-     * Example: '{bullet}+ {num} {dash}' instead of modifier: 'bullet-prefix'
-     * Only valid when type is 'numbered'.
-     */
-    format?: string;
-    /**
-     * For 'pattern' type, provide a template using tokens like {num}, {dash}, {bullet}.
-     * This is more readable than raw regex patterns.
-     * Example: '{bullet}? {num}+ {s}{dash}' instead of '^[•*°]? ([\\u0660-\\u0669]+\\s?[-–—ـ].*)'
-     */
-    template?: string;
-    /**
-     * Custom token map for advanced users.
-     * Extends the default TOKENS with additional definitions.
-     */
-    tokens?: Record<string, string>;
-    /**
-     * List of phrases for 'phrase' and 'hadith-chain' types.
-     * For 'hadith-chain', defaults to common narrator patterns if not provided.
-     */
-    phrases?: string[];
-    /** Optional: Only apply this marker after a specific page number */
-    minPage?: number;
-    /** Optional: The entry type this marker signifies (default: 0/Text) */
-    entryType?: number;
-    /**
-     * Optional: Arbitrary metadata to attach to the created entry.
-     * This allows for agnostic handling of entry properties.
-     */
-    metadata?: Record<string, any>;
-    /**
-     * If true, this marker is automatically removed from the text content.
-     * Replaces the need for 'preprompt' entries for this pattern.
-     * Default: true for 'numbered', 'bullet', 'square-bracket'; false for preset types
-     */
-    removeMarker?: boolean;
-    /**
-     * DEPRECATED: Use 'template' instead.
-     * Raw regex pattern for 'pattern' type.
-     */
-    pattern?: string;
-    /**
-     * DEPRECATED: Use 'format' instead.
-     * Old modifier syntax for numbered markers.
-     */
-    modifier?: NumberedModifier;
-};
-
-export type SegmentationConfig = {
-    /** List of markers to identify new entries */
-    markers: MarkerConfig[];
-    /**
-     * Global exclude patterns (replacing excludePagesWithPatterns).
-     * Can use presets like 'headers', 'footers' or raw regex.
-     */
-    excludePatterns?: string[];
-} & Pick<MatnParseOptions, 'overflow' | 'aslPatches' | 'excludePages' | 'footnotes' | 'headings' | 'isMarkdown' | 'lineSeparator' | 'replacements'>;
 
 export type Heading = {
     nass: string;
