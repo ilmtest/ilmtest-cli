@@ -8,7 +8,7 @@ import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
 import { validateTranslationMarkers } from '@/utils/validation.js';
 
-const TRANSLATION_IDS = [879, 890, 891];
+const TRANSLATION_IDS = [879, 890];
 
 type AITranslation = Translation & { translator: number };
 

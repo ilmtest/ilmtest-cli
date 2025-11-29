@@ -1,5 +1,5 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
-import { condenseEllipsis, makeDiacriticInsensitiveRegex, normalizeSpaces } from 'bitaboom';
+import { makeDiacriticInsensitiveRegex, normalizeSpaces } from 'bitaboom';
 import {
     removeArabicNumericPageMarkers,
     //removeTagsExceptSpan,
@@ -59,7 +59,6 @@ export const getPageBodyAndFootnotes = (text: string) => {
 
     //content = content.replace(/<man[^>]*>|<\/man>|<man-\d+>/g, '');
     content = removeTagsExceptSpan(content);
-    content = condenseEllipsis(content);
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);
     //content = content.replace(/\s?⦗[\u0660-\u0669]+⦘\s?/g, ' ');

@@ -22,6 +22,7 @@
         "pino-pretty": "^13.1.2",
         "rabbito": "^1.0.0",
         "remove-markdown": "^0.6.2",
+        "shamela": "link:shamela",
         "string-strip-html": "^13.5.0",
         "tafrigh": "^4.1.1"
     },

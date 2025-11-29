@@ -26,7 +26,7 @@ import {
     trimSpaceInsideQuotes,
 } from 'bitaboom';
 import { getBookContents } from 'ketab-online-sdk';
-import { type BookData, configure, getBook, getBookMetadata, sanitizePageContent, Title } from 'shamela';
+import { type BookData, configure, getBook, getBookMetadata, sanitizePageContent } from 'shamela';
 import { getCollection } from '@/api/collections.js';
 import { type Entry, getEntries } from '@/api/entries.js';
 import type { Collection, Excerpts, Footnote, Heading, MatnParseOptions, ShamelaBook } from '@/types.js';
@@ -35,7 +35,7 @@ import { indexEntriesForLookup, validateUniqueIds } from '@/utils/entryUtils.js'
 import logger from '@/utils/logger.js';
 import { segmentPages } from '@/utils/mapping.js';
 import { loadOrDownload } from '@/utils/network.js';
-import { generateFootnotePrompts, generatePrompt, generateTitlePrompt } from '@/utils/promptUtils.js';
+import { generatePrompt } from '@/utils/promptUtils.js';
 import { getPageBodyAndFootnotes } from '@/utils/textUtils.js';
 
 /**
@@ -248,7 +248,7 @@ const loadOptions = async (dir: string) => {
  * @returns Promise resolving to comprehensive data object for processing
  */
 export const loadData = async () => {
-    const { collectionId, from, to, entriesToFilter, ...rest } = parseInputArgs();
+    const { collectionId, from, to, ...rest } = parseInputArgs();
 
     const dir = path.join(OUTPUT_DIR, collectionId);
     await fs.mkdir(dir, { recursive: true });
@@ -258,20 +258,13 @@ export const loadData = async () => {
     configure({ logger });
     const book = await loadBook(collection, [from, to], dir);
 
-    const entries =
-        ([] as Entry[]) ||
-        (await loadOrDownload<Entry[]>('entries', async () => getEntries(collectionId, { full: 1, limit: -1 }), dir));
-
-    const indexed = indexEntriesForLookup(entries);
     const options = await loadOptions(dir);
 
     return {
         book,
         collection,
-        coveredIndices: new Set(Object.keys(indexed.indexToEntries)),
-        coveredPages: new Set(Object.keys(indexed.pageToEntries).map(Number)),
         dir,
-        entries: entriesToFilter ? entries.filter((e) => entriesToFilter.includes(e.id)) : entries,
+        entries: [],
         options,
         ...rest,
     };
@@ -355,12 +348,7 @@ export const processShamela = async () => {
         headings = data.headings.filter((e) => !e.text);
     }
 
-    await generatePrompt(dir, collection.title, arabicOnlyEntries, options);
-    await generateTitlePrompt(dir, collection.title, headings, options);
-
-    if (options.footnotes) {
-        await generateFootnotePrompts(dir, collection.title, footnotes);
-    }
+    await generatePrompt(dir, collection.title, { excerpts: arabicOnlyEntries, footnotes, headings, options });
 
     if (!fileExists) {
         await excerptsFile.write(
