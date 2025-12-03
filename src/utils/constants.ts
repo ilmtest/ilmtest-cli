@@ -13,11 +13,11 @@ export const TRANSLATION_MARKER_PARTS = {
     /** Numeric portion of the reference */
     digits: '\\d+',
     /** Valid marker prefixes (Book, Chapter, Footnote, Translation, Page) */
-    markers: '[BCFTP]',
+    markers: '[BCFTPN]',
     /** Optional whitespace before dash */
     optionalSpace: '\\s?',
     /** Valid single-letter suffixes */
-    suffix: '[a-j]',
+    suffix: '[a-z]',
 };
 
 export const MARKER_ID_PATTERN = `${TRANSLATION_MARKER_PARTS.markers}${TRANSLATION_MARKER_PARTS.digits}${TRANSLATION_MARKER_PARTS.suffix}?`;

@@ -1,7 +1,113 @@
+import { basename } from 'node:path';
 import path from 'node:path';
+import { uploadFile } from '@huggingface/hub';
 import { Presets, SingleBar } from 'cli-progress';
 
 import logger from './logger.js';
+
+/**
+ * Environment variable names for HuggingFace configuration
+ */
+export const HF_ENV = {
+    EMBEDDINGS_REPO: 'HF_EMBEDDINGS_REPO',
+    TOKEN: 'HF_TOKEN',
+    TRANSLATIONS_REPO: 'HF_TRANSLATIONS_REPO',
+} as const;
+
+/**
+ * Default HuggingFace repository names
+ */
+export const HF_DEFAULTS = {
+    EMBEDDINGS_REPO: 'rhaq/gemini-embeddings',
+    TRANSLATIONS_REPO: 'rhaq/shamela_translations',
+} as const;
+
+/**
+ * Options for uploading to HuggingFace
+ */
+interface HuggingFaceUploadOptions {
+    /** Path to the local file to upload */
+    filePath: string;
+    /** Repository ID (e.g., "username/repo-name") */
+    repoId: string;
+    /** Path/filename in the repository (e.g., "data/file.json") */
+    pathInRepo: string;
+    /** HuggingFace API token */
+    token: string;
+    /** Repository type (defaults to "dataset") */
+    repoType?: 'dataset' | 'model' | 'space';
+}
+
+/**
+ * Uploads a file to HuggingFace Hub using the official @huggingface/hub library
+ *
+ * @param options - Upload configuration options
+ * @returns Promise resolving to the file URL on HuggingFace
+ * @throws {Error} When upload fails
+ *
+ * @example
+ * ```typescript
+ * const url = await uploadToHuggingFace({
+ *     filePath: './data.json.zip',
+ *     repoId: 'username/my-dataset',
+ *     pathInRepo: '123.json.zip',
+ *     token: process.env.HF_TOKEN!,
+ * });
+ * console.log(`Uploaded to: ${url}`);
+ * ```
+ */
+export const uploadToHuggingFace = async ({
+    filePath,
+    repoId,
+    pathInRepo,
+    token,
+    repoType = 'dataset',
+}: HuggingFaceUploadOptions): Promise<string> => {
+    const file = Bun.file(filePath);
+
+    if (!(await file.exists())) {
+        throw new Error(`File not found: ${filePath}`);
+    }
+
+    const repoTypePath = repoType === 'dataset' ? 'datasets' : repoType === 'model' ? 'models' : 'spaces';
+
+    logger.info(`Uploading ${basename(filePath)} to HuggingFace...`);
+    logger.info(`Repository: ${repoId}`);
+    logger.info(`Path: ${pathInRepo}`);
+
+    // Read file as Blob for the HuggingFace Hub library
+    const fileBlob = new Blob([await file.arrayBuffer()]);
+
+    await uploadFile({
+        repo: {
+            type: repoType,
+            name: repoId,
+        },
+        credentials: { accessToken: token },
+        file: {
+            path: pathInRepo,
+            content: fileBlob,
+        },
+        hubUrl: 'https://huggingface.co',
+        commitTitle: `Upload ${pathInRepo}`,
+    });
+
+    const fileUrl = `https://huggingface.co/${repoTypePath}/${repoId}/resolve/main/${pathInRepo}`;
+    logger.info(`Upload complete: ${fileUrl}`);
+
+    return fileUrl;
+};
+
+/**
+ * Gets HuggingFace token from environment, throwing if not set
+ */
+export const getHuggingFaceToken = (): string => {
+    const token = process.env[HF_ENV.TOKEN];
+    if (!token) {
+        throw new Error(`Missing ${HF_ENV.TOKEN} environment variable. Set it in your .env file.`);
+    }
+    return token;
+};
 
 /**
  * Downloads a streaming file (e.g., from YouTube) and saves it with progress tracking.

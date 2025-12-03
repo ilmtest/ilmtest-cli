@@ -1,10 +1,15 @@
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { GoogleGenAI } from '@google/genai';
+import { confirm } from '@inquirer/prompts';
 import Conf from 'conf';
 import type { Config, Excerpts } from '@/types.js';
 import { ApiKeyManager } from '@/utils/apiKeyManager.js';
+import { OUTPUT_DIR } from '@/utils/constants.js';
+import { zipFile } from '@/utils/io.js';
 import logger from '@/utils/logger.js';
+import { getHuggingFaceToken, HF_DEFAULTS, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
 
 /**
  * Represents a text chunk with its embedding vector
@@ -20,8 +25,10 @@ type Chunk = {
  */
 type EmbeddingsData = {
     chunks: Chunk[];
+    contractVersion: string;
     model: string;
     dimensions: number;
+    taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY' | 'SEMANTIC_SIMILARITY' | 'CLASSIFICATION' | 'CLUSTERING';
     createdAt: string;
 };
 
@@ -420,20 +427,45 @@ const createEmbeddings = async (args: CommandArgs, ctx: Context): Promise<void> 
 
     const embeddingsData: EmbeddingsData = {
         chunks,
+        contractVersion: 'v1.0',
         createdAt: new Date().toISOString(),
         dimensions,
         model: EMBEDDING_MODEL,
+        taskType: 'RETRIEVAL_DOCUMENT',
     };
 
     await ensureDir(outputFile);
     await Bun.write(outputFile, JSON.stringify(embeddingsData, null, 2));
 
+    const zipPath = await zipFile(outputFile);
     logger.info(`Embeddings generated and saved to: ${outputFile}`);
+    logger.info(`Compressed to: ${zipPath}`);
     logger.info(`Total chunks: ${chunks.length}`);
     logger.info(`Successful embeddings: ${totalSuccess}`);
     logger.info(`Failed embeddings: ${totalErrors}`);
     logger.info(`Model: ${EMBEDDING_MODEL} with task_type=RETRIEVAL_DOCUMENT`);
     logger.info(`Dimensions: ${dimensions}`);
+
+    const shouldUpload = await confirm({
+        message: 'Do you want to upload the embeddings zip to HuggingFace?',
+    });
+
+    if (shouldUpload) {
+        try {
+            const token = getHuggingFaceToken();
+            const repoId = process.env[HF_ENV.EMBEDDINGS_REPO] || HF_DEFAULTS.EMBEDDINGS_REPO;
+            const hfFileName = basename(zipPath);
+
+            await uploadToHuggingFace({
+                filePath: zipPath,
+                pathInRepo: hfFileName,
+                repoId,
+                token,
+            });
+        } catch (error: any) {
+            logger.error(`Failed to upload to HuggingFace: ${error.message}`);
+        }
+    }
 };
 
 /**
@@ -530,13 +562,14 @@ const showStats = async (args: CommandArgs): Promise<void> => {
         embeddingsData.chunks.reduce((sum, c) => sum + c.content.length, 0) / embeddingsData.chunks.length;
 
     logger.info('Embeddings statistics:');
+    logger.info(`Contract version: ${embeddingsData.contractVersion || 'unknown'}`);
     logger.info(`Total chunks: ${embeddingsData.chunks.length}`);
     logger.info(`Valid embeddings: ${validEmbeddings.length}`);
     logger.info(`Model: ${embeddingsData.model}`);
     logger.info(`Dimensions: ${embeddingsData.dimensions}`);
+    logger.info(`Task type: ${embeddingsData.taskType || 'RETRIEVAL_DOCUMENT'}`);
     logger.info(`Created: ${embeddingsData.createdAt}`);
     logger.info(`Average chunk length: ${Math.round(avgLength)} characters`);
-    logger.info(`Task type: RETRIEVAL_DOCUMENT (for corpus)`);
 };
 
 /**
@@ -585,6 +618,118 @@ const initContext = (): Context => {
     const keyManager = new ApiKeyManager(apiKeys);
 
     return { config, keyManager };
+};
+
+/**
+ * Creates embeddings for a collection using its ID
+ * This is the main entry point when called from the CLI via --embed flag
+ *
+ * @param collectionId - The collection ID (e.g., "525")
+ * @param dimensions - Optional embedding dimensions (defaults to 3072)
+ *
+ * @example
+ * ```bash
+ * bun start --embed=525
+ * ```
+ */
+export const createEmbeddingsForCollection = async (
+    collectionId: string,
+    dimensions: number = DIMENSIONS.DEFAULT,
+): Promise<void> => {
+    const dir = join(OUTPUT_DIR, collectionId);
+    const inputFile = join(dir, 'excerpts.json');
+    const outputFile = join(dir, `embeddings-${dimensions}.json`);
+    const hfZipFileName = `${collectionId}.json.zip`;
+
+    if (!existsSync(inputFile)) {
+        logger.error(`Input file not found: ${inputFile}`);
+        logger.error(`Make sure tmp/${collectionId}/excerpts.json exists`);
+        process.exit(1);
+    }
+
+    if (!VALID_DIMENSIONS.includes(dimensions as (typeof VALID_DIMENSIONS)[number])) {
+        logger.error(`Dimensions must be ${VALID_DIMENSIONS.join(', ')}`);
+        process.exit(1);
+    }
+
+    const ctx = initContext();
+
+    logger.info(`Creating embeddings for collection ${collectionId}`);
+    logger.info(`Input: ${inputFile}`);
+    logger.info(`Output: ${outputFile}`);
+    logger.info(`Dimensions: ${dimensions}`);
+
+    logger.info('Loading translations');
+    const data: Excerpts = await Bun.file(inputFile).json();
+
+    logger.info(`Using ${ctx.keyManager.getCount()} API key(s) for rate limit management`);
+
+    const chunks = createChunks(data.excerpts);
+    const avgChunkSize = Math.round(chunks.reduce((sum, c) => sum + c.content.length, 0) / chunks.length);
+
+    logger.info(`Created ${chunks.length} optimized chunks from ${data.excerpts.length} translations`);
+    logger.info(`Average chunk size: ${avgChunkSize} characters`);
+    logger.info(`Processing ${chunks.length} chunks with task_type=RETRIEVAL_DOCUMENT`);
+    logger.info(`Max retries per chunk: ${BATCH.MAX_RETRIES}`);
+
+    let totalSuccess = 0;
+    let totalErrors = 0;
+    const totalBatches = Math.ceil(chunks.length / BATCH.SIZE);
+
+    for (let i = 0; i < chunks.length; i += BATCH.SIZE) {
+        const batch = chunks.slice(i, i + BATCH.SIZE);
+        const batchNum = Math.floor(i / BATCH.SIZE) + 1;
+
+        const { success, errors } = await processBatch(batch, ctx.keyManager, dimensions, batchNum, totalBatches, i);
+        totalSuccess += success;
+        totalErrors += errors;
+
+        if (i + BATCH.SIZE < chunks.length) {
+            await new Promise((resolve) => setTimeout(resolve, BATCH.DELAY_MS));
+        }
+    }
+
+    const embeddingsData: EmbeddingsData = {
+        chunks,
+        contractVersion: 'v1.0',
+        createdAt: new Date().toISOString(),
+        dimensions,
+        model: EMBEDDING_MODEL,
+        taskType: 'RETRIEVAL_DOCUMENT',
+    };
+
+    await ensureDir(outputFile);
+    await Bun.write(outputFile, JSON.stringify(embeddingsData, null, 2));
+
+    // Zip with collection-specific filename for HuggingFace
+    const zipPath = await zipFile(outputFile, join(dir, hfZipFileName));
+    logger.info(`Embeddings generated and saved to: ${outputFile}`);
+    logger.info(`Compressed to: ${zipPath}`);
+    logger.info(`Total chunks: ${chunks.length}`);
+    logger.info(`Successful embeddings: ${totalSuccess}`);
+    logger.info(`Failed embeddings: ${totalErrors}`);
+    logger.info(`Model: ${EMBEDDING_MODEL} with task_type=RETRIEVAL_DOCUMENT`);
+    logger.info(`Dimensions: ${dimensions}`);
+
+    const shouldUpload = await confirm({
+        message: 'Do you want to upload the embeddings zip to HuggingFace?',
+    });
+
+    if (shouldUpload) {
+        try {
+            const token = getHuggingFaceToken();
+            const repoId = process.env[HF_ENV.EMBEDDINGS_REPO] || HF_DEFAULTS.EMBEDDINGS_REPO;
+
+            await uploadToHuggingFace({
+                filePath: zipPath,
+                pathInRepo: hfZipFileName,
+                repoId,
+                token,
+            });
+        } catch (error: any) {
+            logger.error(`Failed to upload to HuggingFace: ${error.message}`);
+        }
+    }
 };
 
 /**

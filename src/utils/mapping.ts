@@ -65,7 +65,7 @@ const assignIdsToSegments = (entries: Partial<Entry>[], idToPages: Partial<Recor
 
             if (e.type === EntryType.Chapter) {
                 next.forEach((n) => {
-                    n.id = `C${Number(e.id) || page.id}`;
+                    n.id = `C${page.id}`;
                 });
 
                 return next;
@@ -73,7 +73,7 @@ const assignIdsToSegments = (entries: Partial<Entry>[], idToPages: Partial<Recor
 
             if (e.type === EntryType.Book) {
                 next.forEach((n) => {
-                    n.id = `B${Number(n.id) || page.id}`;
+                    n.id = `B${page.id}`;
                 });
 
                 return next;

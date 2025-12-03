@@ -79,6 +79,7 @@ type SanitizeGroups = typeof SANITIZE_HTML;
 
 export type PatternOptions = {
     minPage?: number;
+    maxPage?: number;
     type?: number;
 };
 

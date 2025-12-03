@@ -69,8 +69,9 @@ export const validateTranslationMarkers = (text: string) => {
 
     // Check for invalid reference format (with dash but wrong structure)
     // This catches cases like B12a34 -, P1x2y3 -, P2247$2 -, etc.
+    // Requires at least one digit after the marker to be considered a potential reference
     const invalidRefPattern = new RegExp(
-        `^${markers}(?=.*${dashes})(?!${digits}${suffix}*${optionalSpace}${dashes})[^\\s-–—]+${optionalSpace}${dashes}`,
+        `^${markers}(?=${digits})(?=.*${dashes})(?!${digits}${suffix}*${optionalSpace}${dashes})[^\\s-–—]+${optionalSpace}${dashes}`,
         'm',
     );
     const invalidRef = text.match(invalidRefPattern);

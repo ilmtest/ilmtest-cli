@@ -4,11 +4,13 @@ import type { Entry } from '@/api/entries.js';
 import type { Excerpts, Translation } from '@/types.js';
 import { getParsedArgs } from '@/utils/argsParser.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
+import { zipFile } from '@/utils/io.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
+import { getHuggingFaceToken, HF_DEFAULTS, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
 import { validateTranslationMarkers } from '@/utils/validation.js';
 
-const TRANSLATION_IDS = [879, 890];
+const TRANSLATION_IDS = [879, 890, 892];
 
 type AITranslation = Translation & { translator: number };
 
@@ -208,10 +210,34 @@ export const compileTranslation = async (collectionId: string) => {
         const untranslatedCount = untranslated.length;
 
         logger.info(
-            `${untranslatedCount} items (${(untranslatedCount / entries.length) * 100}%),  still are not translated.`,
+            `${untranslatedCount} items (${(untranslatedCount / (entries.length + footnotes.length + headings.length)) * 100}%),  still are not translated.`,
         );
 
-        if ((untranslatedCount > 0 && untranslatedCount < 70) || parsedValues.show) {
+        if (untranslatedCount === 0) {
+            const hfFileName = `${collectionId}.json.zip`;
+            const zipPath = await zipFile(excerptFile.name!, path.join(dir, hfFileName));
+            logger.info(`All translations complete! Zipped to: ${zipPath}`);
+
+            const shouldUpload = await confirm({
+                message: 'Do you want to upload the zip file to HuggingFace?',
+            });
+
+            if (shouldUpload) {
+                try {
+                    const token = getHuggingFaceToken();
+                    const repoId = process.env[HF_ENV.TRANSLATIONS_REPO] || HF_DEFAULTS.TRANSLATIONS_REPO;
+
+                    await uploadToHuggingFace({
+                        filePath: zipPath,
+                        pathInRepo: hfFileName,
+                        repoId,
+                        token,
+                    });
+                } catch (error: any) {
+                    logger.error(`Failed to upload to HuggingFace: ${error.message}`);
+                }
+            }
+        } else if (untranslatedCount < 70 || parsedValues.show) {
             logger.info(`The following are still not translated: ${untranslated.map((e) => e.id).toString()}`);
         }
 

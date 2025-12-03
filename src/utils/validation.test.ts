@@ -376,5 +376,26 @@ describe('validation', () => {
         it('should throw an error for wrong chapter', () => {
             expect(validateTranslationMarkers(`C2203 -\nC2203$2 - Chapter of the`)).toBeDefined();
         });
+
+        it('should not flag words starting with marker letters but without digits (false positive fix)', () => {
+            // Words like "Fa-inṭalaqa" start with "F" (a marker letter) and have a hyphen,
+            // but they are not references because they lack digits after the marker
+            expect(validateTranslationMarkers('Fa-inṭalaqa yamshī, mā bihi qalbah')).toBeUndefined();
+            expect(validateTranslationMarkers('Ba-lāgh - some text')).toBeUndefined();
+            expect(validateTranslationMarkers('Ta-wīl al-mushkil')).toBeUndefined();
+            expect(validateTranslationMarkers('Chapter-one is here')).toBeUndefined();
+            expect(validateTranslationMarkers('Part-two begins')).toBeUndefined();
+            expect(validateTranslationMarkers('Note-taking is useful')).toBeUndefined();
+        });
+
+        it('should still detect invalid references that have digits', () => {
+            // These should still be caught because they have digits mixed with letters after the marker
+            expect(validateTranslationMarkers('F1a2 - text')).toBe(
+                'Error in text: invalid reference format "F1a2 -" - expected format is letter + numbers + optional suffix (a-j) + dash',
+            );
+            expect(validateTranslationMarkers('B12ab3 - text')).toBe(
+                'Error in text: invalid reference format "B12ab3 -" - expected format is letter + numbers + optional suffix (a-j) + dash',
+            );
+        });
     });
 });

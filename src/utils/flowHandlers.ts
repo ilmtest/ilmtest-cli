@@ -94,7 +94,11 @@ export const captureNewEntryByPatternOptions = (pattern: RegExp, options: Patter
     return (ln: Line, page: Page, context: EntriesContext) => {
         const [, txt] = ln.text.match(pattern) || [];
 
-        if (txt && (!options.minPage || page.id >= options.minPage)) {
+        if (
+            txt &&
+            (!options.minPage || page.id >= options.minPage) &&
+            (!options.maxPage || page.id <= options.maxPage)
+        ) {
             context.addEntry({ arabic: txt.trim(), from: page.id, ...(options.type && { type: options.type }) });
             return true;
         }
@@ -176,7 +180,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
     if (diff >= 1) {
         const arabic = lastEntry.arabic!;
 
-        if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic) || PATTERNS.EndsWithNumber.test(arabic)) {
+        if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic)) {
             // last page ended with a punctuation no need to continue here, just make this page separate
             return captureEntirePage(ln, page, context);
         }
