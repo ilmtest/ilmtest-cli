@@ -759,4 +759,7 @@ const main = async (): Promise<void> => {
     }
 };
 
-main();
+// Only run main() when executed directly as a script, not when imported
+if (import.meta.main) {
+    main();
+}
