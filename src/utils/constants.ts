@@ -21,3 +21,5 @@ export const TRANSLATION_MARKER_PARTS = {
 };
 
 export const MARKER_ID_PATTERN = `${TRANSLATION_MARKER_PARTS.markers}${TRANSLATION_MARKER_PARTS.digits}${TRANSLATION_MARKER_PARTS.suffix}?`;
+
+export const ORIGINAL_ELLIPSIS = /\.\.\.$/;

@@ -1,6 +1,5 @@
 import {
     arabicNumeralToNumber,
-    findLastPunctuation,
     isAllUppercase,
     makeDiacriticInsensitiveRegex,
     PATTERN_ENDS_WITH_PUNCTUATION,
@@ -9,9 +8,9 @@ import {
 import type { Line, Page } from 'shamela';
 import { EntryType } from '@/api/entries.js';
 import type { PatternOptions, Translation } from '@/types.js';
-import { MARKER_ID_PATTERN, TRANSLATION_MARKER_PARTS } from './constants.js';
+import { MARKER_ID_PATTERN, ORIGINAL_ELLIPSIS, TRANSLATION_MARKER_PARTS } from './constants.js';
 import type { EntriesContext } from './entryContext.js';
-import { PATTERNS } from './textUtils.js';
+import { findLastPunctuation, PATTERNS } from './textUtils.js';
 
 const KITAB_REGEX = new RegExp(`^${makeDiacriticInsensitiveRegex('كتاب').source} `);
 
@@ -180,7 +179,7 @@ export const appendNewPageToLastEntry = (ln: Line, page: Page, context: EntriesC
     if (diff >= 1) {
         const arabic = lastEntry.arabic!;
 
-        if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic)) {
+        if (PATTERN_ENDS_WITH_PUNCTUATION.test(arabic) && !ORIGINAL_ELLIPSIS.test(arabic)) {
             // last page ended with a punctuation no need to continue here, just make this page separate
             return captureEntirePage(ln, page, context);
         }

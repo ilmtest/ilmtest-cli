@@ -1,5 +1,4 @@
-import { basename } from 'node:path';
-import path from 'node:path';
+import path, { basename } from 'node:path';
 import { uploadFile } from '@huggingface/hub';
 import { Presets, SingleBar } from 'cli-progress';
 
@@ -12,14 +11,6 @@ export const HF_ENV = {
     EMBEDDINGS_REPO: 'HF_EMBEDDINGS_REPO',
     TOKEN: 'HF_TOKEN',
     TRANSLATIONS_REPO: 'HF_TRANSLATIONS_REPO',
-} as const;
-
-/**
- * Default HuggingFace repository names
- */
-export const HF_DEFAULTS = {
-    EMBEDDINGS_REPO: 'rhaq/gemini-embeddings',
-    TRANSLATIONS_REPO: 'rhaq/shamela_translations',
 } as const;
 
 /**
@@ -79,17 +70,17 @@ export const uploadToHuggingFace = async ({
     const fileBlob = new Blob([await file.arrayBuffer()]);
 
     await uploadFile({
-        repo: {
-            type: repoType,
-            name: repoId,
-        },
+        commitTitle: `Upload ${pathInRepo}`,
         credentials: { accessToken: token },
         file: {
-            path: pathInRepo,
             content: fileBlob,
+            path: pathInRepo,
         },
         hubUrl: 'https://huggingface.co',
-        commitTitle: `Upload ${pathInRepo}`,
+        repo: {
+            name: repoId,
+            type: repoType,
+        },
     });
 
     const fileUrl = `https://huggingface.co/${repoTypePath}/${repoId}/resolve/main/${pathInRepo}`;

@@ -7,10 +7,10 @@ import { OUTPUT_DIR } from '@/utils/constants.js';
 import { zipFile } from '@/utils/io.js';
 import logger from '@/utils/logger.js';
 import { mapLinesToTranslations } from '@/utils/mapping.js';
-import { getHuggingFaceToken, HF_DEFAULTS, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
+import { getHuggingFaceToken, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
 import { validateTranslationMarkers } from '@/utils/validation.js';
 
-const TRANSLATION_IDS = [879, 890, 892];
+const TRANSLATION_IDS = [879, 890, 891, 892];
 
 type AITranslation = Translation & { translator: number };
 
@@ -65,20 +65,70 @@ const mergeShortEntriesWithPrevious = (entries: Entry[], minWords: number, separ
 };
 
 /**
+ * Zips the excerpts file and optionally uploads to HuggingFace
+ * @param collectionId - The collection ID
+ * @param excerptFilePath - Path to the excerpts.json file
+ * @param dir - Directory containing the files
+ */
+const zipAndUpload = async (collectionId: string, excerptFilePath: string, dir: string) => {
+    const hfFileName = `${collectionId}.json.zip`;
+    const zipPath = await zipFile(excerptFilePath, path.join(dir, hfFileName));
+    logger.info(`Zipped to: ${zipPath}`);
+
+    const shouldUpload = await confirm({
+        message: 'Do you want to upload the zip file to HuggingFace?',
+    });
+
+    if (shouldUpload) {
+        try {
+            const token = getHuggingFaceToken();
+            const repoId = process.env[HF_ENV.TRANSLATIONS_REPO]!;
+
+            await uploadToHuggingFace({
+                filePath: zipPath,
+                pathInRepo: hfFileName,
+                repoId,
+                token,
+            });
+        } catch (error: any) {
+            logger.error(`Failed to upload to HuggingFace: ${error.message}`);
+        }
+    }
+};
+
+/**
  * Compiles translation data for a collection by matching entries with translation files
  * @param collectionId - The ID of the collection to compile translations for
  * @returns Promise that resolves to an array of compiled translations
+ *
+ * @example
+ * ```bash
+ * # Full compilation with translation merging
+ * bun start --compile=525
+ *
+ * # Skip compilation, just zip and upload existing excerpts.json
+ * bun start --compile=525 --zip
+ * ```
  */
 export const compileTranslation = async (collectionId: string) => {
     const { values: parsedValues } = getParsedArgs({
         duplicates: { type: 'boolean' },
         pages: { type: 'string' },
         show: { type: 'boolean' },
+        zip: { type: 'boolean' },
     });
 
-    const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const dir = path.join(OUTPUT_DIR, collectionId);
     const excerptFile = Bun.file(path.join(dir, 'excerpts.json'));
+
+    // Skip compilation and go directly to zip & upload
+    if (parsedValues.zip) {
+        logger.info(`Skipping compilation, zipping existing excerpts.json for collection ${collectionId}`);
+        await zipAndUpload(collectionId, excerptFile.name!, dir);
+        return;
+    }
+
+    const [from = 1, to = Number.MAX_SAFE_INTEGER] = ((parsedValues.pages as string)?.split('-') || []).map(Number);
     const { excerpts: entries, headings, footnotes, ...rest } = (await excerptFile.json()) as Excerpts;
     const translations = await loadTranslations(dir);
 
@@ -214,29 +264,8 @@ export const compileTranslation = async (collectionId: string) => {
         );
 
         if (untranslatedCount === 0) {
-            const hfFileName = `${collectionId}.json.zip`;
-            const zipPath = await zipFile(excerptFile.name!, path.join(dir, hfFileName));
-            logger.info(`All translations complete! Zipped to: ${zipPath}`);
-
-            const shouldUpload = await confirm({
-                message: 'Do you want to upload the zip file to HuggingFace?',
-            });
-
-            if (shouldUpload) {
-                try {
-                    const token = getHuggingFaceToken();
-                    const repoId = process.env[HF_ENV.TRANSLATIONS_REPO] || HF_DEFAULTS.TRANSLATIONS_REPO;
-
-                    await uploadToHuggingFace({
-                        filePath: zipPath,
-                        pathInRepo: hfFileName,
-                        repoId,
-                        token,
-                    });
-                } catch (error: any) {
-                    logger.error(`Failed to upload to HuggingFace: ${error.message}`);
-                }
-            }
+            logger.info('All translations complete!');
+            await zipAndUpload(collectionId, excerptFile.name!, dir);
         } else if (untranslatedCount < 70 || parsedValues.show) {
             logger.info(`The following are still not translated: ${untranslated.map((e) => e.id).toString()}`);
         }

@@ -9,7 +9,7 @@ import { ApiKeyManager } from '@/utils/apiKeyManager.js';
 import { OUTPUT_DIR } from '@/utils/constants.js';
 import { zipFile } from '@/utils/io.js';
 import logger from '@/utils/logger.js';
-import { getHuggingFaceToken, HF_DEFAULTS, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
+import { getHuggingFaceToken, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
 
 /**
  * Represents a text chunk with its embedding vector
@@ -453,7 +453,7 @@ const createEmbeddings = async (args: CommandArgs, ctx: Context): Promise<void> 
     if (shouldUpload) {
         try {
             const token = getHuggingFaceToken();
-            const repoId = process.env[HF_ENV.EMBEDDINGS_REPO] || HF_DEFAULTS.EMBEDDINGS_REPO;
+            const repoId = process.env[HF_ENV.EMBEDDINGS_REPO]!;
             const hfFileName = basename(zipPath);
 
             await uploadToHuggingFace({
@@ -718,7 +718,7 @@ export const createEmbeddingsForCollection = async (
     if (shouldUpload) {
         try {
             const token = getHuggingFaceToken();
-            const repoId = process.env[HF_ENV.EMBEDDINGS_REPO] || HF_DEFAULTS.EMBEDDINGS_REPO;
+            const repoId = process.env[HF_ENV.EMBEDDINGS_REPO]!;
 
             await uploadToHuggingFace({
                 filePath: zipPath,

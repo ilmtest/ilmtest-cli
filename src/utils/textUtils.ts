@@ -1,5 +1,5 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
-import { makeDiacriticInsensitiveRegex, normalizeSpaces } from 'bitaboom';
+import { makeDiacriticInsensitiveRegex, normalizeSpaces, PATTERN_ENDS_WITH_PUNCTUATION } from 'bitaboom';
 import {
     removeArabicNumericPageMarkers,
     //removeTagsExceptSpan,
@@ -27,6 +27,22 @@ export const PATTERNS = {
 export const COMMON_PATTERNS = {
     BAB: makeDiacriticInsensitiveRegex('باب').source,
     KITAB: makeDiacriticInsensitiveRegex('كتاب').source,
+};
+
+export const findLastPunctuation = (text: string) => {
+    for (let i = text.length - 1; i >= 0; i--) {
+
+        if (PATTERN_ENDS_WITH_PUNCTUATION.test(text[i])) {
+            // Skip if it's part of an ellipsis
+            if (text[i] === '.' && 
+                (text[i - 1] === '.' || text[i + 1] === '.')) {
+                continue;
+            }
+            return i;
+        }
+    }
+
+    return -1;
 };
 
 const removeTagsExceptSpan = (content: string) => {
