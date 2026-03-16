@@ -18,6 +18,7 @@ const main = async () => {
     //handlePromptTermination();
 
     const { values, positionals } = getParsedArgs();
+    console.log(values);
 
     let action =
         Object.keys(values).length === 0 &&

@@ -37,14 +37,20 @@ export const downloadAsl = async (selectedCollection?: string) => {
     const outputFile = path.format({ dir, ext: '.json', name: 'book' });
 
     try {
-        if (await s3Client.exists(`${collectionId}.json.gz`)) {
+        const zip = `${collectionId}.json.gz`;
+
+        if (await s3Client.exists(zip)) {
             logger.info(`Decompressing and saving to ${outputFile}`);
-            await decompressFromStream(
-                s3Client.file(`${collectionId}.json.gz`).stream() as unknown as Readable,
-                outputFile,
-            );
+            const stats = await s3Client.stat(zip);
+            await decompressFromStream(s3Client.file(zip).stream() as unknown as Readable, outputFile);
+
+            console.log(stats);
+            return stats;
         } else {
             logger.info(`Downloading uncompressed file to ${outputFile}`);
+
+            const stats = await s3Client.stat(`${collectionId}.json`);
+            console.log(stats);
 
             // For uncompressed files, save directly
             const data = await s3Client.file(`${collectionId}.json`).text();

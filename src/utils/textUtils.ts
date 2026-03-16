@@ -1,11 +1,6 @@
 import { removeFootnoteReferencesSimple, removeSingleDigitFootnoteReferences, sanitizeArabic } from 'baburchi';
 import { makeDiacriticInsensitiveRegex, normalizeSpaces, PATTERN_ENDS_WITH_PUNCTUATION } from 'bitaboom';
-import {
-    removeArabicNumericPageMarkers,
-    //removeTagsExceptSpan,
-    sanitizePageContent,
-    splitPageBodyFromFooter,
-} from 'shamela';
+import { mapPageCharacterContent, removeArabicNumericPageMarkers, splitPageBodyFromFooter } from 'shamela';
 
 /**
  *
@@ -31,11 +26,9 @@ export const COMMON_PATTERNS = {
 
 export const findLastPunctuation = (text: string) => {
     for (let i = text.length - 1; i >= 0; i--) {
-
         if (PATTERN_ENDS_WITH_PUNCTUATION.test(text[i])) {
             // Skip if it's part of an ellipsis
-            if (text[i] === '.' && 
-                (text[i - 1] === '.' || text[i + 1] === '.')) {
+            if (text[i] === '.' && (text[i - 1] === '.' || text[i + 1] === '.')) {
                 continue;
             }
             return i;
@@ -68,6 +61,7 @@ export const mapPatternsToFormatters = (patternToReplacement: Record<string, str
 };
 
 export const getPageBodyAndFootnotes = (text: string) => {
+    text = mapPageCharacterContent(text);
     let [content, footnote = ''] = splitPageBodyFromFooter(text);
 
     content = removeSingleDigitFootnoteReferences(content);
@@ -78,10 +72,8 @@ export const getPageBodyAndFootnotes = (text: string) => {
     content = removeFootnoteReferencesSimple(content);
     content = removeArabicNumericPageMarkers(content);
     //content = content.replace(/\s?⦗[\u0660-\u0669]+⦘\s?/g, ' ');
-    content = sanitizePageContent(content);
-    content = normalizeSpaces(content);
 
-    footnote = sanitizePageContent(footnote);
+    content = normalizeSpaces(content);
 
     return [content, footnote];
 };

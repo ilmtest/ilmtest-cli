@@ -10,7 +10,7 @@ import { mapLinesToTranslations } from '@/utils/mapping.js';
 import { getHuggingFaceToken, HF_ENV, uploadToHuggingFace } from '@/utils/network.js';
 import { validateTranslationMarkers } from '@/utils/validation.js';
 
-const TRANSLATION_IDS = [879, 890, 891, 892];
+const TRANSLATION_IDS = [64, 879, 890, 891, 892, 893];
 
 type AITranslation = Translation & { translator: number };
 
