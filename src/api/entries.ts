@@ -26,6 +26,7 @@ export type Entry = {
     from: number;
     id: string;
     index?: number;
+    lastUpdatedAt?: number;
     pp: number;
     to?: number;
     translation?: string;
@@ -87,7 +88,7 @@ const mapRawEntryToEntry = (rawEntry: RawEntry): Entry => {
 const mapEntryToRawEntry = (entry: Partial<Entry>): Partial<RawEntry> => {
     return {
         ...(entry.translation && { body: entry.translation }),
-        ...(entry.from !== undefined && { from_page: String(entry.from) }),
+        ...((entry.from !== undefined && { from_page: entry.from ? entry.from.toString() : null }) as any),
         ...(entry.to && { to_page: entry.to }),
         ...(entry.arabic && { ar_body: entry.arabic }),
         ...(entry.commentary && { commentary: entry.commentary }),

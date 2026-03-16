@@ -1,9 +1,10 @@
 import { promises as fs } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 import { input } from '@inquirer/prompts';
 import { S3Client } from 'bun';
-
+import { OUTPUT_DIR } from '@/utils/constants.js';
 import config from '../utils/config.js';
 import { decompressFromStream } from '../utils/io.js';
 import logger from '../utils/logger.js';
@@ -30,17 +31,26 @@ export const downloadAsl = async (selectedCollection?: string) => {
         secretAccessKey: config.awsSecretKey,
     });
 
-    const outputFile = path.format({ ext: '.json', name: collectionId });
+    const dir = path.join(OUTPUT_DIR, collectionId);
+
+    await mkdir(dir, { recursive: true });
+    const outputFile = path.format({ dir, ext: '.json', name: 'book' });
 
     try {
-        if (await s3Client.exists(`${collectionId}.json.gz`)) {
+        const zip = `${collectionId}.json.gz`;
+
+        if (await s3Client.exists(zip)) {
             logger.info(`Decompressing and saving to ${outputFile}`);
-            await decompressFromStream(
-                s3Client.file(`${collectionId}.json.gz`).stream() as unknown as Readable,
-                outputFile,
-            );
+            const stats = await s3Client.stat(zip);
+            await decompressFromStream(s3Client.file(zip).stream() as unknown as Readable, outputFile);
+
+            console.log(stats);
+            return stats;
         } else {
             logger.info(`Downloading uncompressed file to ${outputFile}`);
+
+            const stats = await s3Client.stat(`${collectionId}.json`);
+            console.log(stats);
 
             // For uncompressed files, save directly
             const data = await s3Client.file(`${collectionId}.json`).text();
