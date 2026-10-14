@@ -54,7 +54,12 @@ export const uploadTranslations = async (collectionId: string) => {
 
         if (e.translation || e.commentary) {
             if (entry) {
-                updatedEntries.push({ commentary: e.translation, flags: EntryFlags.VerifyTranslation, id: entry.id });
+                updatedEntries.push({
+                    commentary: e.translation,
+                    flags: EntryFlags.VerifyTranslation,
+                    id: entry.id,
+                    translator: entry.translator || e.translator,
+                });
             } else {
                 newEntries.push({ ...e, id: '', volume: e.volume || 1 });
             }

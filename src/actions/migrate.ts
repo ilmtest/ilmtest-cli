@@ -1,29 +1,16 @@
 import { confirm } from '@inquirer/prompts';
 import { findMatches } from 'baburchi';
 import { stripHtml } from 'string-strip-html';
-import type { Entry } from '@/api/entries.js';
-import type { ShamelaBook } from '@/types.js';
-import { getEntryKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
+import { type Entry, EntryType } from '@/api/entries.js';
+import type { ShamelaBook, ShamelaPage } from '@/types.js';
+import { getParsedArgs } from '@/utils/argsParser.js';
+import { getEntryKey, getVolumePageKey, indexEntriesForLookup } from '@/utils/entryUtils.js';
 import logger from '@/utils/logger.js';
-import { mapBookPagesToEntries } from '@/utils/mapping.js';
+import { segmentPages } from '@/utils/mapping.js';
+import { createPatch, patchChaptersByIndex, patchChaptersByMatn, patchEntriesByIndex } from '@/utils/patchUtils.js';
+import { sanitizeChapter } from '@/utils/textUtils.js';
 import { loadData } from './shamela.js';
 import { saveEntries } from './uploadTranslations.js';
-
-/**
- * Creates a patch object for updating entry page information
- * @param originalEntry - The original entry to be updated
- * @param newPage - New page information containing from, pp, and volume data
- * @returns Partial entry object with updated page information
- */
-const createPatch = (originalEntry: Entry, newPage: Pick<Entry, 'from' | 'pp' | 'volume'>) => {
-    return {
-        from: newPage.from,
-        id: originalEntry.id,
-        pp: newPage.pp,
-        ...(newPage.volume && { volume: newPage.volume }),
-        ...(originalEntry.to && { to: newPage.from + 1 }),
-    };
-};
 
 /**
  * Matches entries with book segments using fuzzy matching algorithms
@@ -32,10 +19,10 @@ const createPatch = (originalEntry: Entry, newPage: Pick<Entry, 'from' | 'pp' | 
  * @param isMulti - Whether the book has multiple segments per page
  * @returns Object containing matched entries, patches, and unlinked entries
  */
-const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], isMulti: boolean) => {
+const matchEntriesBySegments = (book: ShamelaBook, entries: Entry[], options: any) => {
     const patches: Partial<Entry>[] = [];
 
-    const arabicEntries = mapBookPagesToEntries(book.pages, isMulti);
+    const arabicEntries = segmentPages(book.pages, options);
 
     const unlinked = findMatches(
         arabicEntries.map((a) => a.arabic!),
@@ -80,10 +67,10 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
                 return entry;
             }
 
-            const { page: pp, id: from, part: volume } = book.pages[m];
+            const { pp, id: from, volume } = book.pages[m];
 
-            if (from !== entry.from || volume !== entry.volume || pp !== entry.pp) {
-                patches.push(createPatch(entry, { from, pp: pp!, volume: volume! }));
+            if (from !== entry.from || Number(volume) !== entry.volume || pp !== entry.pp) {
+                patches.push(createPatch(entry, { from, pp: pp!, volume: Number(volume) }));
             }
 
             return false;
@@ -98,14 +85,57 @@ const matchEntriesByPages = (book: ShamelaBook, entries: Entry[]) => {
  * Uses multiple matching strategies and prompts user for confirmation before saving changes
  * @returns Promise that resolves when migration completes
  */
-export const migrateEntries = async () => {
-    process.argv = process.argv.filter((s) => s !== '--migrate');
+export const migrateEntries = async (strategy = 'duplicate') => {
+    const { book, entries, options } = await loadData();
 
-    const { book, entries, isMulti } = await loadData();
+    if (strategy === 'index') {
+        const patches = patchEntriesByIndex(book, entries, options);
+        await saveEntries(patches as Entry[], logger.level === 'debug');
+
+        return;
+    } else if (strategy === 'chapters') {
+        let unlinkedChapters = entries
+            .filter((e) => e.type === EntryType.Chapter && e.index)
+            .map(({ arabic, ...e }) => ({ ...e, arabic: sanitizeChapter(arabic!) }));
+
+        const idToPage = Object.groupBy(book.pages, (p) => p.id);
+        const patches = patchChaptersByIndex(book, unlinkedChapters);
+        let patchedIds = new Set(patches.map((e) => e.id));
+        const patchedPages = new Set(patches.map((p) => p.from!));
+
+        unlinkedChapters = unlinkedChapters.filter((e) => !patchedIds.has(e.id));
+
+        const titles: ShamelaPage[] = book.titles
+            .filter((t) => t.content.startsWith('باب'))
+            //.filter((t) => t.content.startsWith('كتاب'))
+            //.filter((t) => t.content.startsWith('كتاب') || t.content.startsWith('باب'))
+            .filter((t) => !patchedPages.has(t.page))
+            .map((t) => {
+                const [page] = idToPage[t.page]!;
+                return {
+                    content: sanitizeChapter(t.content),
+                    id: t.page,
+                    pp: page.pp,
+                    volume: page.volume,
+                };
+            });
+
+        patches.push(...patchChaptersByMatn(titles, unlinkedChapters));
+        patchedIds = new Set(patches.map((e) => e.id));
+        unlinkedChapters = unlinkedChapters.filter((e) => !patchedIds.has(e.id));
+
+        unlinkedChapters.forEach((u) => {
+            patches.unshift(createPatch(u, { from: null } as any));
+        });
+
+        await saveEntries(patches as any, false);
+
+        return;
+    }
 
     logger.info(`${entries.length} entries to link...`);
 
-    let { patches, unlinked, indexToEntries } = matchEntriesBySegments(book, entries, isMulti);
+    let { patches, unlinked, indexToEntries, volumePageToEntries } = matchEntriesBySegments(book, entries, options);
 
     logger.info(`${patches.length} entries linked, ${unlinked.length} could not be linked...`);
 
@@ -128,26 +158,35 @@ export const migrateEntries = async () => {
 
         const remaining: Entry[] = [];
 
-        unlinked.forEach((entry) => {
+        for (const entry of unlinked) {
             const key = getEntryKey(entry);
-            const page = indexToEntries[key]?.shift();
-            console.log('looking for', key, indexToEntries[key]);
+            let page = indexToEntries[key]?.shift();
 
             if (page && (page.from !== entry.from || page.pp !== entry.pp || page.volume !== entry.volume)) {
                 patches.push(createPatch(entry, page as any));
-            } else {
-                remaining.push(entry);
+                continue;
             }
-        });
+
+            page = volumePageToEntries[getVolumePageKey(entry)]?.shift();
+
+            if (page && page.from !== entry.from) {
+                patches.push(createPatch(entry, page as any));
+                continue;
+            }
+
+            remaining.push(entry);
+        }
 
         unlinked = remaining;
 
         logger.info(`${patches.length} entries linked, ${unlinked.length} could not be linked...`);
     }
 
-    unlinked.forEach((u) => {
-        patches.unshift(createPatch(u as Entry, { from: null, pp: null, volume: null } as any));
-    });
+    unlinked
+        .filter((u) => u.from)
+        .forEach((u) => {
+            patches.unshift(createPatch(u as Entry, { from: null, pp: null, volume: null } as any));
+        });
 
     confirmed = await confirm({
         message: `Do you want to commit these changes ${JSON.stringify(

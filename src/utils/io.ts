@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import process from 'node:process';
 import type { Readable } from 'node:stream';
@@ -35,6 +36,50 @@ export const decompressFromStream = async (sourceStream: Readable, outputFilePat
         console.error(error.stack);
         throw new Error(`Failed to decompress stream to ${outputFilePath}: ${error}`);
     }
+};
+
+/**
+ * Compresses a file using zip with maximum compression level
+ *
+ * @param filePath - The path to the file to compress
+ * @param outputPath - Optional custom output path for the zip file (defaults to filePath + '.zip')
+ * @returns Promise resolving to the output zip file path
+ * @throws {Error} When compression fails
+ *
+ * @example
+ * ```typescript
+ * const zipPath = await zipFile('./data.json');
+ * console.log(`File compressed to: ${zipPath}`);
+ *
+ * // With custom output path
+ * const customZipPath = await zipFile('./data.json', './archive/data.zip');
+ * ```
+ */
+export const zipFile = async (filePath: string, outputPath?: string): Promise<string> => {
+    const zipPath = outputPath || `${filePath}.zip`;
+
+    return new Promise((resolve, reject) => {
+        // Use -9 for maximum compression, -j to junk (don't record) directory names
+        const zipProcess = spawn('zip', ['-9', '-j', zipPath, filePath]);
+
+        let stderr = '';
+
+        zipProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        zipProcess.on('close', (code) => {
+            if (code === 0) {
+                resolve(zipPath);
+            } else {
+                reject(new Error(`Failed to zip file ${filePath}: ${stderr || `exit code ${code}`}`));
+            }
+        });
+
+        zipProcess.on('error', (error) => {
+            reject(new Error(`Failed to spawn zip process: ${error.message}`));
+        });
+    });
 };
 
 /**

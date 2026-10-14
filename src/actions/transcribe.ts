@@ -3,6 +3,7 @@ import path from 'node:path';
 import { confirm, select } from '@inquirer/prompts';
 import { getMediaTranscript, getMediaUrlForVideoId } from 'baheth-sdk';
 import { transcribe } from 'tafrigh';
+import { OUTPUT_DIR } from '@/utils/constants.js';
 import { getCollection, getCollections } from '../api/collections.js';
 import type { ForeignId, Transcript, TranscriptSeries } from '../types.js';
 import { downloadYouTubeVideo } from '../utils/downloader.js';
@@ -217,9 +218,11 @@ const getSelectedCollection = async (targetCollection?: string, selectedVolume?:
             message: 'Select collection',
         }));
 
+    const outputDirectory = path.join(OUTPUT_DIR, selectedCollection);
+
     const [collection] = await Promise.all([
         getCollection(selectedCollection),
-        fs.mkdir(selectedCollection, { recursive: true }),
+        fs.mkdir(outputDirectory, { recursive: true }),
     ]);
 
     let fids = collection.fid as ForeignId[];
@@ -228,7 +231,7 @@ const getSelectedCollection = async (targetCollection?: string, selectedVolume?:
         fids = fids.filter((f) => f.volume === selectedVolume);
     }
 
-    return { collection: selectedCollection, fids, outputDirectory: selectedCollection };
+    return { collection: selectedCollection, fids, outputDirectory };
 };
 
 /**

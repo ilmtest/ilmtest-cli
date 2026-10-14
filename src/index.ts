@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { parseArgs } from 'node:util';
 import { select } from '@inquirer/prompts';
 import welcome from 'cli-welcome';
-
 import packageJson from '../package.json' with { type: 'json' };
+import { getParsedArgs } from './utils/argsParser.js';
 import { loadConfiguration } from './utils/config.js';
 
 const main = async () => {
@@ -18,38 +17,8 @@ const main = async () => {
 
     //handlePromptTermination();
 
-    const { positionals, values } = parseArgs({
-        allowPositionals: true,
-        options: {
-            compile: {
-                type: 'boolean',
-            },
-            diff: {
-                type: 'string',
-            },
-            downloadAsl: {
-                short: 'd',
-                type: 'string',
-            },
-            extract: {
-                type: 'boolean',
-            },
-            migrate: {
-                type: 'boolean',
-            },
-            save: {
-                type: 'string',
-            },
-            shamela: {
-                type: 'boolean',
-            },
-            transcribe: {
-                short: 't',
-                type: 'boolean',
-            },
-        },
-        strict: false,
-    });
+    const { values, positionals } = getParsedArgs();
+    console.log(values);
 
     let action =
         Object.keys(values).length === 0 &&
@@ -59,7 +28,6 @@ const main = async () => {
                 { name: 'AI Translate', value: 'translate' },
                 { name: 'Check Asl', value: 'checkAsl' },
                 { name: 'Delete Asl', value: 'deleteAsl' },
-                { name: 'Download Asl', value: 'downloadAsl' },
                 { name: 'Extract', value: 'extract' },
                 { name: 'Upload Asl', value: 'uploadAsl' },
             ],
@@ -80,22 +48,18 @@ const main = async () => {
         action = 'transcribe';
     }
 
-    if (values.downloadAsl) {
-        action = 'downloadAsl';
-    }
-
     if (values.extract) {
         action = 'extract';
     }
 
-    if (action === 'transcribe') {
-        await (await import('./actions/transcribe.js')).transcribeWithAI(positionals[0], positionals[1]);
+    if (values.transcribe) {
+        await (await import('./actions/transcribe.js')).transcribeWithAI(...positionals);
     } else if (action === 'deleteAsl') {
         await (await import('./actions/deleteAsl.js')).deleteAsl();
     } else if (action === 'checkAsl') {
         await (await import('./actions/checkAsl.js')).checkAsl();
-    } else if (action === 'downloadAsl') {
-        await (await import('./actions/downloadAsl.js')).downloadAsl(positionals[0]);
+    } else if (values.download) {
+        await (await import('./actions/downloadAsl.js')).downloadAsl(values.download as string);
     } else if (action === 'extract') {
         await (await import('./actions/extractor.js')).extractor();
     } else if (action === 'uploadAsl') {
@@ -107,9 +71,13 @@ const main = async () => {
     } else if (values.diff) {
         await (await import('./actions/adjust.js')).adjustIndices();
     } else if (values.compile) {
-        await (await import('./actions/compile.js')).compileTranslation(positionals[0]);
+        await (await import('./actions/compile.js')).compileTranslation(values.compile as string);
     } else if (values.save) {
         await (await import('./actions/uploadTranslations.js')).uploadTranslations(values.save as string);
+    } else if (values.fix) {
+        await (await import('./actions/fix.js')).fixExcerpts(positionals[0], values.fix as string);
+    } else if (values.embed) {
+        await (await import('./actions/dump.js')).createEmbeddingsForCollection(values.embed as string);
     }
 };
 

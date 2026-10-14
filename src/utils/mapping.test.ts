@@ -1,132 +1,142 @@
-import { describe, expect, it } from 'bun:test';
-import { mapBookPagesToEntries } from './mapping';
+import { beforeEach, describe, expect, it } from 'bun:test';
+import type { MatnParseOptions } from '../types';
+import { CAPTURE_CONTINUOUS_PAGES } from './constants';
+import { mapLinesToTranslations, segmentPages } from './mapping';
 
 describe('mapping', () => {
-    describe('mapBookPagesToEntries', () => {
-        describe('discrete', () => {
-            it('should trim the text', () => {
-                const actual = mapBookPagesToEntries([{ content: ' ١٧٥٩ - تميم بن نذير ', id: 1, page: 20, part: 10 }]);
+    let options: MatnParseOptions;
 
-                expect(actual).toEqual([
-                    { arabic: 'تميم بن نذير', from: 1, id: '1759', index: 1759, pp: 20, volume: 10 },
-                ]);
+    describe('segmentPages', () => {
+        describe('discrete', () => {
+            beforeEach(() => {
+                options = {
+                    patternToOptions: { '^(\\d+ - .*)': {} },
+                };
             });
 
-            it('should capture plain-text chapters', () => {
-                const actual = mapBookPagesToEntries([{ content: 'باب التاء', id: 1, page: 20, part: 10 }]);
+            it('should trim the text', () => {
+                const actual = segmentPages([{ content: ' ١٧٥٩ - تميم بن نذير ', id: 1, pp: 20, volume: 10 }]);
 
-                expect(actual).toEqual([{ arabic: 'باب التاء', from: 1, id: 'C1', pp: 20, type: 3, volume: 10 }]);
+                expect(actual).toMatchObject([
+                    { arabic: '١٧٥٩ - تميم بن نذير', from: 1, id: 'P1', pp: 20, volume: 10 },
+                ]);
             });
 
             it('should capture chapter spans', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `<span data-type="title" id=toc-355> الحكم </span>`, id: 1, page: 20, part: 10 },
+                const actual = segmentPages([
+                    { content: `<span data-type="title" id=toc-355> الحكم </span>`, id: 1, pp: 20, volume: 10 },
                 ]);
 
-                expect(actual).toEqual([{ arabic: 'الحكم', from: 1, id: 'C355', pp: 20, type: 3, volume: 10 }]);
-            });
-
-            it('should capture roman numeric item', () => {
-                const actual = mapBookPagesToEntries([{ content: `1234 - Something`, id: 1, page: 20, part: 10 }], {});
-
-                expect(actual).toEqual([{ arabic: 'Something', from: 1, id: '1234', index: 1234, pp: 20, volume: 10 }]);
+                expect(actual).toMatchObject([{ arabic: 'الحكم', from: 1, id: 'C355', pp: 20, type: 2, volume: 10 }]);
             });
 
             it('should handle multiple narrations on the same page', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `22 - Something\n23 - Else`, id: 1, page: 20, part: 10 },
-                ]);
+                const actual = segmentPages([{ content: `22 - Something\n23 - Else`, id: 1, pp: 20, volume: 10 }], {
+                    patternToOptions: { '^(\\d+ - .*)': {} },
+                });
 
-                expect(actual).toEqual([
-                    { arabic: 'Something', from: 1, id: '22', index: 22, pp: 20, volume: 10 },
-                    { arabic: 'Else', from: 1, id: '23', index: 23, pp: 20, volume: 10 },
+                expect(actual).toMatchObject([
+                    { arabic: '22 - Something', from: 1, id: 'P1', pp: 20, volume: 10 },
+                    { arabic: '23 - Else', from: 1, id: 'P1', pp: 20, volume: 10 },
                 ]);
             });
 
             it('should just capture the page as the first loose leaf', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `Something\rSomething else`, id: 1, page: 1, part: 1 },
-                ]);
+                const actual = segmentPages([{ content: `Something\rSomething else`, id: 1, pp: 1, volume: 1 }]);
 
-                expect(actual).toEqual([{ arabic: 'Something\nSomething else', from: 1, id: 'P11', pp: 1, volume: 1 }]);
+                expect(actual).toMatchObject([
+                    { arabic: 'Something\nSomething else', from: 1, id: 'P1', pp: 1, volume: 1 },
+                ]);
             });
 
             it('should capture indexed then a loose page', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `1 - Something.`, id: 1, page: 1, part: 1 },
-                    { content: `Something else.`, id: 2, page: 2, part: 1 },
-                ]);
+                const actual = segmentPages(
+                    [
+                        { content: `1 - Something.`, id: 1, pp: 1, volume: 1 },
+                        { content: `Something else.`, id: 2, pp: 2, volume: 1 },
+                    ],
+                    options,
+                );
 
-                expect(actual).toEqual([
-                    { arabic: 'Something.', from: 1, id: '1', index: 1, pp: 1, volume: 1 },
-                    { arabic: 'Something else.', from: 2, id: 'P21', pp: 2, volume: 1 },
+                expect(actual).toMatchObject([
+                    { arabic: '1 - Something.', from: 1, id: 'P1', pp: 1, volume: 1 },
+                    { arabic: 'Something else.', from: 2, id: 'P2', pp: 2, volume: 1 },
                 ]);
             });
 
             it('should capture index then loose page without punctuations', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `1 - Something`, id: 1, page: 1, part: 1 },
-                    { content: `Something else`, id: 2, page: 2, part: 1 },
-                ]);
+                const actual = segmentPages(
+                    [
+                        { content: `1 - Something`, id: 1, pp: 1, volume: 1 },
+                        { content: `Something else`, id: 2, pp: 2, volume: 1 },
+                    ],
+                    options,
+                );
 
-                expect(actual).toEqual([
-                    { arabic: 'Something', from: 1, id: '1', index: 1, pp: 1, volume: 1 },
-                    { arabic: 'Something else', from: 2, id: 'P21', pp: 2, volume: 1 },
+                expect(actual).toMatchObject([
+                    { arabic: '1 - Something', from: 1, id: 'P1', pp: 1, volume: 1 },
+                    { arabic: 'Something else', from: 2, id: 'P2', pp: 2, volume: 1 },
                 ]);
             });
 
             it('should capture index then loose page with more than one line', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `1 - Something`, id: 1, page: 1, part: 1 },
-                    { content: `Something else\rNext line`, id: 2, page: 2, part: 1 },
-                ]);
+                const actual = segmentPages(
+                    [
+                        { content: `1 - Something`, id: 1, pp: 1, volume: 1 },
+                        { content: `Something else\rNext line`, id: 2, pp: 2, volume: 1 },
+                    ],
+                    options,
+                );
 
-                expect(actual).toEqual([
-                    { arabic: 'Something', from: 1, id: '1', index: 1, pp: 1, volume: 1 },
-                    { arabic: 'Something else\nNext line', from: 2, id: 'P21', pp: 2, volume: 1 },
+                expect(actual).toMatchObject([
+                    { arabic: '1 - Something', from: 1, id: 'P1', pp: 1, volume: 1 },
+                    { arabic: 'Something else\nNext line', from: 2, id: 'P2', pp: 2, volume: 1 },
                 ]);
             });
 
             it('should capture index then loose page with more than one line then new page separately in a new entry', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `1 - Something`, id: 1, page: 1, part: 1 },
-                    { content: `Something else\rNext line`, id: 2, page: 2, part: 1 },
-                    { content: `New page`, id: 3, page: 3, part: 1 },
-                ]);
+                const actual = segmentPages(
+                    [
+                        { content: `1 - Something`, id: 1, pp: 1, volume: 1 },
+                        { content: `Something else\rNext line`, id: 2, pp: 2, volume: 1 },
+                        { content: `New page`, id: 3, pp: 3, volume: 1 },
+                    ],
+                    options,
+                );
 
-                expect(actual).toEqual([
-                    { arabic: 'Something', from: 1, id: '1', index: 1, pp: 1, volume: 1 },
-                    { arabic: 'Something else\nNext line', from: 2, id: 'P21', pp: 2, volume: 1 },
-                    { arabic: 'New page', from: 3, id: 'P31', pp: 3, volume: 1 },
+                expect(actual).toMatchObject([
+                    { arabic: '1 - Something', from: 1, id: 'P1', pp: 1, volume: 1 },
+                    { arabic: 'Something else\nNext line', from: 2, id: 'P2' },
+                    { arabic: 'New page', from: 3, id: 'P3', pp: 3, volume: 1 },
                 ]);
             });
 
             it('should handle the three pages', () => {
-                const actual = mapBookPagesToEntries([
-                    { content: `A`, id: 1, page: 1, part: 1 },
-                    { content: `B. C`, id: 2, page: 2, part: 1 },
-                    { content: `D`, id: 3, page: 3, part: 1 },
+                const actual = segmentPages([
+                    { content: `A`, id: 1, pp: 1, volume: 1 },
+                    { content: `B. C`, id: 2, pp: 2, volume: 1 },
+                    { content: `D`, id: 3, pp: 3, volume: 1 },
                 ]);
 
                 expect(actual).toEqual([
                     {
                         arabic: 'A',
                         from: 1,
-                        id: 'P11',
+                        id: 'P1',
                         pp: 1,
                         volume: 1,
                     },
                     {
                         arabic: 'B. C',
                         from: 2,
-                        id: 'P21',
+                        id: 'P2',
                         pp: 2,
                         volume: 1,
                     },
                     {
                         arabic: 'D',
                         from: 3,
-                        id: 'P31',
+                        id: 'P3',
                         pp: 3,
                         volume: 1,
                     },
@@ -134,55 +144,79 @@ describe('mapping', () => {
             });
         });
 
-        describe('isMulti', () => {
+        describe('trailing', () => {
+            beforeEach(() => {
+                options = { overflow: 'punctuation' };
+            });
+
             it('should be two separate pages since first ends with punctuation', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
-                        { content: `Some text.`, id: 1, page: 1, part: 1 },
-                        { content: `More text.`, id: 2, page: 2, part: 1 },
+                        { content: `Some text.`, id: 1, pp: 1, volume: 1 },
+                        { content: `More text.`, id: 2, pp: 2, volume: 1 },
                     ],
-                    true,
+                    options,
                 );
 
                 expect(actual).toEqual([
                     {
                         arabic: 'Some text.',
                         from: 1,
-                        id: 'P11',
+                        id: 'P1',
                         pp: 1,
                         volume: 1,
                     },
                     {
                         arabic: 'More text.',
                         from: 2,
-                        id: 'P21',
+                        id: 'P2',
                         pp: 2,
                         volume: 1,
                     },
                 ]);
             });
 
+            it('should be a single spanning entry since we are not capturing trailing', () => {
+                const actual = segmentPages(
+                    [
+                        { content: `Some text.`, id: 1, pp: 1, volume: 1 },
+                        { content: `More text.`, id: 2, pp: 2, volume: 1 },
+                    ],
+                    { overflow: 'next' },
+                );
+
+                expect(actual).toEqual([
+                    {
+                        arabic: 'Some text.\nMore text.',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        to: 2,
+                        volume: 1,
+                    },
+                ]);
+            });
+
             it('should only create a new entry after the last punctuation sentence', () => {
-                const actual = mapBookPagesToEntries(
+                const actual = segmentPages(
                     [
                         {
                             content: `Something else.\rThis is the rest of the sentence.\rAfter that we have it`,
                             id: 1,
-                            page: 1,
-                            part: 1,
+                            pp: 1,
+                            volume: 1,
                         },
-                        { content: `Another sentence. Rest of sentence`, id: 2, page: 2, part: 1 },
+                        { content: `Another sentence. Rest of sentence`, id: 2, pp: 2, volume: 1 },
                     ],
-                    true,
+                    options,
                 );
-
-                console.log(actual);
 
                 expect(actual).toEqual([
                     {
                         arabic: 'Something else.\nThis is the rest of the sentence.\nAfter that we have it\nAnother sentence.',
                         from: 1,
-                        id: 'P11',
+
+                        id: 'P1',
                         pp: 1,
                         to: 2,
                         volume: 1,
@@ -190,29 +224,29 @@ describe('mapping', () => {
                     {
                         arabic: 'Rest of sentence',
                         from: 2,
-                        id: 'P21',
+                        id: 'P2',
                         pp: 2,
                         volume: 1,
                     },
                 ]);
             });
 
-            it.only('should handle the three pages with punctuation', () => {
-                const actual = mapBookPagesToEntries(
+            it('should handle the three pages with punctuation', () => {
+                const actual = segmentPages(
                     [
-                        { content: `A`, id: 1, page: 1, part: 1 },
-                        { content: `B. C`, id: 2, page: 2, part: 1 },
-                        { content: `D. E`, id: 3, page: 3, part: 1 },
-                        { content: `F`, id: 4, page: 4, part: 1 },
+                        { content: `A`, id: 1, pp: 1, volume: 1 },
+                        { content: `B. C`, id: 2, pp: 2, volume: 1 },
+                        { content: `D. E`, id: 3, pp: 3, volume: 1 },
+                        { content: `F`, id: 4, pp: 4, volume: 1 },
                     ],
-                    true,
+                    { overflow: 'punctuation' },
                 );
 
                 expect(actual).toEqual([
                     {
                         arabic: 'A\nB.',
                         from: 1,
-                        id: 'P11',
+                        id: 'P1',
                         pp: 1,
                         to: 2,
                         volume: 1,
@@ -220,7 +254,8 @@ describe('mapping', () => {
                     {
                         arabic: 'C\nD.',
                         from: 2,
-                        id: 'P21',
+
+                        id: 'P2',
                         pp: 2,
                         to: 3,
                         volume: 1,
@@ -228,13 +263,237 @@ describe('mapping', () => {
                     {
                         arabic: 'E\nF',
                         from: 3,
-                        id: 'P31',
+                        id: 'P3',
                         pp: 3,
                         to: 4,
                         volume: 1,
                     },
                 ]);
             });
+
+            it('should handle the three pages with punctuation', () => {
+                const actual = segmentPages(
+                    [
+                        { content: `A`, id: 1, pp: 1, volume: 1 },
+                        { content: `B. C`, id: 2, pp: 2, volume: 1 },
+                        { content: `D. E`, id: 3, pp: 3, volume: 1 },
+                        { content: `F`, id: 4, pp: 4, volume: 1 },
+                    ],
+                    options,
+                );
+
+                expect(actual).toEqual([
+                    {
+                        arabic: 'A\nB.',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        to: 2,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'C\nD.',
+                        from: 2,
+
+                        id: 'P2',
+                        pp: 2,
+                        to: 3,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'E\nF',
+                        from: 3,
+
+                        id: 'P3',
+                        pp: 3,
+                        to: 4,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('square', () => {
+            beforeEach(() => {
+                options = {
+                    patternToOptions: { '^(\\[[\\u0660-\\u0669]+\\] .*)': {} },
+                };
+            });
+
+            it('should capture the square brackets', () => {
+                const lines = ['فأخبره ويسألني', '[٦٥] "إبراهيم" بن إسماعيل', '[٦٦] "إبراهيم" بن إسماعيل'];
+
+                const actual = segmentPages([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], options);
+
+                expect(actual).toMatchObject([
+                    {
+                        arabic: 'فأخبره ويسألني',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: '[٦٥] "إبراهيم" بن إسماعيل',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: '[٦٦] "إبراهيم" بن إسماعيل',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('newEntryMarkerPattern', () => {
+            beforeEach(() => {
+                options = {
+                    patternToOptions: { '^•\\s?(.*)': {} },
+                };
+            });
+
+            it('should capture an entry starting with bullet points', () => {
+                const lines = ['• A', '•B', 'C'];
+                const actual = segmentPages([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], options);
+
+                expect(actual).toMatchObject([
+                    {
+                        arabic: 'A',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'B\nC',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+
+        describe('prevEntryMarkerPattern', () => {
+            it('should capture an entry since the last one ended with the pattern', () => {
+                const lines = ['A', 'B 33.', 'C'];
+                const actual = segmentPages([{ content: lines.join('\r'), id: 1, pp: 1, volume: 1 }], {
+                    overflow: 'punctuation',
+                    prevEntryMarkerPattern: ' \\d+\\.$',
+                });
+
+                expect(actual).toMatchObject([
+                    {
+                        arabic: 'A\nB 33.',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                    {
+                        arabic: 'C',
+                        from: 1,
+                        id: 'P1',
+                        pp: 1,
+                        volume: 1,
+                    },
+                ]);
+            });
+        });
+    });
+
+    describe('mapLinesToTranslations', () => {
+        it('should pick up the page segments', () => {
+            const actual = mapLinesToTranslations('P11 - Abcd\nP22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'P11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'P22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should correct markers that were accidentally merged into a single line', () => {
+            const actual = mapLinesToTranslations('P11 - Abcd P22 - 2 - Something. ');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'P11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'P22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should correct escaped characters', () => {
+            const actual = mapLinesToTranslations('P11 - \\[Abcd]');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'P11',
+                    text: '[Abcd]',
+                },
+            ]);
+        });
+
+        it('should match book numbers', () => {
+            const actual = mapLinesToTranslations('B11 - Abcd\nB22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'B11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'B22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should match book numbers', () => {
+            const actual = mapLinesToTranslations('B11 - Abcd\nB22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'B11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'B22',
+                    text: '2 - Something.',
+                },
+            ]);
+        });
+
+        it('should match chapter numbers', () => {
+            const actual = mapLinesToTranslations('C11 - Abcd\nC22 - 2 - Something.');
+
+            expect(actual).toMatchObject([
+                {
+                    id: 'C11',
+                    text: 'Abcd',
+                },
+                {
+                    id: 'C22',
+                    text: '2 - Something.',
+                },
+            ]);
         });
     });
 });
